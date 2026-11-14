@@ -1,0 +1,10 @@
+{
+  "app": "knockknock",
+  "title": "Knock Knock",
+  "upstream": "tyler-class/knockknock",
+  "dataNote": "Your data lives in the database and file storage, not here, so it isn't touched.",
+  "email": "knockknock@tylerclass.net",
+  "counted": "searches, applications, timeline events, stories and files",
+  "files": true,
+  "push": true
+}

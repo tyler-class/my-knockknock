@@ -1,0 +1,121 @@
+import { useMemo, useState, type ReactNode } from 'react';
+import type { Status } from '@shared/lookups';
+import { useData } from '../lib/queries';
+import { AboutSheet } from './AboutSheet';
+import { ApplicationSheet, PersonSheet, SearchSheet, StatusSheet } from './AppSheets';
+import { EventSheet } from './EventSheet';
+import {
+  FrameworkPicker,
+  FrameworkSheet,
+  JobStorySheet,
+  LinkStorySheet,
+  StorySheet,
+} from './StorySheets';
+import { SheetCtx, type LogType, type SheetApi } from './context';
+
+type Open =
+  | { type: 'app'; id?: string; n: number }
+  | { type: 'status'; appId: string; to?: Status; n: number }
+  | {
+      type: 'log';
+      appId: string;
+      logType?: LogType;
+      eventId?: string;
+      parentId?: string;
+      n: number;
+    }
+  | { type: 'person'; appId: string; id?: string; n: number }
+  | { type: 'search'; id?: string; n: number }
+  | { type: 'story'; id?: string; framework?: string; n: number }
+  | { type: 'pick'; appId?: string; n: number }
+  | { type: 'jobStory'; id?: string; appId?: string; framework?: string; n: number }
+  | { type: 'link'; appId: string; n: number }
+  | { type: 'framework'; key?: string; n: number }
+  | { type: 'about' };
+
+/** One sheet at a time, reachable from anywhere through useSheets(). */
+export function SheetProvider({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState<Open | null>(null);
+  const data = useData();
+  const api = useMemo<SheetApi>(() => {
+    let n = 0;
+    return {
+      addJob: () => setOpen({ type: 'app', n: ++n }),
+      editApp: (id) => setOpen({ type: 'app', id, n: ++n }),
+      status: (appId, to) => setOpen({ type: 'status', appId, to, n: ++n }),
+      log: (appId, o = {}) =>
+        setOpen({
+          type: 'log',
+          appId,
+          logType: o.type,
+          eventId: o.eventId,
+          parentId: o.parentId,
+          n: ++n,
+        }),
+      person: (appId, id) => setOpen({ type: 'person', appId, id, n: ++n }),
+      search: (id) => setOpen({ type: 'search', id, n: ++n }),
+      story: (o) => setOpen({ type: 'story', ...o, n: ++n }),
+      newStory: (appId) => setOpen({ type: 'pick', appId, n: ++n }),
+      jobStory: (o) => setOpen({ type: 'jobStory', ...o, n: ++n }),
+      linkStory: (appId) => setOpen({ type: 'link', appId, n: ++n }),
+      framework: (key) => setOpen({ type: 'framework', key, n: ++n }),
+      about: () => setOpen({ type: 'about' }),
+      close: () => setOpen(null),
+    };
+  }, []);
+
+  let sheet: ReactNode = open?.type === 'about' ? <AboutSheet /> : null;
+  if (open && open.type !== 'about' && data) {
+    const k = `${open.type}${open.n}`;
+    if (open.type === 'app') sheet = <ApplicationSheet key={k} data={data} id={open.id} />;
+    if (open.type === 'status')
+      sheet = <StatusSheet key={k} data={data} appId={open.appId} to={open.to} />;
+    if (open.type === 'log')
+      sheet = (
+        <EventSheet
+          key={k}
+          data={data}
+          appId={open.appId}
+          type={open.logType}
+          eventId={open.eventId}
+          parentId={open.parentId}
+        />
+      );
+    if (open.type === 'person')
+      sheet = <PersonSheet key={k} data={data} appId={open.appId} id={open.id} />;
+    if (open.type === 'search') sheet = <SearchSheet key={k} data={data} id={open.id} />;
+    if (open.type === 'story')
+      sheet = <StorySheet key={k} data={data} id={open.id} framework={open.framework} />;
+    if (open.type === 'pick')
+      sheet = (
+        <FrameworkPicker
+          key={k}
+          data={data}
+          onPick={(f) =>
+            open.appId
+              ? api.jobStory({ appId: open.appId, framework: f })
+              : api.story({ framework: f })
+          }
+        />
+      );
+    if (open.type === 'jobStory')
+      sheet = (
+        <JobStorySheet
+          key={k}
+          data={data}
+          id={open.id}
+          appId={open.appId}
+          framework={open.framework}
+        />
+      );
+    if (open.type === 'link') sheet = <LinkStorySheet key={k} data={data} appId={open.appId} />;
+    if (open.type === 'framework') sheet = <FrameworkSheet key={k} data={data} fwKey={open.key} />;
+  }
+
+  return (
+    <SheetCtx.Provider value={api}>
+      {children}
+      {sheet}
+    </SheetCtx.Provider>
+  );
+}

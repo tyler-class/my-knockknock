@@ -26,9 +26,9 @@
   "d1_databases": [
     {
       // No database_id: the Deploy button and `wrangler deploy` provision it automatically.
-      "binding": "DB",
+      "binding": "DB", "database_id": "0237f102-082a-43d0-b80f-9919257195fe",
       "database_name": "my-knockknock",
-      "migrations_dir": "migrations","database_id": "0237f102-082a-43d0-b80f-9919257195fe",
+      "migrations_dir": "migrations",
     },
   ],
   "r2_buckets": [
@@ -36,13 +36,13 @@
       // Resumes, cover letters, transcripts and offer letters. Private: served only through
       // /api/files/:id to signed-in users. Created on first deploy if it doesn't exist.
       "binding": "FILES",
-      "bucket_name": "my-knockknock-files","preview_bucket_name": "my-knockknock-files",
+      "bucket_name": "my-knockknock-files",
     },
   ],
   "kv_namespaces": [
     {
       // Sign-ins for AI assistants connected over MCP. Provisioned automatically on deploy.
-      "binding": "OAUTH_KV","id": "cc7fe7875e3244f9824346644eaf1394",
+      "binding": "OAUTH_KV", "id": "cc7fe7875e3244f9824346644eaf1394",
     },
   ],
 }

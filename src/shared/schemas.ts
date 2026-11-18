@@ -1,5 +1,6 @@
 // Request bodies. Shared so the client, the Worker and the MCP server agree on shapes.
 import { z } from 'zod';
+import { withScheme } from './url';
 import {
   EMAIL_CATEGORY_KEYS,
   FILE_KIND_KEYS,
@@ -41,13 +42,22 @@ const list = (max = 40, each = 300) =>
     .array(z.string().trim().min(1).max(each))
     .max(max)
     .transform((a) => [...new Set(a)]);
+/**
+ * A link. "acme.com" and "www.acme.com" are fine: without a scheme it's taken as https. Only
+ * http(s) links with a real-looking host are kept.
+ */
+// In its own module so the client can use it without bundling zod.
+export { withScheme };
 const url = z
   .string()
   .trim()
   .max(2000)
   .nullish()
-  .transform((v) => (v ? v : null))
-  .refine((v) => v === null || /^https?:\/\//i.test(v), 'Use a full http(s) link');
+  .transform((v) => (v ? withScheme(v) : null))
+  .refine(
+    (v) => v === null || /^https?:\/\/[^\s/.]+\.[^\s]+/i.test(v),
+    'That doesn’t look like a link',
+  );
 const externalRef = text(500);
 
 export const loginInput = z.object({ password: z.string().min(1).max(500) });
@@ -70,13 +80,6 @@ export const searchInput = z.object({
   status: z.enum(SEARCH_STATUSES).default('active'),
   started_on: day,
   ended_on: day,
-  weekly_goal: z
-    .number()
-    .int()
-    .min(0)
-    .max(200)
-    .nullish()
-    .transform((v) => v ?? null),
   notes: text(4000),
 });
 export const searchPatch = searchInput.partial();
@@ -148,6 +151,8 @@ export const statusInput = z.object({
   reason: text(1000),
   caused_by: z.string().max(100).nullish(),
   external_ref: externalRef,
+  /** With Accepted: also mark the search Accepted. Only when the owner said yes. */
+  close_search: z.boolean().optional(),
 });
 
 // ---------- timeline ----------
@@ -234,6 +239,8 @@ export const personInput = z.object({
   email: text(200),
   title: text(200),
   role: z.enum(PERSON_ROLE_KEYS).default('other'),
+  /** What the role is when role is other ("Head of Talent", "Board member"). */
+  other_role: text(100),
   linkedin: url,
   notes: text(4000),
 });
@@ -291,20 +298,12 @@ export const linkStoryInput = z.object({
   angle: text(2000),
 });
 
-export const tellInput = z.object({
-  event_id: z.string().max(100).nullish(),
-  told_at: instant.optional(),
-  heard_by: list(20, 200).default([]),
-  note: text(2000),
-});
-
 // ---------- files ----------
 
 export const filePatch = z
   .object({
     kind: z.enum(FILE_KIND_KEYS),
     label: text(200),
-    locked: z.boolean(),
     event_id: z.string().max(100).nullable(),
     application_id: z.string().max(100).nullable(),
   })

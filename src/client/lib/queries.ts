@@ -3,6 +3,7 @@ import { useCallback, useMemo } from 'react';
 import type { AppState, Application, Search, Settings, TimelineEvent } from '@shared/types';
 import { api, errorMessage } from './api';
 import { useToast } from '../components/Toast';
+import { setDeviceSearch, useDeviceSearch } from './currentSearch';
 
 export const keys = { state: ['state'] as const, session: ['session'] as const };
 
@@ -17,7 +18,7 @@ export function useAppState() {
 export interface Data {
   state: AppState;
   search: Search | null;
-  /** Applications in the current search. */
+  /** Applications in the chosen search. */
   apps: Application[];
   appById: Map<string, Application>;
   eventsByApp: Map<string, TimelineEvent[]>;
@@ -26,9 +27,12 @@ export interface Data {
 /** The state plus the joins every screen needs, rebuilt only when the data changes. */
 export function useData(): Data | null {
   const { data } = useAppState();
+  const picked = useDeviceSearch();
   return useMemo(() => {
     if (!data) return null;
+    // This device's pick, else the server's current search, else the newest.
     const search =
+      data.searches.find((s) => s.id === picked) ??
       data.searches.find((s) => s.id === data.settings.current_search_id) ??
       data.searches[0] ??
       null;
@@ -44,7 +48,7 @@ export function useData(): Data | null {
       appById: new Map(data.applications.map((a) => [a.id, a])),
       eventsByApp,
     };
-  }, [data]);
+  }, [data, picked]);
 }
 
 /**
@@ -86,6 +90,15 @@ export function useActions() {
           if (cur) qc.setQueryData(keys.state, { ...cur, settings });
           return settings;
         }),
+      /** Switch this device to a search, and make it the server's current one too. */
+      chooseSearch: async (id: string) => {
+        setDeviceSearch(id);
+        const settings = await api
+          .patch<Settings>('/settings', { current_search_id: id })
+          .catch(() => null);
+        const cur = qc.getQueryData<AppState>(keys.state);
+        if (cur && settings) qc.setQueryData(keys.state, { ...cur, settings });
+      },
     }),
     [run, qc],
   );

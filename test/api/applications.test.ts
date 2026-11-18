@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { AppState, Application, TimelineEvent } from '../../src/shared/types';
+import type { AppState, Application, Person, TimelineEvent } from '../../src/shared/types';
 import { session } from './helpers';
 
 interface Written {
@@ -170,7 +170,7 @@ describe('applications and their timelines', () => {
     expect(bad.status).toBe(400);
   });
 
-  it('accepting closes the search and lists the other open applications', async () => {
+  it('accepting closes the search only when asked, and lists the other open applications', async () => {
     const api = await session();
     const search = (await api.post<{ id: string }>('/searches', { name: 'Accept test' })).data;
     const one = (
@@ -190,7 +190,11 @@ describe('applications and their timelines', () => {
       })
     ).data;
     await api.post(`/applications/${one.id}/status`, { status: 'accepted' });
-    const state = (await api.get<AppState>('/state')).data;
+    let state = (await api.get<AppState>('/state')).data;
+    expect(state.searches.find((s) => s.id === search.id)).toMatchObject({ status: 'active' });
+    // The owner said yes: mark the search Accepted too (already Accepted, so no new event).
+    await api.post(`/applications/${one.id}/status`, { status: 'accepted', close_search: true });
+    state = (await api.get<AppState>('/state')).data;
     expect(state.searches.find((s) => s.id === search.id)).toMatchObject({ status: 'accepted' });
     const others = await api.get<{ applications: Application[] }>(
       `/applications/${one.id}/others-open`,
@@ -209,6 +213,15 @@ describe('applications and their timelines', () => {
       role: 'recruiter',
     });
     expect(p.status).toBe(201);
+    // "Other" carries the role in their own words; another role clears it.
+    const o = await api.post<Person>(`/applications/${a.id}/people`, {
+      name: 'Sam Lee',
+      role: 'other',
+      other_role: 'Head of Talent',
+    });
+    expect(o.data.other_role).toBe('Head of Talent');
+    const r = await api.patch<Person>(`/people/${o.data.id}`, { role: 'interviewer' });
+    expect(r.data.other_role).toBeNull();
     const hit = await api.get<{ applications: Application[] }>(
       '/applications?q=dana%40northwind.example',
     );

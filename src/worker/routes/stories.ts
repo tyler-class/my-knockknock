@@ -12,9 +12,8 @@ import {
   linkStoryInput,
   storyInput,
   storyPatch,
-  tellInput,
 } from '@shared/schemas';
-import { BUILTIN_KEYS } from '@shared/frameworks';
+import { BUILTIN_KEYS, storyExtras } from '@shared/frameworks';
 import { contentHash, frameworkOf, switchFramework } from '@shared/logic/stories';
 import type { Framework, Story } from '@shared/types';
 import {
@@ -27,7 +26,6 @@ import {
   newId,
   nowIso,
   toFramework,
-  toTell,
   updateStmt,
 } from '../db';
 import { ApiError, body, defined, notFound, type AppEnv } from './util';
@@ -39,6 +37,13 @@ async function framework(db: D1Database, key: string): Promise<Framework> {
   if (!f) throw new ApiError(400, 'invalid', `No story framework “${key}”.`);
   return f;
 }
+
+/**
+ * Openers (Introduction, Why this job, Why I'm looking) don't ask for questions; a new one
+ * answers its framework's usual questions, so Call Mode still finds it.
+ */
+const defaultQuestions = (questions: string[], f: Framework) =>
+  questions.length || storyExtras(f.group).includes('questions') ? questions : f.questions;
 
 /** Only sections the framework has, trimmed; empty ones dropped. */
 function clean(sections: Record<string, string>, f: Framework | { sections: { key: string }[] }) {
@@ -118,7 +123,11 @@ stories.post('/stories', async (c) => {
   const now = nowIso();
   await insertStmt(c.env.DB, 'stories', {
     id,
-    ...encode({ ...input, sections: clean(input.sections, f) }),
+    ...encode({
+      ...input,
+      sections: clean(input.sections, f),
+      questions: defaultQuestions(input.questions, f),
+    }),
     version: 1,
     created_at: now,
     updated_at: now,
@@ -235,6 +244,7 @@ stories.post('/applications/:id/stories', async (c) => {
     const input = r.data;
     const f = await framework(db, input.framework_key);
     const sections = clean(input.sections, f);
+    input.questions = defaultQuestions(input.questions, f);
     await insertStmt(db, 'job_stories', {
       id,
       application_id: appId,
@@ -363,44 +373,4 @@ stories.post('/job-stories/:id/save-as-new', async (c) => {
     base_hash: contentHash(js),
   }).run();
   return c.json({ job_story: await loadJobStory(db, js.id), story: await loadStory(db, id) }, 201);
-});
-
-// ---------- told ----------
-
-stories.post('/job-stories/:id/tells', async (c) => {
-  const js = await loadJobStory(c.env.DB, c.req.param('id'));
-  if (!js) throw notFound('Story');
-  const input = await body(c, tellInput);
-  if (input.event_id) {
-    const ev = await first<{ application_id: string }>(
-      c.env.DB,
-      'SELECT application_id FROM events WHERE id = ?',
-      input.event_id,
-    );
-    if (!ev || ev.application_id !== js.application_id)
-      throw new ApiError(400, 'invalid', 'event_id must be a meeting on the same application.');
-  }
-  const id = newId();
-  const now = nowIso();
-  await insertStmt(c.env.DB, 'story_tells', {
-    id,
-    job_story_id: js.id,
-    event_id: input.event_id ?? null,
-    told_at: input.told_at ?? now,
-    heard_by: JSON.stringify(input.heard_by),
-    note: input.note,
-    created_at: now,
-  }).run();
-  return c.json(
-    toTell((await first(c.env.DB, 'SELECT * FROM story_tells WHERE id = ?', id))!),
-    201,
-  );
-});
-
-stories.delete('/tells/:id', async (c) => {
-  const id = c.req.param('id');
-  if (!(await first(c.env.DB, 'SELECT id FROM story_tells WHERE id = ?', id)))
-    throw notFound('Told');
-  await c.env.DB.prepare('DELETE FROM story_tells WHERE id = ?').bind(id).run();
-  return c.json({ ok: true });
 });

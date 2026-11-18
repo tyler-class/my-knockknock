@@ -1,7 +1,8 @@
 import { SELF } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
 import { EXAMPLE_PROMPTS, MCP_PROMPTS } from '@shared/examples';
-import { ORIGIN, PASSWORD } from './helpers';
+import pkg from '../../package.json';
+import { ORIGIN, PASSWORD, session } from './helpers';
 
 const REDIRECT = 'https://client.example/callback';
 
@@ -167,14 +168,16 @@ describe('MCP', () => {
         'update_event',
         'delete_event',
         'list_stories',
+        'list_archived_stories',
         'create_story',
         'link_story',
-        'record_story_told',
         'upload_link',
         'add_text_file',
         'get_file_text',
       ]),
     );
+    // Stories aren't marked as told any more.
+    expect(names).not.toContain('record_story_told');
     const prompts = await rpc(token, 'prompts/list');
     expect(
       (prompts.data.result as unknown as { prompts: { name: string }[] }).prompts.map(
@@ -286,7 +289,7 @@ describe('MCP', () => {
       external_ref: 'gcal:777',
     });
 
-    // Stories: write one, find it by the question, link it, tell it.
+    // Stories: write one, find it by the question, link it.
     const st = await tool<{ created: { id: string } }>(token, 'create_story', {
       framework: 'STAR',
       title: 'Pushing back on a VP deadline',
@@ -313,13 +316,28 @@ describe('MCP', () => {
       angle: 'Lead with the date.',
     });
     expect(linked.error).toBeNull();
-    const told = await tool(token, 'record_story_told', {
-      application: 'Copperleaf',
-      story: 'Pushing back',
-      meeting: manual.data.logged.id,
-      heard_by: ['Dana Ruiz'],
+
+    // Archiving takes a story out of list_stories; list_archived_stories finds it and says how
+    // to bring it back, and update_story with archived: false restores it.
+    const arch = await tool(token, 'update_story', { story: st.data.created.id, archived: true });
+    expect(arch.error).toBeNull();
+    const without = await tool<{ id: string }[]>(token, 'list_stories', { query: 'pushing back' });
+    expect(without.data.map((h) => h.id)).not.toContain(st.data.created.id);
+    const archivedList = await tool<{
+      note: string;
+      stories: { id: string; archived: boolean }[];
+    }>(token, 'list_archived_stories', { query: 'pushing back' });
+    expect(archivedList.data.stories).toEqual([
+      expect.objectContaining({ id: st.data.created.id, archived: true }),
+    ]);
+    expect(archivedList.data.note).toMatch(/update_story.*archived: false/);
+    const restored = await tool(token, 'update_story', {
+      story: 'Pushing back on a VP deadline',
+      archived: false,
     });
-    expect(told.error).toBeNull();
+    expect(restored.error).toBeNull();
+    const back = await tool<{ id: string }[]>(token, 'list_stories', { query: 'pushing back' });
+    expect(back.data.map((h) => h.id)).toContain(st.data.created.id);
 
     // A transcript as text, read back.
     const file = await tool<{ saved: { id: string } }>(token, 'add_text_file', {
@@ -349,5 +367,42 @@ describe('MCP', () => {
 
     const ambiguous = await tool(token, 'get_application', { application: 'zzz no such company' });
     expect(ambiguous.error).toMatch(/No application matches/);
+  });
+
+  it('reports the package version as the server version', async () => {
+    const { token } = (await connect()) as { token: string };
+    const init = await rpc(token, 'initialize', {
+      protocolVersion: '2025-06-18',
+      capabilities: {},
+      clientInfo: { name: 'test', version: '0' },
+    });
+    const info = (init.data.result as unknown as { serverInfo: { name: string; version: string } })
+      .serverInfo;
+    expect(info).toEqual({ name: 'knockknock', version: pkg.version });
+  });
+
+  it('find_applications looks in the current search unless all_searches is on', async () => {
+    const api = await session();
+    await api.post('/searches', { name: 'Past search' });
+    const old = await api.post<{ id: string }>('/applications', {
+      title: 'Ops lead',
+      company: 'Zephyrine Freight',
+    });
+    expect(old.status).toBe(201);
+    await api.post('/searches', { name: 'Now search' });
+    const { token } = (await connect()) as { token: string };
+    const here = await tool<{ count: number; in_past_searches?: number }>(
+      token,
+      'find_applications',
+      { query: 'zephyrine' },
+    );
+    expect(here.data).toMatchObject({ count: 0, in_past_searches: 1 });
+    const everywhere = await tool<{ count: number; applications: { id: string }[] }>(
+      token,
+      'find_applications',
+      { query: 'zephyrine', all_searches: true },
+    );
+    expect(everywhere.data.count).toBe(1);
+    expect(everywhere.data.applications.map((a) => a.id)).toEqual([old.data.id]);
   });
 });

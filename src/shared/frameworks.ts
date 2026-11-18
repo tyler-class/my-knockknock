@@ -153,6 +153,23 @@ export const BUILTIN_FRAMEWORKS: FrameworkDef[] = [
 
 export const BUILTIN_KEYS = BUILTIN_FRAMEWORKS.map((f) => f.key);
 
+/**
+ * Fields a story has besides its framework's sections. A story shows only its framework's parts
+ * plus the extras that fit its kind: openers (Introduction, Why this job, Why I'm looking) are
+ * just their parts; behavioral, technical and custom stories also get a hook, competencies and
+ * the questions they answer. A field that already holds something still shows, so nothing
+ * stored is hidden.
+ */
+export type StoryExtra = 'hook' | 'competencies' | 'questions';
+const EXTRAS: Record<FrameworkDef['group'], StoryExtra[]> = {
+  Opener: [],
+  Behavioral: ['hook', 'competencies', 'questions'],
+  Technical: ['hook', 'competencies', 'questions'],
+  Custom: ['hook', 'competencies', 'questions'],
+};
+export const storyExtras = (group: string | undefined): StoryExtra[] =>
+  EXTRAS[(group ?? 'Custom') as FrameworkDef['group']] ?? EXTRAS.Custom;
+
 /** The letter badge shown next to a section in call mode ("S", "T", "A", "R"). */
 export const sectionLetter = (label: string) =>
   (label.replace(/^(the|why|what|my)\s+/i, '').trim()[0] ?? '?').toUpperCase();

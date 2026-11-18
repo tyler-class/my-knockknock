@@ -54,13 +54,24 @@ export function syncState(js: JobStory, bank: Story | undefined): SyncState {
   return edited && newer ? 'both' : edited ? 'edited' : newer ? 'bank_newer' : 'in_sync';
 }
 
+/** A job's copy, in plain words, as a short tag on its row ('' when there's nothing to say). */
 export const SYNC_LABEL: Record<SyncState, string> = {
-  job_only: 'Job-only',
-  source_gone: 'Bank story deleted',
-  in_sync: 'In sync',
-  edited: 'Edited here',
-  bank_newer: 'Bank updated',
-  both: 'Both changed',
+  job_only: 'Only on this job',
+  source_gone: 'Original deleted from Stories',
+  in_sync: '',
+  edited: 'Changed for this job',
+  bank_newer: 'Newer version in Stories',
+  both: 'Changed here and in Stories',
+};
+
+/** The same, seen from Stories story: how each job's copy compares with it. */
+export const COPY_LABEL: Record<SyncState, string> = {
+  job_only: '',
+  source_gone: '',
+  in_sync: 'Same',
+  edited: 'Changed for this job',
+  bank_newer: 'Older version',
+  both: 'Changed, older version',
 };
 
 /** Built-ins first, then custom ones. */

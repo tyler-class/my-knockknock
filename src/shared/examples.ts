@@ -23,19 +23,18 @@ export const EXAMPLE_PROMPTS: ExamplePrompt[] = [
   },
   {
     prompt: 'Prep me for my <company> interview tomorrow.',
-    why: 'Who’s in the room, what they heard, which stories to bring.',
+    why: 'Who’s in the room, what to expect, which stories to bring.',
   },
   {
-    prompt:
-      'Here’s the transcript from my <company> call. Write the debrief and log which stories I told.',
-    why: 'A debrief note and a “told” mark on each story.',
+    prompt: 'Here’s the transcript from my <company> call. Write the debrief.',
+    why: 'A debrief note under the meeting, with next steps.',
   },
   {
     prompt: 'Which applications have gone quiet, and who should I follow up with?',
     why: 'A short list with drafts if you want them.',
   },
   {
-    prompt: 'Write a STAR story about <project> and add it to my story bank.',
+    prompt: 'Write a STAR story about <project> and add it to my Stories.',
     why: 'Talk it through; it lands in the bank with probable questions.',
   },
   {
@@ -59,12 +58,12 @@ export const MCP_PROMPTS: { name: string; title: string; does: string }[] = [
   {
     name: 'prep_interview',
     title: 'Prep me for an interview',
-    does: 'Who’s in the room, what they already heard, and which stories to bring.',
+    does: 'Who’s in the room, what to expect, and which stories to bring.',
   },
   {
     name: 'debrief',
     title: 'Debrief an interview',
-    does: 'Turns your notes or a transcript into a debrief and records the stories you told.',
+    does: 'Turns your notes or a transcript into a debrief note under the meeting.',
   },
   {
     name: 'weekly_review',

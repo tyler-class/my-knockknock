@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { frameworkOf, searchStories } from '@shared/logic/stories';
 import { useData } from '../lib/queries';
+import { storyCounts } from '../lib/filters';
+import { useViewState } from '../lib/viewState';
 import { useSheets } from '../sheets/context';
 import { Icon } from '../components/Icon';
 import { PageHeader, SlideToggle, cx } from '../components/ui';
@@ -9,18 +11,20 @@ export function Stories() {
   const data = useData();
   const sheets = useSheets();
   const [q, setQ] = useState('');
-  const [fw, setFw] = useState<string>('all');
-  const [tag, setTag] = useState<string | null>(null);
-  const [archived, setArchived] = useState(false);
+  // Remembered on this device and kept in the address (?fw=star&tag=conflict&archived=1).
+  const [choice, choose] = useViewState('kk:stories', { fw: 'all', tag: '', archived: '' });
+  const archived = choice.archived === '1';
   const stories = useMemo(() => data?.state.stories ?? [], [data]);
-  const tags = useMemo(() => {
-    const c = new Map<string, number>();
-    for (const s of stories) for (const t of s.tags) c.set(t, (c.get(t) ?? 0) + 1);
-    return [...c.entries()].sort((a, b) => b[1] - a[1]).map(([t]) => t);
-  }, [stories]);
+  const frameworks = useMemo(() => data?.state.frameworks ?? [], [data]);
+  const counts = useMemo(
+    () => storyCounts(stories, frameworks, archived),
+    [stories, frameworks, archived],
+  );
   if (!data) return null;
-  const frameworks = data.state.frameworks;
-  const used = frameworks.filter((f) => stories.some((s) => s.framework_key === f.key));
+  const used = counts.frameworks;
+  // A framework or competency from an old link that no longer has stories falls back to all.
+  const fw = used.some((f) => f.key === choice.fw) ? choice.fw : 'all';
+  const tag = counts.tags.some((t) => t.tag === choice.tag) ? choice.tag : null;
   const pool = stories.filter(
     (s) => s.archived === archived && (fw === 'all' || s.framework_key === fw),
   );
@@ -30,7 +34,8 @@ export function Stories() {
   return (
     <>
       <PageHeader
-        title="Story bank"
+        title="Stories"
+        icon="quote"
         action={
           <button type="button" className="btn primary" onClick={() => sheets.newStory()}>
             <Icon name="plus" size={18} /> New story
@@ -38,8 +43,8 @@ export function Stories() {
         }
       />
       <p className="sub page-sub">
-        Templates. Linking one to a job makes a copy you can tailor; the bank only changes when you
-        push.
+        Linking a story to a job gives that job its own copy to tailor. Changing it there doesn’t
+        change it here unless you choose to.
       </p>
       <div className="toolbar">
         <label className="search-in">
@@ -56,36 +61,27 @@ export function Stories() {
         <SlideToggle
           label="Framework"
           value={fw}
-          onChange={setFw}
+          onChange={(v) => choose({ fw: v })}
           options={[
-            ['all', `All ${stories.filter((s) => s.archived === archived).length}`],
-            ...used.map(
-              (f) =>
-                [
-                  f.key,
-                  `${f.name} ${stories.filter((s) => s.framework_key === f.key && s.archived === archived).length}`,
-                ] as const,
-            ),
+            ['all', `All ${counts.all}`],
+            ...used.map((f) => [f.key, `${f.name} ${f.n}`] as const),
           ]}
         />
       )}
-      {tags.length > 0 && (
+      {counts.tags.length > 0 && (
         <div style={{ marginTop: 10 }}>
           <SlideToggle
             label="Competency"
             value={tag}
-            onChange={setTag}
+            onChange={(v) => choose({ tag: v ?? '' })}
             allowClear
-            options={tags.map((t) => [t, t] as const)}
+            options={counts.tags.map((t) => [t.tag, `${t.tag} ${t.n}`] as const)}
           />
         </div>
       )}
       <div className="story-grid">
         {hits.map(({ item: s, question }) => {
           const copies = data.state.job_stories.filter((j) => j.story_id === s.id);
-          const told = data.state.tells.filter((t) =>
-            copies.some((c) => c.id === t.job_story_id),
-          ).length;
           return (
             <button
               key={s.id}
@@ -109,8 +105,7 @@ export function Stories() {
                 </span>
               )}
               <span className="mono sub">
-                v{s.version} · in {copies.length} {copies.length === 1 ? 'job' : 'jobs'} · told{' '}
-                {told}×
+                v{s.version} · in {copies.length} {copies.length === 1 ? 'job' : 'jobs'}
               </span>
             </button>
           );
@@ -122,7 +117,7 @@ export function Stories() {
           <p className="sub">
             Start with an Introduction (tell me about yourself) and a Why this job, then the five or
             six STAR stories you tell most. Or ask your assistant: “Write a STAR story about the
-            time I… and add it to my story bank.”
+            time I… and add it to my Stories.”
           </p>
           <button type="button" className="btn primary" onClick={() => sheets.newStory()}>
             New story
@@ -134,7 +129,7 @@ export function Stories() {
         <button
           type="button"
           className={cx('btn sm', archived && 'primary')}
-          onClick={() => setArchived((v) => !v)}
+          onClick={() => choose({ archived: archived ? '' : '1' })}
         >
           {archived ? 'Show current' : 'Show archived'}
         </button>

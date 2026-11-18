@@ -34,7 +34,6 @@ function page(info: PageInfo, handle: string, error = ''): string {
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <style>
 :root{--bg:#f5eee3;--surface:#fffcf8;--ink:#2a1b11;--soft:#7b6552;--line:#e3d5bf;--accent:#a4542a;--tint:#f3dfca;--danger:#b2453a;color-scheme:light}
-@media (prefers-color-scheme:dark){:root{--bg:#150f0b;--surface:#201711;--ink:#f4e9db;--soft:#b7a28d;--line:#3b2c20;--accent:#e0914f;--tint:#3d2818;--danger:#e07d6e;color-scheme:dark}}
 *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--bg);color:var(--ink);font:16px/1.5 ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;padding:24px max(16px,env(safe-area-inset-left)) 24px max(16px,env(safe-area-inset-right))}
 main{width:100%;max-width:380px;display:flex;flex-direction:column;gap:18px}
 .mark{width:48px;height:48px;border-radius:14px;background:var(--accent)}

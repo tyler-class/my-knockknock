@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Spinner } from './components/Brand';
 import { useEffect } from 'react';
-import { createBrowserRouter, RouterProvider } from 'react-router';
+import { createBrowserRouter, Navigate, RouterProvider } from 'react-router';
 import { api, ApiError, onUnauthorized } from './lib/api';
 import { startPwa } from './lib/pwa';
 import { keys, useActions, useAppState } from './lib/queries';
@@ -12,7 +13,7 @@ import { Layout } from './routes/Layout';
 import { Pipeline } from './routes/Pipeline';
 import { Reports } from './routes/Reports';
 import { Stories } from './routes/Stories';
-import { Today } from './routes/Today';
+import { Home } from './routes/Home';
 import { Login, SetupNeeded } from './routes/Login';
 import { Settings } from './routes/Settings';
 
@@ -44,13 +45,14 @@ const router = createBrowserRouter([
       </SheetProvider>
     ),
     children: [
-      { path: '/', element: <Today /> },
+      { path: '/', element: <Home /> },
+      { path: '/today', element: <Navigate to="/" replace /> },
       { path: '/pipeline', element: <Pipeline /> },
       { path: '/a/:id', element: <ApplicationPage /> },
       { path: '/stories', element: <Stories /> },
       { path: '/reports', element: <Reports /> },
       { path: '/settings', element: <Settings /> },
-      { path: '*', element: <Today /> },
+      { path: '*', element: <Home /> },
     ],
   },
 ]);
@@ -83,7 +85,12 @@ function Gate() {
       }),
     [qc],
   );
-  if (session.isPending) return null;
+  if (session.isPending)
+    return (
+      <div className="page-loading full">
+        <Spinner size={48} />
+      </div>
+    );
   const err = session.error;
   if (err instanceof ApiError && err.status === 503) return <SetupNeeded message={err.message} />;
   // Offline before the session could be confirmed: show the app with cached data.

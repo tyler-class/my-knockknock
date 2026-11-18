@@ -4,6 +4,22 @@ import { syncState } from '../../src/shared/logic/stories';
 import { session } from './helpers';
 
 describe('story bank and job copies', () => {
+  it('an opener is just its parts and answers its framework’s usual questions', async () => {
+    const api = await session();
+    const intro = (
+      await api.post<Story>('/stories', {
+        framework_key: 'intro',
+        title: 'My intro',
+        sections: { present: 'I build CRMs.' },
+      })
+    ).data;
+    expect(intro.questions).toContain('Tell me about yourself.');
+    const star = (
+      await api.post<Story>('/stories', { framework_key: 'star', title: 'No questions yet' })
+    ).data;
+    expect(star.questions).toEqual([]);
+  });
+
   it('copies on link, tracks edits and versions, pushes, pulls and saves as new', async () => {
     const api = await session();
     const s = (
@@ -96,20 +112,9 @@ describe('story bank and job copies', () => {
     expect(forked.story.id).not.toBe(s.id);
     expect(forked.job_story.story_id).toBe(forked.story.id);
 
-    // Told, in a meeting on that application.
-    const m = (
-      await api.post<{ event: { id: string } }>(`/applications/${b.id}/meetings`, {
-        title: 'Screen',
-        occurred_at: '2026-11-01T15:00:00Z',
-      })
-    ).data.event;
-    const tell = await api.post(`/job-stories/${js2.id}/tells`, {
-      event_id: m.id,
-      heard_by: ['Dana'],
-    });
-    expect(tell.status).toBe(201);
-    const wrong = await api.post(`/job-stories/${js.id}/tells`, { event_id: m.id });
-    expect(wrong.status).toBe(400);
+    // Stories aren't marked as told any more: the route is gone.
+    const tell = await api.post(`/job-stories/${js2.id}/tells`, { heard_by: ['Dana'] });
+    expect(tell.status).toBe(404);
 
     // Deleting the bank story keeps the copies.
     await api.del(`/stories/${s.id}`);

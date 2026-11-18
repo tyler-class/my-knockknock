@@ -91,11 +91,25 @@ describe('files', () => {
     });
     expect(pasted.data).toMatchObject({ kind: 'transcript', label: 'Screen call', has_text: true });
 
-    // Locked once sent: no delete until unlocked.
-    await api.patch(`/files/${resume.id}`, { locked: true });
-    expect((await api.del(`/files/${resume.id}`)).status).toBe(409);
-    await api.patch(`/files/${resume.id}`, { locked: false });
+    // Each file added a "File added" note to the timeline, pointing at it.
+    const fileNotes = (await api.get<AppState>('/state')).data.events.filter(
+      (e) => e.application_id === a.id && e.type === 'note',
+    );
+    const resumeNote = fileNotes.find(
+      (e) => (e.data as { file_id?: string }).file_id === resume.id,
+    );
+    expect(resumeNote?.title).toMatch(/^File added: /);
+    // Its time can be changed like any note's.
+    const moved = await api.patch<{ event: { occurred_at: string } }>(`/events/${resumeNote!.id}`, {
+      occurred_at: '2026-01-05T15:00:00Z',
+    });
+    expect(moved.data.event.occurred_at).toBe('2026-01-05T15:00:00.000Z');
+
+    // No locking: a file is just there or not. Deleting it takes its timeline entry too.
     expect((await api.del(`/files/${resume.id}`)).status).toBe(200);
+    expect(
+      (await api.get<AppState>('/state')).data.events.some((e) => e.id === resumeNote!.id),
+    ).toBe(false);
     expect(
       (await api.get<AppState>('/state')).data.applications.find((x) => x.id === a.id)!
         .resume_file_id,

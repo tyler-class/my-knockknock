@@ -61,7 +61,7 @@ export const MEETING_KINDS = [
   { key: 'technical', label: 'Technical' },
   { key: 'panel', label: 'Panel' },
   { key: 'final', label: 'Final round' },
-  { key: 'other', label: 'Call' },
+  { key: 'other', label: 'Other' },
 ] as const;
 export type MeetingKind = (typeof MEETING_KINDS)[number]['key'];
 export const MEETING_KIND_KEYS = MEETING_KINDS.map((k) => k.key) as [MeetingKind, ...MeetingKind[]];
@@ -98,6 +98,9 @@ export const PERSON_ROLES = [
 export type PersonRole = (typeof PERSON_ROLES)[number]['key'];
 export const PERSON_ROLE_KEYS = PERSON_ROLES.map((r) => r.key) as [PersonRole, ...PersonRole[]];
 export const roleLabel = (k: string) => PERSON_ROLES.find((x) => x.key === k)?.label ?? k;
+/** A person's role as shown: their own words in place of "Other" when given. */
+export const personRoleLabel = (p: { role: string; other_role?: string | null }) =>
+  p.role === 'other' && p.other_role ? p.other_role : roleLabel(p.role);
 
 export const FILE_KINDS = [
   { key: 'resume', label: 'Resume' },

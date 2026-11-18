@@ -89,12 +89,11 @@ describe('notifications', () => {
       frameworks: [],
       stories: [],
       job_stories: [],
-      tells: [],
       files: [],
     } as unknown as AppState;
     const n = dueNotices(state, now, 'America/New_York');
     expect(n.map((x) => `${x.kind}|${x.title}|${x.body}|${x.url}`)).toEqual([
-      'interviews|Interview today: Fathom|Panel interview at 2:00 PM. Your stories are ready in call mode.|/a/a1',
+      'interviews|Interview today: Fathom|Panel interview at 2:00 PM. Your stories are ready in Call Mode.|/a/a1',
       'follow_up|Time to follow up|Copperleaf has been quiet for 13 days. Knock again?|/a/a2',
       "debrief|How did it go at Fathom?|Write down what they asked about in the hiring manager while it's fresh.|/a/a1",
     ]);

@@ -14,7 +14,6 @@ import type {
   Search,
   Settings,
   Story,
-  StoryTell,
   TimelineEvent,
 } from '@shared/types';
 import { kitState } from './kit/telemetry';
@@ -110,7 +109,6 @@ export const toSearch = (r: Row): Search => ({
   status: String(r.status) as Search['status'],
   started_on: s(r.started_on),
   ended_on: s(r.ended_on),
-  weekly_goal: n(r.weekly_goal),
   notes: s(r.notes),
   created_at: String(r.created_at),
 });
@@ -162,6 +160,7 @@ export const toPerson = (r: Row): Person => ({
   email: s(r.email),
   title: s(r.title),
   role: String(r.role) as Person['role'],
+  other_role: s(r.other_role),
   linkedin: s(r.linkedin),
   notes: s(r.notes),
   created_at: String(r.created_at),
@@ -228,15 +227,6 @@ export const toJobStory = (r: Row): JobStory => ({
   updated_at: String(r.updated_at),
 });
 
-export const toTell = (r: Row): StoryTell => ({
-  id: String(r.id),
-  job_story_id: String(r.job_story_id),
-  event_id: s(r.event_id),
-  told_at: String(r.told_at),
-  heard_by: arr(r.heard_by),
-  note: s(r.note),
-});
-
 export const toFile = (r: Row): FileRef => ({
   id: String(r.id),
   application_id: s(r.application_id),
@@ -246,14 +236,13 @@ export const toFile = (r: Row): FileRef => ({
   content_type: String(r.content_type),
   size: Number(r.size),
   label: s(r.label),
-  locked: !!r.locked,
   sha256: String(r.sha256),
   has_text: !!r.has_text,
   created_at: String(r.created_at),
 });
 
 const FILE_COLS =
-  'id, application_id, event_id, kind, filename, content_type, size, label, locked, sha256, created_at, text IS NOT NULL AS has_text';
+  'id, application_id, event_id, kind, filename, content_type, size, label, sha256, created_at, text IS NOT NULL AS has_text';
 
 export const DEFAULT_SETTINGS: Settings = {
   time_zone: 'UTC',
@@ -348,31 +337,20 @@ export async function loadFile(db: D1Database, id: string) {
 }
 
 export async function loadState(db: D1Database): Promise<AppState> {
-  const [
-    settings,
-    searches,
-    applications,
-    people,
-    events,
-    frameworks,
-    stories,
-    jobStories,
-    tells,
-    files,
-  ] = await Promise.all([
-    loadSettings(db),
-    loadSearches(db),
-    loadApplications(db),
-    all(db, 'SELECT * FROM people ORDER BY created_at').then((r) => r.map(toPerson)),
-    loadEvents(db),
-    loadFrameworks(db),
-    all(db, 'SELECT * FROM stories ORDER BY updated_at DESC').then((r) => r.map(toStory)),
-    all(db, 'SELECT * FROM job_stories ORDER BY application_id, position, created_at').then((r) =>
-      r.map(toJobStory),
-    ),
-    all(db, 'SELECT * FROM story_tells ORDER BY told_at DESC').then((r) => r.map(toTell)),
-    all(db, `SELECT ${FILE_COLS} FROM files ORDER BY created_at DESC`).then((r) => r.map(toFile)),
-  ]);
+  const [settings, searches, applications, people, events, frameworks, stories, jobStories, files] =
+    await Promise.all([
+      loadSettings(db),
+      loadSearches(db),
+      loadApplications(db),
+      all(db, 'SELECT * FROM people ORDER BY created_at').then((r) => r.map(toPerson)),
+      loadEvents(db),
+      loadFrameworks(db),
+      all(db, 'SELECT * FROM stories ORDER BY updated_at DESC').then((r) => r.map(toStory)),
+      all(db, 'SELECT * FROM job_stories ORDER BY application_id, position, created_at').then((r) =>
+        r.map(toJobStory),
+      ),
+      all(db, `SELECT ${FILE_COLS} FROM files ORDER BY created_at DESC`).then((r) => r.map(toFile)),
+    ]);
   return {
     settings,
     searches,
@@ -382,7 +360,6 @@ export async function loadState(db: D1Database): Promise<AppState> {
     frameworks,
     stories,
     job_stories: jobStories,
-    tells,
     files,
   };
 }

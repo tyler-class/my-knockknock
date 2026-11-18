@@ -6,6 +6,7 @@ import { emailCategoryLabel, meetingKindLabel, type EventType } from '@shared/lo
 import { timelineView } from '@shared/logic/timeline';
 import type { EmailData, MeetingData, StatusData, TimelineEvent } from '@shared/types';
 import { relDays, whenLabel } from '../lib/format';
+import { fileUrl } from '../lib/api';
 import { EVENT_ICON } from '../sheets/EventSheet';
 import { useSheets } from '../sheets/context';
 import { Icon } from './Icon';
@@ -18,9 +19,8 @@ type Filter = 'all' | 'meeting' | 'email' | 'note' | 'status';
 function Source({ e }: { e: TimelineEvent }) {
   return e.source === 'agent' ? (
     <span className="src agent">via {e.source_name ?? 'assistant'}</span>
-  ) : (
-    <span className="src">manual</span>
-  );
+  ) : // Entries you made yourself carry no tag; only an assistant's are named.
+  null;
 }
 
 function NoteBlock({ n, appId }: { n: TimelineEvent; appId: string }) {
@@ -51,6 +51,7 @@ export function EventCard({
 }) {
   const sheets = useSheets();
   const edit = () => sheets.log(appId, { eventId: e.id });
+  const fileId = e.type === 'note' ? (e.data as { file_id?: string }).file_id : undefined;
   let label: string;
   let body: React.ReactNode;
   if (e.type === 'meeting') {
@@ -74,7 +75,7 @@ export function EventCard({
         {upcoming && (
           <div className="acts">
             <Link className="btn sm primary" to={`/a/${appId}/call?meeting=${e.id}`}>
-              Open call mode
+              Open Call Mode
             </Link>
             {d.join_url && (
               <a className="btn sm" href={d.join_url} target="_blank" rel="noreferrer">
@@ -134,6 +135,20 @@ export function EventCard({
           {d.reason && <span className="sub">{d.reason}</span>}
         </div>
       );
+  } else if (fileId) {
+    // A file being added: its own entry, dated when it was uploaded (editable like a note).
+    label = 'File';
+    body = (
+      <>
+        <div className="ev-title">{e.title}</div>
+        {e.body && <p className="sub">{e.body}</p>}
+        <div className="acts">
+          <a className="btn sm" href={fileUrl(fileId, true)} target="_blank" rel="noreferrer">
+            Open <Icon name="external" size={14} />
+          </a>
+        </div>
+      </>
+    );
   } else {
     label = 'Note';
     body = (
@@ -143,14 +158,16 @@ export function EventCard({
       </>
     );
   }
-  const editable = e.type !== 'created';
+  // Created and status entries are records of what happened, not things you write: no Edit.
+  // (A status change is undone from its toast, or changed by moving the stage again.)
+  const editable = e.type !== 'created' && e.type !== 'status';
   return (
     <div className={cx('ev', `ev-${e.type}`, upcoming && 'upcoming')}>
       <div className="node" aria-hidden="true">
         {e.type === 'created' ? (
           <Asterisk size={16} />
         ) : (
-          <Icon name={EVENT_ICON[e.type]!} size={18} />
+          <Icon name={fileId ? 'file' : EVENT_ICON[e.type]!} size={18} />
         )}
       </div>
       <article className="ev-card">
@@ -171,7 +188,7 @@ export function EventCard({
         ))}
         {editable && !upcoming && (
           <div className="ev-foot">
-            {(e.type === 'meeting' || e.type === 'email') && (
+            {(e.type === 'meeting' || e.type === 'email') && !fileId && (
               <button
                 type="button"
                 className="linkish"

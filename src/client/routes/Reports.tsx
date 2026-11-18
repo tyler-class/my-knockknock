@@ -135,8 +135,7 @@ export function Reports() {
     );
   }, [data, scope]);
   if (!data || !report) return null;
-  const goal = data.search?.weekly_goal ?? null;
-  const maxWeek = Math.max(goal ?? 0, ...report.perWeek.map((w) => w.n), 1);
+  const maxWeek = Math.max(...report.perWeek.map((w) => w.n), 1);
   const kpis: [string, string, string][] = [
     ['Sent', String(report.sent), `${report.saved} saved, not sent`],
     ['Response rate', pct(report.responseRate), `${report.responded} heard back`],
@@ -152,7 +151,7 @@ export function Reports() {
 
   return (
     <>
-      <PageHeader title="Report" />
+      <PageHeader title="Report" icon="chart" />
       <div className="toolbar">
         <Select
           value={scope}
@@ -230,18 +229,12 @@ export function Reports() {
           <p className="sub">Small numbers: n is shown so you don’t over-read three data points.</p>
         </section>
         <section className="card">
-          <span className="lbl">Applications per week{goal ? ` · goal ${goal}` : ''}</span>
+          <span className="lbl">Applications per week</span>
           <div className="weeks">
-            {goal ? (
-              <div className="goal-line" style={{ bottom: `${(goal / maxWeek) * 100}%` }} />
-            ) : null}
             {report.perWeek.map((w) => (
               <div key={w.week} className="wk" title={`Week of ${w.week}: ${w.n}`}>
                 <span className="mono">{w.n || ''}</span>
-                <i
-                  style={{ height: `${(w.n / maxWeek) * 100}%` }}
-                  className={goal && w.n >= goal ? 'hit' : ''}
-                />
+                <i style={{ height: `${(w.n / maxWeek) * 100}%` }} />
               </div>
             ))}
           </div>

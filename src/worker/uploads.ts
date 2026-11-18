@@ -92,7 +92,6 @@ function page(nonce: string, title: string, body: string): string {
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <style nonce="${nonce}">
 :root{--bg:#ffffff;--surface:#ffffff;--ink:#0b0b0b;--soft:#4a4a46;--line:#0b0b0b;--accent:#ffe14d;--accent-ink:#0b0b0b;--tint:#fff6c7;--bad:#a3141a;--good:#0e6a2c;color-scheme:light}
-@media (prefers-color-scheme:dark){:root{--bg:#0b0b0b;--surface:#141414;--ink:#f2f2ee;--soft:#b8b8b2;--line:#f2f2ee;--accent:#ffe14d;--accent-ink:#0b0b0b;--tint:#3a3412;--bad:#ff8a80;--good:#7ee29b;color-scheme:dark}}
 *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;padding:24px max(16px,env(safe-area-inset-left))}
 main{width:100%;max-width:400px;display:flex;flex-direction:column;gap:16px}
 h1{font:900 26px/1.15 system-ui,sans-serif;margin:0;letter-spacing:-.01em}

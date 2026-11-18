@@ -7,17 +7,7 @@ export const EXPORT_VERSION = 1;
 
 export const TABLE_COLUMNS = {
   settings: ['key', 'value'],
-  searches: [
-    'id',
-    'name',
-    'status',
-    'started_on',
-    'ended_on',
-    'weekly_goal',
-    'notes',
-    'created_at',
-    'updated_at',
-  ],
+  searches: ['id', 'name', 'status', 'started_on', 'ended_on', 'notes', 'created_at', 'updated_at'],
   applications: [
     'id',
     'search_id',
@@ -64,6 +54,7 @@ export const TABLE_COLUMNS = {
     'email',
     'title',
     'role',
+    'other_role',
     'linkedin',
     'notes',
     'created_at',
@@ -118,6 +109,8 @@ export const TABLE_COLUMNS = {
     'created_at',
     'updated_at',
   ],
+  // Unused since 0.1.2 (the "told" marks were removed). The table stays in D1 and in exports
+  // so older data still round-trips; nothing reads or writes it any more.
   story_tells: ['id', 'job_story_id', 'event_id', 'told_at', 'heard_by', 'note', 'created_at'],
   files: [
     'id',
@@ -129,7 +122,6 @@ export const TABLE_COLUMNS = {
     'content_type',
     'size',
     'label',
-    'locked',
     'sha256',
     'text',
     'created_at',

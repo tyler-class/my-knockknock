@@ -14,8 +14,8 @@ import {
 import { SheetCtx, type LogType, type SheetApi } from './context';
 
 type Open =
-  | { type: 'app'; id?: string; n: number }
-  | { type: 'status'; appId: string; to?: Status; n: number }
+  | { type: 'app'; n: number }
+  | { type: 'status'; appId: string; to?: Status | 'closed'; n: number }
   | {
       type: 'log';
       appId: string;
@@ -41,7 +41,6 @@ export function SheetProvider({ children }: { children: ReactNode }) {
     let n = 0;
     return {
       addJob: () => setOpen({ type: 'app', n: ++n }),
-      editApp: (id) => setOpen({ type: 'app', id, n: ++n }),
       status: (appId, to) => setOpen({ type: 'status', appId, to, n: ++n }),
       log: (appId, o = {}) =>
         setOpen({
@@ -67,7 +66,7 @@ export function SheetProvider({ children }: { children: ReactNode }) {
   let sheet: ReactNode = open?.type === 'about' ? <AboutSheet /> : null;
   if (open && open.type !== 'about' && data) {
     const k = `${open.type}${open.n}`;
-    if (open.type === 'app') sheet = <ApplicationSheet key={k} data={data} id={open.id} />;
+    if (open.type === 'app') sheet = <ApplicationSheet key={k} />;
     if (open.type === 'status')
       sheet = <StatusSheet key={k} data={data} appId={open.appId} to={open.to} />;
     if (open.type === 'log')

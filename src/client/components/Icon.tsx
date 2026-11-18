@@ -4,6 +4,12 @@ const P = {
     '<rect x="2.5" y="6" width="13" height="12" rx="2"/><path d="M15.5 10.5l6-3.5v10l-6-3.5"/>',
   file: '<path d="M6 2.5h8.5L19 7v14.5H6z"/><path d="M14 2.5V7.5h5M9 12h7M9 16h5"/>',
   arrowRight: '<path d="M4 12h15M13 6l6 6-6 6"/>',
+  bookmark: '<path d="M6 3.5h12v17l-6-4.5-6 4.5z"/>',
+  send: '<path d="M21 3 10 14M21 3l-7 18-4-7-7-4z"/>',
+  checkCircle: '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.8 2.8L16.5 9.5"/>',
+  xCircle: '<circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/>',
+  ghost:
+    '<path d="M5 20.5V10a7 7 0 0 1 14 0v10.5l-2.3-1.7-2.4 1.7-2.3-1.7-2.3 1.7-2.4-1.7z"/><path d="M9.5 10.5h.01M14.5 10.5h.01"/>',
   briefcase:
     '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 12.5h18"/>',
   quote: '<path d="M5 6h14v10H9l-4 4z"/>',
@@ -88,6 +94,8 @@ const P = {
   chart: '<path d="M3.5 20.5h17M7 17.5v-6M10.5 17.5V6M14 17.5v-4M17.5 17.5V9"/>',
   camera:
     '<path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/>',
+  building:
+    '<path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16M15 9h4a1 1 0 0 1 1 1v11M3 21h18M8 8h3M8 12h3M8 16h3"/>',
   store: '<path d="M4 10v10h16V10M3 4h18l-1 6H4zM9 20v-5h6v5"/>',
   ai: '<path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><rect x="7" y="7" width="10" height="10" rx="3"/><path d="M10 12h4"/>',
 } as const;

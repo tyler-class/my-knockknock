@@ -61,7 +61,7 @@ export function dueNotices(state: AppState, now: Date, tz: string): Notice[] {
       kind: 'interviews',
       key: `meeting-${e.id}-${e.occurred_at}`,
       title: `Interview today: ${a.company}`,
-      body: `${meetingName(e)} at ${timeIn(e.occurred_at, tz)}. Your stories are ready in call mode.`,
+      body: `${meetingName(e)} at ${timeIn(e.occurred_at, tz)}. Your stories are ready in Call Mode.`,
       url: `/a/${a.id}`,
       tag: `meeting-${e.id}`,
     });

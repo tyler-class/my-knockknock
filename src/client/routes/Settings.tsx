@@ -1,9 +1,9 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Spinner } from '../components/Brand';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { EXAMPLE_PROMPTS } from '@shared/examples';
 import { api, errorMessage } from '../lib/api';
 import { useActions, useData } from '../lib/queries';
-import { useTheme } from '../lib/theme';
 import { isStandalone } from '../lib/pwa';
 import { useSheets } from '../sheets/context';
 import { useToast } from '../components/Toast';
@@ -64,7 +64,6 @@ function Section({
 export function Settings() {
   const data = useData();
   const actions = useActions();
-  const [theme, setTheme] = useTheme();
   const sheets = useSheets();
   if (!data) return null;
   const s = data.state.settings;
@@ -79,18 +78,6 @@ export function Settings() {
           </button>
         }
       />
-      <Section title="Appearance">
-        <SlideToggle
-          label="Appearance"
-          value={theme}
-          options={[
-            ['light', 'Light'],
-            ['dark', 'Dark'],
-            ['system', 'System'],
-          ]}
-          onChange={setTheme}
-        />
-      </Section>
       <Section
         title="Searches"
         trailing={
@@ -412,7 +399,7 @@ function ConnectAI() {
         {signInNote('Knock Knock')}
       </p>
       <h3 style={{ fontSize: 16, marginTop: 16 }}>{CONNECTED_TEXT.heading}</h3>
-      {q.isPending && <p className="sub">Loading…</p>}
+      {q.isPending && <Spinner size={24} label="Loading connections" />}
       {!q.isPending && !list.length && <p className="sub">{CONNECTED_TEXT.none}</p>}
       {list.map((c) => (
         <div className="ri" key={c.id}>
@@ -638,7 +625,7 @@ function Updates({
             color: 'var(--ink)',
           }}
         >
-          <span style={{ display: 'inline-flex', color: 'var(--accent)' }}>
+          <span style={{ display: 'inline-flex', color: 'var(--ink)' }}>
             <Icon name="check" size={16} />
           </span>
           {UPDATE_TEXT.autoOn}
@@ -654,7 +641,7 @@ function Updates({
               href={workflowFileUrl(repo, __SOURCE_BRANCH__)}
               target="_blank"
               rel="noreferrer"
-              style={{ color: 'var(--accent)' }}
+              style={{ color: 'var(--ink)' }}
             >
               {auto.fileLink}
             </a>

@@ -19,7 +19,7 @@ export interface Settings {
   current_search_id: string | null;
   /** An open application with no activity for this many days is due a follow-up. */
   follow_up_days: number;
-  /** After this many quiet days, Today suggests marking it Ghosted (you confirm). */
+  /** After this many quiet days, it counts as maybe ghosted (you or an assistant confirm). */
   ghost_days: number;
   /** Send the anonymous daily check-in (counts only). */
   telemetry: boolean;
@@ -34,8 +34,6 @@ export interface Search {
   status: SearchStatus;
   started_on: string | null;
   ended_on: string | null;
-  /** Applications per week you are aiming for. */
-  weekly_goal: number | null;
   notes: string | null;
   created_at: string;
 }
@@ -94,6 +92,8 @@ export interface Person {
   email: string | null;
   title: string | null;
   role: PersonRole;
+  /** Typed in when role is other; shown in its place. */
+  other_role: string | null;
   linkedin: string | null;
   notes: string | null;
   created_at: string;
@@ -212,17 +212,6 @@ export interface JobStory {
   updated_at: string;
 }
 
-/** A story told in an interview. */
-export interface StoryTell {
-  id: string;
-  job_story_id: string;
-  /** The meeting it was told in. */
-  event_id: string | null;
-  told_at: string;
-  heard_by: string[];
-  note: string | null;
-}
-
 export interface FileRef {
   id: string;
   application_id: string | null;
@@ -233,8 +222,6 @@ export interface FileRef {
   content_type: string;
   size: number;
   label: string | null;
-  /** Locked once sent: it's what they saw, so it can't be replaced or deleted by accident. */
-  locked: boolean;
   sha256: string;
   /** Text was kept (transcripts and other text files), readable through /api/files/:id/text. */
   has_text: boolean;
@@ -250,6 +237,5 @@ export interface AppState {
   frameworks: Framework[];
   stories: Story[];
   job_stories: JobStory[];
-  tells: StoryTell[];
   files: FileRef[];
 }

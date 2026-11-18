@@ -3,10 +3,11 @@
 // text files (transcripts) so assistants can read them over MCP.
 import { Hono } from 'hono';
 import { filePatch } from '@shared/schemas';
-import type { FileKind } from '@shared/lookups';
+import { fileKindLabel, type FileKind } from '@shared/lookups';
 import type { FileRef } from '@shared/types';
-import { first, insertStmt, loadFile, newId, nowIso } from '../db';
-import { ApiError, body, defined, notFound, type AppEnv } from './util';
+import { agentName, isInternal } from '../auth';
+import { first, insertStmt, loadFile, newId, nowIso, refreshApplication } from '../db';
+import { ApiError, body, defined, notFound, type AppEnv, type Ctx } from './util';
 
 export const MAX_FILE_BYTES = 20 * 1024 * 1024;
 /** Text kept for reading over MCP; longer transcripts are cut here. */
@@ -59,7 +60,17 @@ export interface StoreFile {
   filename: string;
   eventId?: string | null;
   label?: string | null;
+  /** Who added it, for the timeline entry: an assistant over MCP, else the person. */
+  source?: { source: 'manual' | 'agent'; source_name: string | null };
 }
+
+const by = (c: Ctx) =>
+  isInternal(c.env)
+    ? { source: 'agent' as const, source_name: agentName(c.env) }
+    : { source: 'manual' as const, source_name: null };
+
+/** The title of the timeline entry a file gets when it's added. */
+export const fileEventTitle = (name: string) => `File added: ${name}`.slice(0, 300);
 
 export async function storeFile(env: Cloudflare.Env, a: StoreFile): Promise<FileRef> {
   const db = env.DB;
@@ -106,7 +117,6 @@ export async function storeFile(env: Cloudflare.Env, a: StoreFile): Promise<File
       content_type: type,
       size: a.bytes.byteLength,
       label: a.label ?? null,
-      locked: 0,
       sha256: await sha256(a.bytes),
       text,
       created_at: nowIso(),
@@ -121,6 +131,25 @@ export async function storeFile(env: Cloudflare.Env, a: StoreFile): Promise<File
       .prepare('UPDATE applications SET resume_file_id = COALESCE(resume_file_id, ?) WHERE id = ?')
       .bind(id, a.applicationId)
       .run();
+  // Adding a file is a moment on the timeline: a note at upload time (its date can be changed
+  // like any note's) that points at the file and goes when the file is deleted.
+  if (a.applicationId) {
+    const now = nowIso();
+    await insertStmt(db, 'events', {
+      id: newId(),
+      application_id: a.applicationId,
+      type: 'note',
+      occurred_at: now,
+      title: fileEventTitle(a.label ?? filename),
+      body: `${fileKindLabel(a.kind)} · ${filename}`,
+      source: a.source?.source ?? 'manual',
+      source_name: a.source?.source_name ?? null,
+      data: JSON.stringify({ file_id: id }),
+      created_at: now,
+      updated_at: now,
+    }).run();
+    await refreshApplication(db, a.applicationId);
+  }
   return (await loadFile(db, id))!;
 }
 
@@ -139,6 +168,7 @@ files.post('/applications/:id/files', async (c) => {
     bytes: await c.req.arrayBuffer(),
     filename: name ? decodeURIComponent(name) : 'file',
     eventId: c.req.query('event_id') || null,
+    source: by(c),
   });
   return c.json(f, 201);
 });
@@ -165,6 +195,7 @@ files.post('/applications/:id/text-files', async (c) => {
     filename: /\.(txt|md|vtt|srt)$/i.test(filename) ? filename : `${filename}.txt`,
     eventId: typeof raw.event_id === 'string' ? raw.event_id : null,
     label: typeof raw.label === 'string' ? raw.label.slice(0, 200) : null,
+    source: by(c),
   });
   return c.json(f, 201);
 });
@@ -214,7 +245,6 @@ files.patch('/files/:id', async (c) => {
   if (!prev) throw notFound('File');
   const input = defined(await body(c, filePatch));
   const fields: Record<string, unknown> = { ...input };
-  if (typeof input.locked === 'boolean') fields.locked = input.locked ? 1 : 0;
   const cols = Object.keys(fields);
   if (cols.length)
     await c.env.DB.prepare(
@@ -226,20 +256,24 @@ files.patch('/files/:id', async (c) => {
 });
 
 files.delete('/files/:id', async (c) => {
-  const f = await first<{ r2_key: string; locked: number }>(
+  const id = c.req.param('id');
+  const f = await first<{ r2_key: string; application_id: string | null }>(
     c.env.DB,
-    'SELECT r2_key, locked FROM files WHERE id = ?',
-    c.req.param('id'),
+    'SELECT r2_key, application_id FROM files WHERE id = ?',
+    id,
   );
   if (!f) throw notFound('File');
-  if (f.locked)
-    throw new ApiError(409, 'locked', 'That file is locked (it was sent). Unlock it first.');
   await c.env.DB.batch([
     c.env.DB.prepare('UPDATE applications SET resume_file_id = NULL WHERE resume_file_id = ?').bind(
-      c.req.param('id'),
+      id,
     ),
-    c.env.DB.prepare('DELETE FROM files WHERE id = ?').bind(c.req.param('id')),
+    // Its "File added" entry goes with it.
+    c.env.DB.prepare(
+      "DELETE FROM events WHERE type = 'note' AND json_extract(data, '$.file_id') = ?",
+    ).bind(id),
+    c.env.DB.prepare('DELETE FROM files WHERE id = ?').bind(id),
   ]);
   await c.env.FILES.delete(f.r2_key);
+  if (f.application_id) await refreshApplication(c.env.DB, f.application_id);
   return c.json({ ok: true });
 });

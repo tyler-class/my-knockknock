@@ -16,9 +16,11 @@ import {
   STATUS_KEYS,
   WORK_MODE_KEYS,
   isOpen,
+  personRoleLabel,
   statusLabel,
 } from '@shared/lookups';
 import { EXAMPLE_PROMPTS, MCP_PROMPTS } from '@shared/examples';
+import { storyExtras } from '@shared/frameworks';
 import { searchStories, syncState, frameworkOf } from '@shared/logic/stories';
 import { dayIn, parseLocal, whenIn } from '@shared/logic/tz';
 import {
@@ -40,6 +42,7 @@ import type {
   Story,
   TimelineEvent,
 } from '@shared/types';
+import pkg from '../../package.json';
 import { app } from './app';
 import { AGENT, INTERNAL } from './auth';
 
@@ -223,7 +226,8 @@ function eventOut(e: TimelineEvent, c: Ctx) {
       ...(d.caused_by ? { caused_by: d.caused_by } : {}),
     };
   }
-  return base;
+  const fileId = (e.data as { file_id?: string }).file_id;
+  return fileId ? { ...base, file_id: fileId } : base;
 }
 
 function sectionsOut(defs: { key: string; label: string }[], sections: Record<string, string>) {
@@ -242,8 +246,8 @@ ${EXAMPLE_PROMPTS.map((e) => `- "${e.prompt}"`).join('\n')}`;
 
 const INSTRUCTIONS =
   [
-    'Knock Knock is a personal job search tracker: searches → applications → a timeline per application (created, status changes, meetings, emails, notes), plus a story bank for interviews.',
-    'Start with search_overview to see the current search, what is upcoming and what needs attention.',
+    'Knock Knock is a personal job search tracker: searches → applications → a timeline per application (created, status changes, meetings, emails, notes), plus Stories, the owner’s bank of interview stories (call it Stories).',
+    'Start with search_overview to see the current search, what is upcoming and what needs attention. The current search is the one last picked in the app; search_overview lists the others, and creating or finding applications in another search takes its name.',
     'You do the reading and judging; Knock Knock only stores. When you read a job posting, pull out every field you can (title, company, comp, location, work mode, seniority, reports-to, team, must-haves, company basics) and list the ones you inferred rather than read in `inferred`.',
     'Applications can be named loosely ("Fathom", "fathom principal") or by id. Use find_applications to look one up from an email: by company, domain, URL or a person’s email.',
     'Status only changes through set_status, which writes a status event. Point caused_by at the email event that caused it.',
@@ -251,12 +255,14 @@ const INSTRUCTIONS =
     'Log emails as summaries of what happened, not the whole email. For negotiation, put the numbers in key_points.',
     'Times without an offset are the owner’s local time.',
     'Stories: list_stories searches the bank by the question being asked. link_story copies a bank story to an application; edits to the copy stay with that job.',
-    'To attach a file the person has (resume, transcript), call upload_link and give them the link; a file seen in the chat cannot be passed to a tool. For a transcript you already have as text, use add_text_file.',
+    'Archived stories are left out of list_stories, search_overview and get_started. To find one, use list_archived_stories; if the owner asks to bring one back, call update_story with archived: false.',
+    'To attach a file the person has (resume, transcript), call upload_link and give them the link; a file seen in the chat cannot be passed to a tool. For a transcript you already have as text, use add_text_file. Adding a file puts a "File added" note on the timeline (with file_id); change its time with update_event if the file belongs to an earlier moment.',
+    'People have a role (recruiter, hiring_manager, interviewer, referrer or other); for other, put their actual role in other_role.',
   ].join(' ') + GETTING_STARTED;
 
 function buildServer(call: Call) {
   const server = new McpServer(
-    { name: 'knockknock', version: '1.0.0' },
+    { name: 'knockknock', version: pkg.version },
     { instructions: INSTRUCTIONS },
   );
 
@@ -277,9 +283,9 @@ function buildServer(call: Call) {
       (a) => isOpen(a.status),
     );
 
-  const findStory = (c: Ctx, key: string) =>
+  const findStory = (c: Ctx, key: string, includeArchived = false) =>
     pick(
-      c.state.stories.filter((s) => !s.archived),
+      c.state.stories.filter((s) => includeArchived || !s.archived),
       key,
       (s) => [s.title],
       'bank story',
@@ -434,12 +440,15 @@ function buildServer(call: Call) {
         all_searches: z
           .boolean()
           .optional()
-          .describe('Include applications from past searches (default: all searches).'),
+          .describe(
+            'Also look in past searches (default false: only the current search). Turn it on when nothing in the current search fits.',
+          ),
       }),
       annotations: { readOnlyHint: true },
     },
-    safe(async ({ query, url, status }) => {
+    safe(async ({ query, url, status, all_searches }) => {
       const c = await load();
+      const cur = c.state.settings.current_search_id;
       const p = new URLSearchParams();
       if (query) p.set('q', query);
       if (url) p.set('url', url);
@@ -448,9 +457,18 @@ function buildServer(call: Call) {
         'GET',
         `/applications?${p}`,
       );
+      const inScope =
+        all_searches || !cur ? applications : applications.filter((a) => a.search_id === cur);
+      const elsewhere = applications.length - inScope.length;
       return {
-        count: applications.length,
-        applications: applications.slice(0, 50).map((a) => ({
+        count: inScope.length,
+        ...(elsewhere
+          ? {
+              in_past_searches: elsewhere,
+              note: `${elsewhere} more in past searches; pass all_searches: true to see them.`,
+            }
+          : {}),
+        applications: inScope.slice(0, 50).map((a) => ({
           ...appLine(a, c),
           people: c.state.people
             .filter((x) => x.application_id === a.id)
@@ -502,7 +520,9 @@ function buildServer(call: Call) {
         ...(include_description === false ? {} : { description }),
         search: search?.name,
         comp: comp(a),
-        people: c.state.people.filter((p) => p.application_id === a.id),
+        people: c.state.people
+          .filter((p) => p.application_id === a.id)
+          .map((p) => ({ ...p, role_label: personRoleLabel(p) })),
         upcoming: view.upcoming.map(childOut),
         timeline: view.past.slice(0, timeline_limit ?? 40).map(childOut),
         stories: js.map((j) => ({
@@ -512,20 +532,13 @@ function buildServer(call: Call) {
             c.state.stories.find((s) => s.id === j.story_id),
           ),
           ...(j.angle ? { angle: j.angle } : {}),
-          told: c.state.tells
-            .filter((t) => t.job_story_id === j.id)
-            .map((t) => ({
-              when: whenIn(t.told_at, c.tz),
-              heard_by: t.heard_by,
-              meeting: t.event_id,
-            })),
         })),
         files: files.map((f) => ({
           id: f.id,
           kind: f.kind,
           filename: f.filename,
           label: f.label,
-          locked: f.locked,
+          added: whenIn(f.created_at, c.tz),
           readable_text: f.has_text,
         })),
       };
@@ -710,7 +723,7 @@ function buildServer(call: Call) {
     {
       title: 'Change status',
       description:
-        'Moves an application along (or closes it) by writing a status event at occurred_at (default now). Point caused_by at the event (usually the email you just logged) that caused it. Rejected/Declined/Ghosted remember the stage they closed from. Accepting an offer closes the search and lists the other open applications: ask before declining them.',
+        'Moves an application along (or closes it) by writing a status event at occurred_at (default now). Point caused_by at the event (usually the email you just logged) that caused it. Rejected/Declined/Ghosted remember the stage they closed from. Accepting an offer lists the other open applications: ask before declining them. It does not close the search: ask the owner whether to mark the search Accepted, and if they say yes, call set_status again with close_search: true.',
       inputSchema: z.object({
         application: z.string(),
         status: z.enum(STATUS_KEYS),
@@ -718,31 +731,47 @@ function buildServer(call: Call) {
         reason: z.string().optional(),
         caused_by: z.string().optional().describe('Event id that caused it.'),
         external_ref: z.string().optional(),
+        close_search: z
+          .boolean()
+          .optional()
+          .describe('With accepted: also mark the search Accepted. Only after the owner says yes.'),
       }),
     },
-    safe(async ({ application, status, occurred_at, reason, caused_by, external_ref }) => {
-      const c = await load();
-      const a = findApp(c, application);
-      const w = await call<Written>('POST', `/applications/${a.id}/status`, {
+    safe(
+      async ({
+        application,
         status,
-        occurred_at: when(c, occurred_at),
+        occurred_at,
         reason,
         caused_by,
         external_ref,
-      });
-      const res: Record<string, unknown> = writtenOut(w, c);
-      if (!w.event) res.note = `Already ${statusLabel(status)}; nothing written.`;
-      if (status === 'accepted') {
-        const { applications } = await call<{ applications: Application[] }>(
-          'GET',
-          `/applications/${a.id}/others-open`,
-        );
-        res.others_open = applications.map((x) => appLine(x, c));
-        res.note =
-          'Search closed as accepted. Ask before declining the others_open applications (set_status declined).';
-      }
-      return res;
-    }),
+        close_search,
+      }) => {
+        const c = await load();
+        const a = findApp(c, application);
+        const w = await call<Written>('POST', `/applications/${a.id}/status`, {
+          status,
+          occurred_at: when(c, occurred_at),
+          reason,
+          caused_by,
+          external_ref,
+          close_search,
+        });
+        const res: Record<string, unknown> = writtenOut(w, c);
+        if (!w.event) res.note = `Already ${statusLabel(status)}; nothing written.`;
+        if (status === 'accepted') {
+          const { applications } = await call<{ applications: Application[] }>(
+            'GET',
+            `/applications/${a.id}/others-open`,
+          );
+          res.others_open = applications.map((x) => appLine(x, c));
+          res.note = close_search
+            ? 'Search marked Accepted. Ask before declining the others_open applications (set_status declined).'
+            : 'Ask the owner whether to mark this search Accepted (set_status again with close_search: true), and ask before declining the others_open applications (set_status declined).';
+        }
+        return res;
+      },
+    ),
   );
 
   server.registerTool(
@@ -757,6 +786,10 @@ function buildServer(call: Call) {
         email: z.string().optional(),
         title: z.string().optional(),
         role: z.enum(PERSON_ROLE_KEYS).optional(),
+        other_role: z
+          .string()
+          .optional()
+          .describe('When role is other: their actual role, e.g. "Head of Talent".'),
         linkedin: z.string().optional(),
         notes: z.string().optional(),
       }),
@@ -982,6 +1015,7 @@ function buildServer(call: Call) {
         when: f.blurb,
         sections: f.sections.map((s) => ({ key: s.key, label: s.label })),
         questions: f.questions,
+        extra_fields: storyExtras(f.group),
       }));
     }),
   );
@@ -989,7 +1023,7 @@ function buildServer(call: Call) {
   server.registerTool(
     'list_stories',
     {
-      title: 'Search the story bank',
+      title: 'Search Stories',
       description:
         'Bank stories, best match first. Put the interview question in `query` ("tell me about a time you disagreed with a leader") and stories whose probable questions match rise to the top.',
       inputSchema: z.object({
@@ -1018,6 +1052,34 @@ function buildServer(call: Call) {
         ...storyOut(h.item, c, !!full),
         ...(h.question ? { matched_question: h.question } : {}),
       }));
+    }),
+  );
+
+  server.registerTool(
+    'list_archived_stories',
+    {
+      title: 'Find archived stories',
+      description:
+        'Archived bank stories, which list_stories and the overview leave out. Use it when the owner asks about a story you can’t find, or about what they archived. Each result is archived; to bring one back, only if the owner asks, call update_story with archived: false.',
+      inputSchema: z.object({
+        query: z.string().optional().describe('Words or an interview question to match.'),
+        tag: z.string().optional(),
+      }),
+      annotations: { readOnlyHint: true },
+    },
+    safe(async ({ query, tag }) => {
+      const c = await load();
+      const pool = c.state.stories.filter((s) => s.archived);
+      const hits = searchStories(pool, query ?? '', tag);
+      return {
+        note: 'These stories are archived: they are not in list_stories or the overview. To restore one when the owner asks, call update_story with its id and archived: false.',
+        count: hits.length,
+        stories: hits.slice(0, 25).map((h) => ({
+          ...storyOut(h.item, c, false),
+          archived: true,
+          ...(h.question ? { matched_question: h.question } : {}),
+        })),
+      };
     }),
   );
 
@@ -1051,7 +1113,10 @@ function buildServer(call: Call) {
 
   const storyFields = {
     title: z.string(),
-    hook: z.string().optional().describe('The line you say first.'),
+    hook: z
+      .string()
+      .optional()
+      .describe('The line you say first. Behavioral, technical and custom stories only.'),
     sections: z
       .record(z.string(), z.string())
       .optional()
@@ -1061,11 +1126,15 @@ function buildServer(call: Call) {
     tags: z
       .array(z.string())
       .optional()
-      .describe('Competencies: "conflict", "architecture", "finance".'),
+      .describe(
+        'Competencies: "conflict", "architecture", "finance". Behavioral, technical and custom stories only; openers have none.',
+      ),
     questions: z
       .array(z.string())
       .optional()
-      .describe('Interview questions it answers, in the words an interviewer would use.'),
+      .describe(
+        'Interview questions it answers, in the words an interviewer would use. Openers can leave it out: they get their framework’s usual questions.',
+      ),
     notes: z.string().optional(),
   };
 
@@ -1074,7 +1143,7 @@ function buildServer(call: Call) {
     {
       title: 'Add a story to the bank',
       description:
-        'A new bank story. Pick the framework that fits (list_frameworks), fill its sections, and add several probable questions in interviewer wording.',
+        'A new bank story. Pick the framework that fits (list_frameworks) and fill its sections: a story is its framework’s parts. For behavioral, technical and custom frameworks also add a hook, competencies (tags) and several probable questions in interviewer wording; openers (intro, why_job, why_looking) are just their sections.',
       inputSchema: z.object({
         framework: z
           .string()
@@ -1100,11 +1169,15 @@ function buildServer(call: Call) {
     {
       title: 'Update a bank story',
       description:
-        'Changes a bank story (its version goes up). Job copies don’t change until someone pulls.',
+        'Changes a bank story (its version goes up). Job copies don’t change until someone pulls. Also finds archived stories: pass archived: false to bring one back (only when the owner asks), or archived: true to archive one.',
       inputSchema: z.object({
-        story: z.string(),
+        story: z.string().describe('Title or id.'),
         framework: z.string().optional(),
         ...Object.fromEntries(Object.entries(storyFields).map(([k, v]) => [k, v.optional()])),
+        archived: z
+          .boolean()
+          .optional()
+          .describe('true archives it (out of the normal results); false brings it back.'),
       }),
     },
     safe(
@@ -1114,7 +1187,7 @@ function buildServer(call: Call) {
         ...input
       }: { story: string; framework?: string } & Record<string, unknown>) => {
         const c = await load();
-        const s = findStory(c, story);
+        const s = findStory(c, story, true);
         const body: Record<string, unknown> = Object.fromEntries(
           Object.entries(input).filter(([, v]) => v !== undefined),
         );
@@ -1185,33 +1258,6 @@ function buildServer(call: Call) {
     ),
   );
 
-  server.registerTool(
-    'record_story_told',
-    {
-      title: 'Record a story as told',
-      description:
-        'Marks a story as told in an interview (the meeting’s event id), and who heard it, so the next round doesn’t repeat it. Link it to the application first if it isn’t already.',
-      inputSchema: z.object({
-        application: z.string(),
-        story: z.string().describe('The copy’s title or id.'),
-        meeting: z.string().optional().describe('The meeting’s event id.'),
-        heard_by: z.array(z.string()).optional(),
-        note: z.string().optional().describe('How it landed.'),
-      }),
-    },
-    safe(async ({ application, story, meeting, heard_by, note }) => {
-      const c = await load();
-      const js = findJobStory(c, story, application);
-      return {
-        recorded: await call('POST', `/job-stories/${js.id}/tells`, {
-          event_id: meeting,
-          heard_by: heard_by ?? [],
-          note,
-        }),
-      };
-    }),
-  );
-
   // ---------- files ----------
 
   server.registerTool(
@@ -1242,7 +1288,7 @@ function buildServer(call: Call) {
     {
       title: 'Save text as a file',
       description:
-        'Saves text you already have (a call transcript, a cover letter draft) as a file on an application, readable later with get_file_text.',
+        'Saves text you already have (a call transcript, a cover letter draft) as a file on an application, readable later with get_file_text. It also adds a "File added" note to the timeline.',
       inputSchema: z.object({
         application: z.string(),
         text: z.string(),
@@ -1341,15 +1387,15 @@ Finish with what you logged, per application, and anything you couldn't place.`)
     'prep_interview',
     {
       title: 'Prep me for an interview',
-      description: 'Who’s in the room, what they already heard, and which stories to bring.',
+      description: 'Who’s in the room, what to expect, and which stories to bring.',
       argsSchema: z.object({ application: z.string().describe('The company, named loosely.') }),
     },
     ({ application }) =>
       ask(`Prep me for my next interview with ${application} in Knock Knock.
 
 1. get_application and find the next upcoming meeting: when, who, agenda.
-2. From the timeline and told stories, say what each interviewer already heard from me.
-3. Read the must-haves and description. list_stories with the questions they're likely to ask; suggest 4–6 stories (linked ones first), each with the angle for this job, and flag any story someone in the room already heard.
+2. From the timeline (earlier meetings and their debrief notes), say what each interviewer has already seen of me.
+3. Read the must-haves and description. list_stories with the questions they're likely to ask; suggest 4–6 stories (linked ones first), each with the angle for this job.
 4. Suggest three sharp questions to ask them.
 Ask before linking new stories (link_story) or saving angles (update_job_story).`),
   );
@@ -1358,8 +1404,7 @@ Ask before linking new stories (link_story) or saving angles (update_job_story).
     'debrief',
     {
       title: 'Debrief an interview',
-      description:
-        'Turns your notes or a transcript into a debrief and records the stories you told.',
+      description: 'Turns your notes or a transcript into a debrief note under the meeting.',
       argsSchema: z.object({
         application: z.string(),
         notes: z
@@ -1373,8 +1418,7 @@ Ask before linking new stories (link_story) or saving angles (update_job_story).
 
 1. get_application; find the meeting that just happened (update_meeting state held if it's still scheduled). If there's a transcript file, read it with get_file_text.
 2. Write a debrief note under the meeting (add_note with about_event): what they asked, how I answered, what landed, what didn't, open questions, and next steps.
-3. For each story I told, record_story_told with the meeting and who heard it (link_story first if it isn't linked).
-4. Draft short thank-you notes for each interviewer, and ask before logging any I send.`),
+3. Draft short thank-you notes for each interviewer, and ask before logging any I send.`),
   );
 
   server.registerPrompt(

@@ -1,21 +1,49 @@
 // Call mode: open it beside the video call. Type the question you just heard and the stories
 // whose probable questions match rise to the top (plain word overlap: instant, offline). This
-// job's copies come first, then the whole bank. "Mark as told" logs it against the meeting.
-import { useEffect, useMemo, useRef, useState } from 'react';
+// job's copies come first, then the whole bank. The notepad saves itself into one note on
+// the job's timeline (on the meeting, if there is one) and stays on screen; ending the call
+// asks how it went and saves that as its own note.
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { meetingKindLabel } from '@shared/lookups';
 import { frameworkOf, searchStories } from '@shared/logic/stories';
 import { isUpcoming } from '@shared/logic/timeline';
-import { sectionLetter, type FrameworkSection } from '@shared/frameworks';
+import { sectionLetter, storyExtras, type FrameworkSection } from '@shared/frameworks';
 import type { JobStory, MeetingData, Story, TimelineEvent } from '@shared/types';
 import { useActions, useData } from '../lib/queries';
 import { whenLabel } from '../lib/format';
-import { useSheets } from '../sheets/context';
 import { Asterisk } from '../components/Brand';
 import { Icon } from '../components/Icon';
-import { SlideToggle, cx } from '../components/ui';
+import { AutoTextarea, Field, Sheet, SlideToggle, cx } from '../components/ui';
 
 type Item = (JobStory | Story) & { kind: 'job' | 'bank'; defs: FrameworkSection[] };
+type SaveState = 'idle' | 'saving' | 'saved' | 'error';
+
+/** Which call a notepad belongs to: the meeting, else the application and today's date. */
+function callRef(appId: string, meetingId: string | undefined) {
+  if (meetingId) return `call-notes:${meetingId}`;
+  const d = new Date();
+  const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return `call-notes:${appId}:${day}`;
+}
+
+/** Unsaved notepad text, kept on the device so leaving the page by accident loses nothing. */
+const draftKey = (ref: string) => `kk.${ref}`;
+function readDraft(ref: string) {
+  try {
+    return localStorage.getItem(draftKey(ref));
+  } catch {
+    return null;
+  }
+}
+function writeDraft(ref: string, text: string | null) {
+  try {
+    if (text == null) localStorage.removeItem(draftKey(ref));
+    else localStorage.setItem(draftKey(ref), text);
+  } catch {
+    /* best-effort */
+  }
+}
 
 function clock(ms: number) {
   const s = Math.max(0, Math.floor(ms / 1000));
@@ -30,12 +58,15 @@ export function CallMode() {
   const [params] = useSearchParams();
   const data = useData();
   const act = useActions();
-  const sheets = useSheets();
   const nav = useNavigate();
   const [q, setQ] = useState('');
   const [tag, setTag] = useState<string | null>(null);
   const [sel, setSel] = useState<string | null>(null);
-  const [scratch, setScratch] = useState('');
+  const [notes, setNotes] = useState('');
+  const [saveState, setSaveState] = useState<SaveState>('idle');
+  const [ending, setEnding] = useState(false);
+  const [reflection, setReflection] = useState('');
+  const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -74,6 +105,83 @@ export function CallMode() {
       meetings.sort((x, y) => y.occurred_at.localeCompare(x.occurred_at))[0]
     );
   }, [events, params]);
+
+  // ---------- notepad: one note per call, saved as you type ----------
+  const ref = a ? callRef(a.id, meeting?.id) : '';
+  const noteEv = events.find((e) => e.type === 'note' && e.external_ref === ref);
+  const noteId = useRef<string | null>(null);
+  const saved = useRef('');
+  const latest = useRef('');
+  const queue = useRef<Promise<void>>(Promise.resolve());
+  const loadedFor = useRef<string | null>(null);
+
+  const save = useCallback(() => {
+    // One save at a time, so the first one creates the note and the rest update it.
+    queue.current = queue.current.then(async () => {
+      const text = latest.current;
+      if (!a || !text.trim() || text === saved.current) return;
+      setSaveState('saving');
+      const r = noteId.current
+        ? await act.patch<TimelineEvent>(`/events/${noteId.current}`, { body: text })
+        : await act.post<TimelineEvent>(`/applications/${a.id}/notes`, {
+            body: text,
+            title: 'Call notes',
+            parent_id: meeting?.id ?? null,
+            external_ref: ref,
+          });
+      if (!r) return setSaveState('error');
+      noteId.current = r.id;
+      saved.current = text;
+      if (latest.current === text) {
+        writeDraft(ref, null);
+        setSaveState('saved');
+      }
+    });
+    return queue.current;
+  }, [a, act, meeting?.id, ref]);
+
+  // Load this call's note (or an unsaved draft from this device) once.
+  useEffect(() => {
+    if (!data || !a || loadedFor.current === ref) return;
+    loadedFor.current = ref;
+    noteId.current = noteEv?.id ?? null;
+    saved.current = noteEv?.body ?? '';
+    const draft = readDraft(ref);
+    const text = draft ?? saved.current;
+    latest.current = text;
+    setNotes(text);
+    setSaveState(draft != null && draft !== saved.current ? 'idle' : noteEv ? 'saved' : 'idle');
+    if (draft != null && draft !== saved.current) void save();
+  }, [data, a, ref, noteEv, save]);
+
+  // Save about a second after typing stops, and on the way out.
+  useEffect(() => {
+    if (notes === saved.current) return;
+    const t = setTimeout(() => void save(), 1000);
+    return () => clearTimeout(t);
+  }, [notes, save]);
+  useEffect(() => () => void save(), [save]);
+
+  function typeNotes(text: string) {
+    latest.current = text;
+    setNotes(text);
+    setSaveState('idle');
+    writeDraft(ref, text);
+  }
+
+  async function leave(withReflection: boolean) {
+    setBusy(true);
+    await save();
+    if (withReflection && reflection.trim()) {
+      const ok = await act.post(
+        `/applications/${a!.id}/notes`,
+        { body: reflection, title: 'How it went', parent_id: meeting?.id ?? null },
+        'Saved to the timeline',
+      );
+      if (!ok) return setBusy(false);
+    }
+    nav(`/a/${a!.id}`);
+  }
 
   const items: Item[] = useMemo(() => {
     if (!data || !a) return [];
@@ -116,44 +224,11 @@ export function CallMode() {
   const attendees = md?.attendees.map((x) => x.name) ?? [];
   const current = items.find((i) => i.id === sel) ?? hits[0]?.item ?? items[0];
   const curHit = hits.find((h) => h.item.id === current?.id);
-  const tells = (jsId: string) => data.state.tells.filter((t) => t.job_story_id === jsId);
-  const heardBy = (i: Item) =>
-    i.kind === 'job'
-      ? [...new Set(tells(i.id).flatMap((t) => t.heard_by))].filter((n) => attendees.includes(n))
-      : [];
-  const toldHere = (i: Item) =>
-    i.kind === 'job' && meeting && tells(i.id).some((t) => t.event_id === meeting.id);
   const start = meeting ? Date.parse(meeting.occurred_at) : null;
   const live = start != null && now >= start && now - start < 4 * 3600_000;
 
-  async function markTold(i: Item) {
-    let jsId = i.id;
-    if (i.kind === 'bank') {
-      const js = await act.post<JobStory>(`/applications/${a!.id}/stories`, { story_id: i.id });
-      if (!js) return;
-      jsId = js.id;
-      setSel(js.id);
-    }
-    await act.post(
-      `/job-stories/${jsId}/tells`,
-      { event_id: meeting?.id ?? null, heard_by: attendees },
-      'Marked as told',
-    );
-  }
-
-  async function saveScratch() {
-    if (!scratch.trim()) return;
-    const ok = await act.post(
-      `/applications/${a!.id}/notes`,
-      { body: scratch, title: 'During the call', parent_id: meeting?.id ?? null },
-      'Saved to the meeting',
-    );
-    if (ok) setScratch('');
-  }
-
   const row = (i: Item) => {
     const hit = hits.find((h) => h.item.id === i.id);
-    const heard = heardBy(i);
     return (
       <button
         key={i.id}
@@ -163,7 +238,6 @@ export function CallMode() {
       >
         <span className="srow-top">
           <strong>{i.title}</strong>
-          <span className="mono">{toldHere(i) ? 'TOLD ✓' : heard.length ? 'HEARD' : ''}</span>
         </span>
         {i.hook && <span className="srow-hook">{i.hook}</span>}
         {hit?.question && q && <span className="answers">Answers: “{hit.question}”</span>}
@@ -203,11 +277,11 @@ export function CallMode() {
           type="button"
           className="btn sm primary"
           onClick={() => {
-            nav(`/a/${a.id}`);
-            if (meeting) sheets.log(a.id, { type: 'note', parentId: meeting.id });
+            void save();
+            setEnding(true);
           }}
         >
-          End call · debrief
+          End call
         </button>
       </header>
 
@@ -216,20 +290,12 @@ export function CallMode() {
           {meeting && attendees.length > 0 && (
             <section className="card">
               <span className="lbl">In the room</span>
-              {md!.attendees.map((p) => {
-                const heard = items.filter(
-                  (i) => i.kind === 'job' && tells(i.id).some((t) => t.heard_by.includes(p.name)),
-                );
-                return (
-                  <div key={p.name} className="room-p">
-                    <strong>{p.name}</strong>
-                    {p.title && <span className="sub"> · {p.title}</span>}
-                    {heard.length > 0 && (
-                      <div className="heard">Heard: {heard.map((h) => h.title).join(', ')}</div>
-                    )}
-                  </div>
-                );
-              })}
+              {md!.attendees.map((p) => (
+                <div key={p.name} className="room-p">
+                  <strong>{p.name}</strong>
+                  {p.title && <span className="sub"> · {p.title}</span>}
+                </div>
+              ))}
             </section>
           )}
           {md?.agenda && (
@@ -239,23 +305,22 @@ export function CallMode() {
             </section>
           )}
           <section className="card">
-            <span className="lbl">Scratch note</span>
-            <textarea
+            <span className="lbl">Call notes</span>
+            <p className="sub" aria-live="polite">
+              {saveState === 'saving'
+                ? 'Saving…'
+                : saveState === 'error'
+                  ? 'Couldn’t save yet; kept on this device.'
+                  : `${saveState === 'saved' ? 'Saved' : 'Saves as you type'} to this job’s timeline${meeting ? ', on the meeting' : ''}.`}
+            </p>
+            <AutoTextarea
               className="in"
               rows={5}
-              value={scratch}
-              onChange={(e) => setScratch(e.target.value)}
-              placeholder="Saved to this meeting as a note"
+              value={notes}
+              onChange={(e) => typeNotes(e.target.value)}
+              onBlur={() => void save()}
+              placeholder="Jot things down as you go"
             />
-            <button
-              type="button"
-              className="btn sm"
-              disabled={!scratch.trim()}
-              onClick={saveScratch}
-              style={{ marginTop: 8 }}
-            >
-              Save note
-            </button>
           </section>
         </aside>
 
@@ -266,16 +331,13 @@ export function CallMode() {
                 <span className="lbl">
                   {frameworkOf(current.framework_key, data.state.frameworks)?.name ??
                     current.framework_key}{' '}
-                  · {current.kind === 'job' ? 'linked to this job' : 'from the bank'}
+                  · {current.kind === 'job' ? 'linked to this job' : 'from Stories'}
                 </span>
                 {current.tags.map((t) => (
                   <span key={t} className="tag">
                     {t}
                   </span>
                 ))}
-                {heardBy(current).length > 0 && (
-                  <span className="heard-badge">{heardBy(current).join(' + ')} heard this</span>
-                )}
               </div>
               <h2 className="reader-title">{current.title}</h2>
               {'angle' in current && current.angle && (
@@ -293,37 +355,25 @@ export function CallMode() {
                   </div>
                 ) : null,
               )}
-              {current.questions.length > 0 && (
-                <div className="reader-qs">
-                  <span className="lbl">Probable questions</span>
-                  <div className="tags">
-                    {current.questions.map((x) => (
-                      <span key={x} className={cx('tag', curHit?.question === x && 'hit')}>
-                        {x}
-                      </span>
-                    ))}
+              {current.questions.length > 0 &&
+                storyExtras(
+                  frameworkOf(current.framework_key, data.state.frameworks)?.group,
+                ).includes('questions') && (
+                  <div className="reader-qs">
+                    <span className="lbl">Probable questions</span>
+                    <div className="tags">
+                      {current.questions.map((x) => (
+                        <span key={x} className={cx('tag', curHit?.question === x && 'hit')}>
+                          {x}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-              <div className="reader-foot">
-                <button
-                  type="button"
-                  className={cx('btn', !toldHere(current) && 'primary')}
-                  disabled={!!toldHere(current)}
-                  onClick={() => markTold(current)}
-                >
-                  {toldHere(current) ? 'Told it ✓' : 'Mark as told'}
-                </button>
-                <span className="sub">
-                  {meeting
-                    ? `Logs to this meeting${attendees.length ? `, heard by ${attendees.join(', ')}` : ''}.`
-                    : 'No meeting picked: logs to the application.'}
-                </span>
-              </div>
+                )}
             </>
           ) : (
             <p className="empty">
-              No stories yet. Add some in the <Link to="/stories">story bank</Link>.
+              No stories yet. Add some in <Link to="/stories">Stories</Link>.
             </p>
           )}
         </article>
@@ -360,6 +410,45 @@ export function CallMode() {
           {!hits.length && <p className="sub">Nothing matches. Try fewer words.</p>}
         </aside>
       </div>
+
+      {ending && (
+        <Sheet
+          title="How did it go?"
+          sub="Your call notes are already saved."
+          onClose={() => void leave(false)}
+          footer={
+            <>
+              <button
+                type="button"
+                className="btn"
+                disabled={busy}
+                onClick={() => void leave(false)}
+              >
+                Skip
+              </button>
+              <button
+                type="button"
+                className="btn primary"
+                disabled={busy || !reflection.trim()}
+                onClick={() => void leave(true)}
+              >
+                Save to timeline
+              </button>
+            </>
+          }
+        >
+          <Field label="Reflections">
+            <AutoTextarea
+              className="in"
+              rows={6}
+              autoFocus
+              value={reflection}
+              onChange={(e) => setReflection(e.target.value)}
+              placeholder="What went well, what to follow up on"
+            />
+          </Field>
+        </Sheet>
+      )}
     </div>
   );
 }

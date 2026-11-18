@@ -12,14 +12,14 @@ The app only stores and shows. Your assistant does the reading and the judging o
 - **Status is history, not a field.** Saved → Applied → Screening → Interviewing → Offer → Accepted, or Rejected, Declined or Ghosted, recording the stage it closed from. Every change is an event, so backfilling "they rejected me on the 3rd" lands in the right place and the report counts everything correctly.
 - **A story bank with real frameworks.** STAR, CAR, SOAR, Introduction, Why this job, Why I'm looking, Failure, Weakness, Design decision, or your own. Each story lists the interview questions it answers.
 - **Copies per job.** Linking a story to an application copies it. Tailor the copy and add an angle for this job; the bank only changes if you push. The copy shows when it's in sync, edited, or behind the bank, and you can push, pull or save it as a new story.
-- **Call mode.** A full-screen view to keep beside the video call. Type the question you just heard, and the stories whose probable questions match come up first, with S/T/A/R (or P/P/F) in big type, the angle for this job, and who in the room already heard it. **Mark as told** logs it against the meeting.
+- **Call mode.** A full-screen view to keep beside the video call. Type the question you just heard, and the stories whose probable questions match come up first, with S/T/A/R (or P/P/F) in big type and the angle for this job. Call notes save themselves to the job's timeline as you type (on the meeting) and stay on screen; **End call** asks how it went and saves your reflections as their own note.
 - **Today.** Interviews coming up, offers to decide on, meetings that still need a debrief, applications gone quiet, and ones that look ghosted (only ever suggested).
 - **Report.** A Sankey of where every application went, built from status history, plus response rate, interview rate, median days to first reply and ghost rate, broken down by source and by the resume you sent.
 - **Files.** Resumes, cover letters, transcripts and offer letters in your own private R2 bucket, with a hash of exactly what you sent and a lock so it can't be deleted by accident. Transcripts stay readable for your assistant.
 - **Built for phones.** Install it to your home screen. Notifications for interviews today, follow-ups and debriefs.
 - **Yours.** It runs on your own Cloudflare account. The free plan is plenty.
 
-![Call mode: search by the question you heard, a story in big S/T/A/R type with the angle for this job, and who in the room already heard it](docs/screenshots/call-mode.png)
+![Call mode: search by the question you heard, a story in big S/T/A/R type with the angle for this job, and call notes](docs/screenshots/call-mode.png)
 
 One deployment is one person's job search (or many, one after another: searches keep each stretch separate).
 
@@ -169,24 +169,24 @@ The app never reads your email. Your assistant does (Claude with Gmail and Calen
 
 ### Tools
 
-| Tool                                                  | What it does                                                                                                        |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `search_overview`                                     | The current search: counts by status, open applications, upcoming meetings, follow-ups, maybe-ghosted, debriefs due |
-| `get_started`                                         | The search's state plus example requests and ready-made prompts                                                     |
-| `find_applications`                                   | Look up by company, title, domain, posting URL or a person's email                                                  |
-| `get_application`                                     | Everything about one: fields, people, timeline, stories and their sync state, files                                 |
-| `get_timeline`                                        | Events, optionally only around a date and of some types: read this before logging                                   |
-| `create_application`, `update_application`            | Add a job (returns the existing one for a known URL); change its fields                                             |
-| `set_status`                                          | Change status by writing a status event; on Accepted, lists the other open applications                             |
-| `log_meeting`, `update_meeting`                       | An interview or call: time, kind, state, join link, attendees, topics                                               |
-| `log_email`                                           | An email as a summary, with direction, category and key points                                                      |
-| `add_note`                                            | An internal note, optionally under a meeting (a debrief)                                                            |
-| `update_event`, `delete_event`                        | Fix or remove an event (deleting a status event recomputes the status)                                              |
-| `add_person`                                          | A recruiter, interviewer or referrer on an application                                                              |
-| `list_frameworks`, `list_stories`, `get_story`        | Story frameworks; search the bank by the question being asked                                                       |
-| `create_story`, `update_story`                        | Add or change a bank story                                                                                          |
-| `link_story`, `update_job_story`, `record_story_told` | Copy a story to an application, tailor the copy, mark it told in a meeting                                          |
-| `upload_link`, `add_text_file`, `get_file_text`       | A one-time upload link; save a transcript you have as text; read one                                                |
+| Tool                                            | What it does                                                                                                        |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `search_overview`                               | The current search: counts by status, open applications, upcoming meetings, follow-ups, maybe-ghosted, debriefs due |
+| `get_started`                                   | The search's state plus example requests and ready-made prompts                                                     |
+| `find_applications`                             | Look up by company, title, domain, posting URL or a person's email                                                  |
+| `get_application`                               | Everything about one: fields, people, timeline, stories and their sync state, files                                 |
+| `get_timeline`                                  | Events, optionally only around a date and of some types: read this before logging                                   |
+| `create_application`, `update_application`      | Add a job (returns the existing one for a known URL); change its fields                                             |
+| `set_status`                                    | Change status by writing a status event; on Accepted, lists the other open applications                             |
+| `log_meeting`, `update_meeting`                 | An interview or call: time, kind, state, join link, attendees, topics                                               |
+| `log_email`                                     | An email as a summary, with direction, category and key points                                                      |
+| `add_note`                                      | An internal note, optionally under a meeting (a debrief)                                                            |
+| `update_event`, `delete_event`                  | Fix or remove an event (deleting a status event recomputes the status)                                              |
+| `add_person`                                    | A recruiter, interviewer or referrer on an application                                                              |
+| `list_frameworks`, `list_stories`, `get_story`  | Story frameworks; search the bank by the question being asked                                                       |
+| `create_story`, `update_story`                  | Add or change a bank story                                                                                          |
+| `link_story`, `update_job_story`                | Copy a story to an application, tailor the copy                                                                     |
+| `upload_link`, `add_text_file`, `get_file_text` | A one-time upload link; save a transcript you have as text; read one                                                |
 
 Ready-made prompts (in Claude, from the **+** menu):
 
@@ -194,8 +194,8 @@ Ready-made prompts (in Claude, from the **+** menu):
 | ---------------- | -------------------------------------------------------------------------------------------------- |
 | `add_jobs`       | Reads each posting and creates a Saved application, skipping ones you already have                 |
 | `sync_inbox`     | Reads recent email and calendar invites and writes them to the right timelines, without duplicates |
-| `prep_interview` | Who's in the room, what they already heard, which stories to bring                                 |
-| `debrief`        | Turns your notes or a transcript into a debrief and records the stories you told                   |
+| `prep_interview` | Who's in the room, what to expect, which stories to bring                                          |
+| `debrief`        | Turns your notes or a transcript into a debrief note under the meeting                             |
 | `weekly_review`  | What moved, what went quiet, and one thing to change next week                                     |
 
 ## Back up and restore
@@ -234,7 +234,7 @@ npm run dev
 
 ### How it's built
 
-- **Cloudflare Workers** with static assets. **Hono** serves the API under `/api`. **D1** stores searches, applications, people, timeline events, frameworks, stories, job copies, tells and file metadata; the schema is in `migrations/`.
+- **Cloudflare Workers** with static assets. **Hono** serves the API under `/api`. **D1** stores searches, applications, people, timeline events, frameworks, stories, job copies and file metadata; the schema is in `migrations/`.
 - An application's `status` is a cache of its timeline: the newest created or status event (by when it happened) decides it, recomputed on every change (`src/shared/logic/status.ts`).
 - Timeline events share one table; each type's own fields (meeting, email, status) are JSON checked by zod schemas in `src/shared/schemas.ts`. A partial unique index refuses a repeated `external_ref` per application.
 - Story copies remember the bank version and a content hash from when they were copied, which is enough to tell in sync, edited, bank newer or both (`src/shared/logic/stories.ts`). Built-in frameworks live in code; custom ones in D1.

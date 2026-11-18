@@ -1,4 +1,12 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type TextareaHTMLAttributes,
+} from 'react';
 import { Icon, type IconName } from './Icon';
 
 export function cx(...c: (string | false | null | undefined)[]) {
@@ -277,6 +285,36 @@ export function Field({
 }
 
 /** Two taps to delete: the first arms it, the second confirms. */
+/**
+ * A textarea that grows with its text (rows is the least it shows), so notes on a phone don't
+ * scroll inside a tiny box. Only its height changes; it looks like any other textarea.
+ */
+export function AutoTextarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  const { value } = props;
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const fit = () => {
+      el.style.height = 'auto';
+      const border = el.offsetHeight - el.clientHeight;
+      el.style.height = `${el.scrollHeight + border}px`;
+    };
+    fit();
+    // Re-fit when the width changes (rotating a phone, opening a sheet).
+    let w = el.clientWidth;
+    const ro = new ResizeObserver(() => {
+      if (el.clientWidth !== w) {
+        w = el.clientWidth;
+        fit();
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [value]);
+  return <textarea ref={ref} {...props} />;
+}
+
 export function ConfirmButton({
   children,
   confirm,
@@ -423,7 +461,11 @@ export function PageHeader({
   return (
     <header className="page-h">
       <h1>
-        {icon && <Icon name={icon} size={26} />}
+        {icon && (
+          <span className="h-icon" aria-hidden="true">
+            <Icon name={icon} size={24} />
+          </span>
+        )}
         {title}
       </h1>
       {action}

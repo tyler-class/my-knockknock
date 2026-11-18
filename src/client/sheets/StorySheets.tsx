@@ -1,9 +1,13 @@
-// The story bank's sheets: a bank story, picking a framework, a job's copy of a story (with
-// push, pull and save-as-new), linking from the bank, and custom frameworks.
+// The Stories's sheets: a story from Stories, picking a framework, a job's copy of a story,
+// linking from Stories, and custom frameworks.
+//
+// A job keeps its own copy of a story from Stories, so it can be tailored. The copy says in plain
+// words how it compares with Stories ("You changed this for PwC") and offers at most the
+// one or two actions that make sense, never version numbers.
 import { useMemo, useState } from 'react';
-import type { FrameworkSection } from '@shared/frameworks';
+import { sectionLetter, storyExtras, type FrameworkSection } from '@shared/frameworks';
 import {
-  SYNC_LABEL,
+  COPY_LABEL,
   frameworkOf,
   searchStories,
   switchFramework,
@@ -11,7 +15,8 @@ import {
 } from '@shared/logic/stories';
 import type { Framework, JobStory, Story } from '@shared/types';
 import { useActions, type Data } from '../lib/queries';
-import { ConfirmButton, Field, Select, Sheet, TagInput, cx } from '../components/ui';
+import { useToast } from '../components/Toast';
+import { AutoTextarea, ConfirmButton, Field, Select, Sheet, TagInput, cx } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { useSheets } from './context';
 
@@ -52,6 +57,12 @@ function StoryForm({
 }) {
   const fw = frameworkOf(v.framework_key, data.state.frameworks);
   const suggestions = (fw?.questions ?? []).filter((q) => !v.questions.includes(q));
+  // Only the framework's parts, plus the extras that fit its kind (or already hold something).
+  const extras = storyExtras(fw?.group);
+  const showHook = extras.includes('hook') || !!v.hook.trim();
+  const showTags = extras.includes('competencies') || v.tags.length > 0;
+  const showQuestions = extras.includes('questions');
+  const showNotes = !!v.notes.trim();
   return (
     <>
       <div className="two">
@@ -81,63 +92,76 @@ function StoryForm({
           />
         </Field>
       </div>
-      <Field label="Hook: the line you say first">
-        <input
-          className="in"
-          value={v.hook}
-          onChange={(e) => set({ hook: e.target.value })}
-          placeholder="14 point-to-point integrations → one bus. Sev-1s 3 a quarter → 0."
-        />
-      </Field>
-      {defs.map((sec) => (
-        <Field key={sec.key} label={sec.label}>
-          <textarea
+      {showHook && (
+        <Field label="Hook: the line you say first">
+          <input
             className="in"
-            rows={3}
-            value={v.sections[sec.key] ?? ''}
-            placeholder={sec.prompt}
-            onChange={(e) => set({ sections: { ...v.sections, [sec.key]: e.target.value } })}
+            value={v.hook}
+            onChange={(e) => set({ hook: e.target.value })}
+            placeholder="14 point-to-point integrations → one bus. Sev-1s 3 a quarter → 0."
           />
         </Field>
-      ))}
-      <Field label="Competencies">
-        <TagInput
-          value={v.tags}
-          onChange={(tags) => set({ tags })}
-          suggestions={allTags(data)}
-          placeholder="conflict, architecture, finance…"
-        />
-      </Field>
-      <Field label="Probable questions (call mode matches what you type against these)">
-        <TagInput
-          value={v.questions}
-          onChange={(questions) => set({ questions })}
-          suggestions={[]}
-          placeholder="Tell me about a time you disagreed with a leader."
-        />
-        {suggestions.length > 0 && (
-          <div className="seg" style={{ marginTop: 8 }}>
-            {suggestions.map((q) => (
-              <button
-                key={q}
-                type="button"
-                className="chip sm new"
-                onClick={() => set({ questions: [...v.questions, q] })}
-              >
-                <Icon name="plus" size={13} /> {q}
-              </button>
-            ))}
-          </div>
-        )}
-      </Field>
-      <Field label="Notes">
-        <textarea
-          className="in"
-          rows={2}
-          value={v.notes}
-          onChange={(e) => set({ notes: e.target.value })}
-        />
-      </Field>
+      )}
+      <ol className="fw-parts" aria-label={`${fw?.name ?? 'Story'} parts`}>
+        {defs.map((sec) => (
+          <li key={sec.key} className="fw-part">
+            <b aria-hidden="true">{sectionLetter(sec.label)}</b>
+            <Field label={sec.label}>
+              <AutoTextarea
+                className="in"
+                rows={3}
+                value={v.sections[sec.key] ?? ''}
+                placeholder={sec.prompt}
+                onChange={(e) => set({ sections: { ...v.sections, [sec.key]: e.target.value } })}
+              />
+            </Field>
+          </li>
+        ))}
+      </ol>
+      {showTags && (
+        <Field label="Competencies">
+          <TagInput
+            value={v.tags}
+            onChange={(tags) => set({ tags })}
+            suggestions={allTags(data)}
+            placeholder="conflict, architecture, finance…"
+          />
+        </Field>
+      )}
+      {showQuestions && (
+        <Field label="Probable questions (Call Mode matches what you type against these)">
+          <TagInput
+            value={v.questions}
+            onChange={(questions) => set({ questions })}
+            suggestions={[]}
+            placeholder="Tell me about a time you disagreed with a leader."
+          />
+          {suggestions.length > 0 && (
+            <div className="seg" style={{ marginTop: 8 }}>
+              {suggestions.map((q) => (
+                <button
+                  key={q}
+                  type="button"
+                  className="chip sm new"
+                  onClick={() => set({ questions: [...v.questions, q] })}
+                >
+                  <Icon name="plus" size={13} /> {q}
+                </button>
+              ))}
+            </div>
+          )}
+        </Field>
+      )}
+      {showNotes && (
+        <Field label="Notes">
+          <AutoTextarea
+            className="in"
+            rows={2}
+            value={v.notes}
+            onChange={(e) => set({ notes: e.target.value })}
+          />
+        </Field>
+      )}
     </>
   );
 }
@@ -153,17 +177,17 @@ export function StorySheet({
 }) {
   const sheets = useSheets();
   const act = useActions();
+  const toast = useToast();
   const s = id ? data.state.stories.find((x) => x.id === id) : undefined;
   const [v, setV] = useState<Content>(() => contentOf(s, framework));
   const set = (p: Partial<Content>) => setV((x) => ({ ...x, ...p }));
   const fw = frameworkOf(v.framework_key, data.state.frameworks);
   const copies = s ? data.state.job_stories.filter((j) => j.story_id === s.id) : [];
-  const told = data.state.tells.filter((t) => copies.some((c) => c.id === t.job_story_id)).length;
 
   async function save() {
     const ok = s
       ? await act.patch(`/stories/${s.id}`, v, 'Saved')
-      : await act.post('/stories', v, 'Added to the bank');
+      : await act.post('/stories', v, 'Added to Stories');
     if (ok) sheets.close();
   }
 
@@ -172,7 +196,7 @@ export function StorySheet({
       title={s ? 'Edit story' : `New ${fw?.name ?? ''} story`}
       sub={
         s
-          ? `${fw?.name ?? s.framework_key} · v${s.version} · in ${copies.length} jobs · told ${told}×`
+          ? `${fw?.name ?? s.framework_key} · used in ${copies.length} ${copies.length === 1 ? 'job' : 'jobs'}`
           : fw?.blurb
       }
       onClose={sheets.close}
@@ -181,7 +205,7 @@ export function StorySheet({
           {s && (
             <ConfirmButton
               className="left"
-              confirm="Delete? Job copies stay."
+              confirm="Delete? Jobs keep their copies."
               onConfirm={async () =>
                 (await act.del(`/stories/${s.id}`, 'Deleted')) && sheets.close()
               }
@@ -193,15 +217,24 @@ export function StorySheet({
             <button
               type="button"
               className="btn"
-              onClick={async () =>
-                (await act.patch(`/stories/${s.id}`, { archived: !s.archived })) && sheets.close()
-              }
+              onClick={async () => {
+                const was = s.archived;
+                if (!(await act.patch(`/stories/${s.id}`, { archived: !was }))) return;
+                sheets.close();
+                toast({
+                  text: was ? 'Unarchived' : 'Archived',
+                  action: {
+                    label: 'Undo',
+                    run: () => void act.patch(`/stories/${s.id}`, { archived: was }),
+                  },
+                });
+              }}
             >
               {s.archived ? 'Unarchive' : 'Archive'}
             </button>
           )}
           <button type="button" className="btn primary" disabled={!v.title.trim()} onClick={save}>
-            {s ? `Save as v${s.version + 1}` : 'Add to bank'}
+            {s ? 'Save' : 'Add to Stories'}
           </button>
         </>
       }
@@ -209,8 +242,13 @@ export function StorySheet({
       <StoryForm data={data} v={v} set={set} defs={fw?.sections ?? []} />
       {copies.length > 0 && (
         <div className="callout">
-          <span className="lbl">Copies in jobs · {copies.length}</span>
-          <p className="sub">Saving here never changes these. Each job decides whether to pull.</p>
+          <span className="lbl">
+            Used in {copies.length === 1 ? '1 job' : `${copies.length} jobs`}
+          </span>
+          <p className="sub">
+            Each job keeps its own copy. Saving here doesn’t change them; a job with an older
+            version offers to use this one.
+          </p>
           {copies.map((c) => {
             const a = data.appById.get(c.application_id);
             const st = syncState(c, s);
@@ -220,7 +258,7 @@ export function StorySheet({
                   <strong>{a?.company ?? 'Deleted application'}</strong>{' '}
                   <span className="sub">{a?.title}</span>
                 </span>
-                <span className={cx('sync', `sync-${st}`)}>{SYNC_LABEL[st]}</span>
+                <span className={cx('sync', `sync-${st}`)}>{COPY_LABEL[st]}</span>
               </div>
             );
           })}
@@ -235,7 +273,7 @@ export function FrameworkPicker({ data, onPick }: { data: Data; onPick: (key: st
   return (
     <Sheet
       title="Pick a framework"
-      sub="Every framework is just named sections. Same bank, same copies, same call mode."
+      sub="Every framework is just named sections. Same bank, same copies, same Call Mode."
       onClose={sheets.close}
     >
       <div className="fw-grid">
@@ -301,11 +339,23 @@ export function JobStorySheet({
   const runAndClose = async (path: string, done: string) => {
     if (js && (await act.post(`/job-stories/${js.id}/${path}`, {}, done))) sheets.close();
   };
+  const company = app.company;
+  // What to say about this copy, and what you can do about it.
+  const status: Record<string, string> = {
+    job_only: 'Only on this job.',
+    source_gone: 'The original in Stories was deleted.',
+    in_sync: 'Same as the story in Stories.',
+    edited: `You changed this for ${company}.`,
+    bank_newer: 'The story in Stories has changed since you added it here.',
+    both: `You changed this for ${company}, and the one in Stories changed too.`,
+  };
 
   return (
     <Sheet
       title={js ? js.title : `New ${fw?.name ?? ''} story for this job`}
-      sub={`${app.company} · ${js ? SYNC_LABEL[st] : 'Job-only: add it to the bank later if it’s a keeper'}`}
+      sub={
+        js ? company : `${company} · only on this job (add it to Stories later if it’s a keeper)`
+      }
       onClose={sheets.close}
       footer={
         <>
@@ -324,8 +374,68 @@ export function JobStorySheet({
         </>
       }
     >
-      <Field label="Angle: how to frame it for this job (never counts as an edit)">
-        <textarea
+      {js && (
+        <div className={cx('callout', (st === 'bank_newer' || st === 'both') && 'warn')}>
+          <p className="sync-line">{status[st]}</p>
+          <div className="acts">
+            {(st === 'job_only' || st === 'source_gone') && (
+              <button
+                type="button"
+                className="btn sm"
+                onClick={() => runAndClose('save-as-new', 'Added to Stories')}
+              >
+                Add to Stories
+              </button>
+            )}
+            {st === 'edited' && bank && (
+              <button
+                type="button"
+                className="btn sm"
+                onClick={() => runAndClose('push', 'Updated in Stories')}
+              >
+                Update it in Stories too
+              </button>
+            )}
+            {st === 'bank_newer' && bank && (
+              <button
+                type="button"
+                className="btn sm"
+                onClick={() => runAndClose('pull', 'Using the new version')}
+              >
+                Use the new version
+              </button>
+            )}
+            {st === 'both' && bank && (
+              <>
+                <button
+                  type="button"
+                  className="btn sm"
+                  onClick={() => runAndClose('push', 'Updated in Stories')}
+                >
+                  Keep mine, update Stories
+                </button>
+                <button
+                  type="button"
+                  className="btn sm"
+                  onClick={() => runAndClose('pull', 'Using the version in Stories')}
+                >
+                  Use the version in Stories
+                </button>
+              </>
+            )}
+            {bank && (st === 'bank_newer' || st === 'both') && (
+              <button type="button" className="btn sm ghost" onClick={() => setCompare((c) => !c)}>
+                {compare ? 'Hide differences' : 'See differences'}
+              </button>
+            )}
+          </div>
+          {compare && bank && (
+            <Compare js={js} bank={bank} company={company} frameworks={data.state.frameworks} />
+          )}
+        </div>
+      )}
+      <Field label={`Angle for ${company}: how to frame it here (doesn’t change the story)`}>
+        <AutoTextarea
           className="in angle"
           rows={2}
           value={angle}
@@ -333,69 +443,29 @@ export function JobStorySheet({
           placeholder="For Leah: open with close time, skip the Apex detail."
         />
       </Field>
-      {js && (
-        <div className={cx('callout', (st === 'bank_newer' || st === 'both') && 'warn')}>
-          <div className="sync-line">
-            <span className={cx('sync', `sync-${st}`)}>{SYNC_LABEL[st]}</span>
-            <span className="sub">
-              {js.story_id && bank
-                ? `Copied from bank v${js.source_version}; bank is v${bank.version}.`
-                : js.story_id
-                  ? 'The bank story was deleted.'
-                  : 'Only on this job.'}
-            </span>
-          </div>
-          <div className="acts">
-            {bank && (st === 'bank_newer' || st === 'both') && (
-              <button type="button" className="btn sm" onClick={() => setCompare((c) => !c)}>
-                {compare ? 'Hide' : 'Compare'}
-              </button>
-            )}
-            {bank && st !== 'in_sync' && st !== 'edited' && (
-              <button
-                type="button"
-                className="btn sm"
-                onClick={() => runAndClose('pull', 'Pulled from the bank')}
-              >
-                Pull bank v{bank.version}
-                {st === 'both' ? ' (lose my edits)' : ''}
-              </button>
-            )}
-            {bank && (st === 'edited' || st === 'both') && (
-              <button
-                type="button"
-                className="btn sm"
-                onClick={() => runAndClose('push', `Bank updated to v${bank.version + 1}`)}
-              >
-                Push to bank → v{bank.version + 1}
-              </button>
-            )}
-            {(st === 'edited' || st === 'both' || st === 'job_only' || st === 'source_gone') && (
-              <button
-                type="button"
-                className="btn sm primary"
-                onClick={() => runAndClose('save-as-new', 'Saved to the bank')}
-              >
-                Save as new bank story
-              </button>
-            )}
-          </div>
-          {compare && bank && <Compare js={js} bank={bank} frameworks={data.state.frameworks} />}
-        </div>
-      )}
       <StoryForm data={data} v={v} set={set} defs={defs} />
     </Sheet>
   );
 }
 
-function Compare({ js, bank, frameworks }: { js: JobStory; bank: Story; frameworks: Framework[] }) {
+function Compare({
+  js,
+  bank,
+  company,
+  frameworks,
+}: {
+  js: JobStory;
+  bank: Story;
+  company: string;
+  frameworks: Framework[];
+}) {
   const defs = frameworkOf(bank.framework_key, frameworks)?.sections ?? js.section_defs;
   const keys = [...new Set([...js.section_defs, ...defs].map((d) => d.key))];
   const label = (k: string) => [...js.section_defs, ...defs].find((d) => d.key === k)?.label ?? k;
   return (
     <div className="compare">
       <div className="compare-col">
-        <span className="lbl">This job</span>
+        <span className="lbl">For {company}</span>
         {keys.map((k) => (
           <p key={k} className={cx((js.sections[k] ?? '') !== (bank.sections[k] ?? '') && 'diff')}>
             <b>{label(k)}:</b> {js.sections[k] || '—'}
@@ -403,7 +473,7 @@ function Compare({ js, bank, frameworks }: { js: JobStory; bank: Story; framewor
         ))}
       </div>
       <div className="compare-col">
-        <span className="lbl">Bank v{bank.version}</span>
+        <span className="lbl">In Stories</span>
         {keys.map((k) => (
           <p key={k} className={cx((js.sections[k] ?? '') !== (bank.sections[k] ?? '') && 'diff')}>
             <b>{label(k)}:</b> {bank.sections[k] || '—'}
@@ -433,7 +503,7 @@ export function LinkStorySheet({ data, appId }: { data: Data; appId: string }) {
   if (!app) return null;
   return (
     <Sheet
-      title="Link from the bank"
+      title="Link from Stories"
       sub={`To ${app.company}. Linking makes a copy for this job; edit it freely.`}
       onClose={sheets.close}
     >
@@ -475,7 +545,7 @@ export function LinkStorySheet({ data, appId }: { data: Data; appId: string }) {
           );
         })}
         {!hits.length && (
-          <p className="empty">Nothing in the bank matches. Write one with “New story”.</p>
+          <p className="empty">Nothing in Stories matches. Write one with “New story”.</p>
         )}
       </div>
       <button type="button" className="btn" onClick={() => sheets.newStory(appId)}>

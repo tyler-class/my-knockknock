@@ -1,6 +1,4 @@
-// Logging a meeting, email or note by hand (or editing one, whoever logged it). The list of
-// what's already on the timeline around that time is just a list, so a double entry is easy to
-// spot: no guessing.
+// Logging a meeting, email or note by hand (or editing one, whoever logged it).
 import { useMemo, useState } from 'react';
 import {
   EMAIL_CATEGORIES,
@@ -10,11 +8,18 @@ import {
   type MeetingKind,
   type MeetingState,
 } from '@shared/lookups';
-import { nearby } from '@shared/logic/timeline';
 import type { Attendee, EmailData, MeetingData, TimelineEvent } from '@shared/types';
 import { useActions, type Data } from '../lib/queries';
 import { fromLocalInput, toLocalInput, whenLabel } from '../lib/format';
-import { ConfirmButton, Field, Select, Sheet, SlideToggle, TagInput } from '../components/ui';
+import {
+  AutoTextarea,
+  ConfirmButton,
+  Field,
+  Select,
+  Sheet,
+  SlideToggle,
+  TagInput,
+} from '../components/ui';
 import { Icon, type IconName } from '../components/Icon';
 import { useSheets, type LogType } from './context';
 
@@ -80,17 +85,6 @@ export function EventSheet({
   const [busy, setBusy] = useState(false);
 
   const at = fromLocalInput(when);
-  const near = useMemo(
-    () =>
-      at
-        ? nearby(
-            events.filter((e) => e.id !== ev?.id),
-            at,
-            1,
-          ).slice(0, 4)
-        : [],
-    [events, at, ev?.id],
-  );
   const parents = events.filter((e) => e.type === 'meeting' || e.type === 'email');
 
   if (!app) return null;
@@ -237,7 +231,10 @@ export function EventSheet({
             <Field label="Join link">
               <input
                 className="in"
-                type="url"
+                type="text"
+                inputMode="url"
+                autoCapitalize="off"
+                spellCheck={false}
                 value={joinUrl}
                 onChange={(e) => setJoinUrl(e.target.value)}
                 placeholder="https://zoom.us/j/…"
@@ -311,7 +308,7 @@ export function EventSheet({
             </div>
           </Field>
           <Field label="Topics and format">
-            <textarea
+            <AutoTextarea
               className="in"
               rows={3}
               value={agenda}
@@ -320,7 +317,7 @@ export function EventSheet({
             />
           </Field>
           <Field label="Details">
-            <textarea
+            <AutoTextarea
               className="in"
               rows={2}
               value={body}
@@ -384,7 +381,7 @@ export function EventSheet({
             <input className="in" value={title} onChange={(e) => setTitle(e.target.value)} />
           </Field>
           <Field label="What happened (a summary, not the whole email)">
-            <textarea
+            <AutoTextarea
               className="in"
               rows={3}
               value={body}
@@ -402,7 +399,10 @@ export function EventSheet({
           <Field label="Link to the email (optional)">
             <input
               className="in"
-              type="url"
+              type="text"
+              inputMode="url"
+              autoCapitalize="off"
+              spellCheck={false}
               value={link}
               onChange={(e) => setLink(e.target.value)}
               placeholder="https://mail.google.com/…"
@@ -414,7 +414,7 @@ export function EventSheet({
       {type === 'note' && (
         <>
           <Field label="Note">
-            <textarea
+            <AutoTextarea
               className="in"
               rows={6}
               autoFocus
@@ -455,22 +455,6 @@ export function EventSheet({
             </Field>
           )}
         </>
-      )}
-
-      {near.length > 0 && (
-        <div className="callout">
-          <span className="lbl">Already on this timeline around then</span>
-          {near.map((e) => (
-            <div key={e.id} className="near">
-              <Icon name={EVENT_ICON[e.type] ?? 'note'} size={15} />
-              <span className="near-what">{eventLabel(e)}</span>
-              <span className="sub">
-                {whenLabel(e.occurred_at)} ·{' '}
-                {e.source === 'agent' ? `via ${e.source_name ?? 'assistant'}` : 'manual'}
-              </span>
-            </div>
-          ))}
-        </div>
       )}
     </Sheet>
   );

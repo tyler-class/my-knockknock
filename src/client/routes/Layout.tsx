@@ -1,15 +1,18 @@
-import { useEffect, useLayoutEffect } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router';
 import { GlassTabBar, type GlassTab } from '../components/GlassTabBar';
 import { Icon } from '../components/Icon';
-import { Asterisk, Joke, Wordmark } from '../components/Brand';
+import { Asterisk, Joke, Spinner, Wordmark } from '../components/Brand';
+import { useIsFetching, useIsMutating } from '@tanstack/react-query';
 import { useSheets } from '../sheets/context';
 import { useTabSwipe } from '../lib/tabSwipe';
-import { useData } from '../lib/queries';
+import { useActions, useData, type Data } from '../lib/queries';
+import { cx } from '../components/ui';
+import type { Search } from '@shared/types';
 import { onPushOpen } from '../kit/push';
 
 const TABS: GlassTab[] = [
-  ['/', 'Today', 'home'],
+  ['/', 'Home', 'home'],
   ['/pipeline', 'Pipeline', 'briefcase'],
   ['/stories', 'Stories', 'quote'],
   ['/reports', 'Report', 'chart'],
@@ -29,10 +32,105 @@ function activeTab(path: string): string {
   return '/';
 }
 
+const searchStatus = (s: Search) =>
+  s.status === 'active' ? 'Active' : s.status === 'accepted' ? 'Accepted' : 'Ended';
+
+/**
+ * The search everything (but Stories) is about. Tapping it lists every search to pick
+ * from, with Edit for the chosen one and New search at the bottom.
+ */
+function SearchSwitch({ data, compact }: { data: Data | null; compact?: boolean }) {
+  const sheets = useSheets();
+  const act = useActions();
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: PointerEvent) => {
+      if (!root.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('pointerdown', away);
+    document.addEventListener('keydown', esc);
+    return () => {
+      document.removeEventListener('pointerdown', away);
+      document.removeEventListener('keydown', esc);
+    };
+  }, [open]);
+  const search = data?.search;
+  const count = (id: string) =>
+    data?.state.applications.filter((a) => a.search_id === id).length ?? 0;
+  const go = (fn: () => void) => {
+    setOpen(false);
+    fn();
+  };
+  return (
+    <div className={cx('search-pick', compact && 'compact')} ref={root}>
+      <button
+        type="button"
+        className="search-switch"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        {!compact && <span className="lbl">Search</span>}
+        <span className="search-switch-name">
+          <strong>{search?.name ?? 'No search yet'}</strong>
+          <Icon name="chevDown" size={16} />
+        </span>
+        {search && !compact && (
+          <span className="sub">
+            {searchStatus(search)} · {count(search.id)} applications
+          </span>
+        )}
+      </button>
+      {open && (
+        <div className="search-menu" role="menu" aria-label="Searches">
+          {data?.state.searches.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              role="menuitemradio"
+              aria-checked={s.id === search?.id}
+              className="search-opt"
+              onClick={() => go(() => s.id !== search?.id && void act.chooseSearch(s.id))}
+            >
+              <span className="row-text">
+                <strong>{s.name}</strong>
+                <span className="sub">
+                  {searchStatus(s)} · {count(s.id)} applications
+                </span>
+              </span>
+              {s.id === search?.id && <Icon name="check" size={16} />}
+            </button>
+          ))}
+          <div className="search-menu-foot">
+            {search && (
+              <button
+                type="button"
+                className="btn sm"
+                onClick={() => go(() => sheets.search(search.id))}
+              >
+                <Icon name="edit" size={14} /> Edit this search
+              </button>
+            )}
+            <button type="button" className="btn sm" onClick={() => go(() => sheets.search())}>
+              <Icon name="plus" size={14} /> New search
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Brand() {
+  // The asterisk turns while anything is loading or saving (after a beat, so quick ones don't
+  // flicker).
+  const busy = useIsFetching() + useIsMutating() > 0;
   return (
     <div className="brand">
-      <Asterisk size={26} />
+      <Asterisk size={26} className={busy ? 'spinning delayed' : undefined} />
       <Wordmark />
     </div>
   );
@@ -60,27 +158,13 @@ export function Layout() {
       {label}
     </NavLink>
   );
-  const search = data?.search;
   return (
     <div className="shell">
       <aside className="side">
         <Link to="/" className="side-brand" aria-label="Knock Knock home">
           <Brand />
         </Link>
-        <button type="button" className="search-switch" onClick={() => sheets.search(search?.id)}>
-          <span className="lbl">Search ▾</span>
-          <strong>{search?.name ?? 'No search yet'}</strong>
-          {search && (
-            <span className="sub">
-              {search.status === 'active'
-                ? 'Active'
-                : search.status === 'accepted'
-                  ? 'Accepted'
-                  : 'Ended'}{' '}
-              · {data?.apps.length ?? 0} applications
-            </span>
-          )}
-        </button>
+        <SearchSwitch data={data} />
         <button type="button" className="btn primary" onClick={sheets.addJob}>
           <Icon name="plus" size={18} /> Add job
         </button>
@@ -96,13 +180,17 @@ export function Layout() {
         <Link to="/" aria-label="Knock Knock home" className="appbar-home">
           <Brand />
         </Link>
+        <SearchSwitch data={data} compact />
       </header>
       <main className="main">
-        <Outlet />
+        {data ? (
+          <Outlet />
+        ) : (
+          <div className="page-loading">
+            <Spinner />
+          </div>
+        )}
       </main>
-      <button type="button" className="fab" aria-label="Add a job" onClick={sheets.addJob}>
-        <Asterisk size={26} />
-      </button>
       <GlassTabBar tabs={TABS} active={active} />
     </div>
   );

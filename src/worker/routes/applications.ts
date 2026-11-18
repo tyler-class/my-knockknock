@@ -316,7 +316,21 @@ applications.post('/applications/:id/status', async (c) => {
   const events = await loadEvents(db, id);
   const before = deriveStatus(events.filter((e) => e.occurred_at <= at)).status;
   const current = deriveStatus(events).status;
-  if (current === input.status && !input.occurred_at) return written(c, null, id);
+  // Marking the search Accepted (when asked) works even if the job is already Accepted.
+  const closeSearch = async () => {
+    if (input.status !== 'accepted' || !input.close_search) return;
+    const app = await loadApplication(db, id);
+    await db
+      .prepare(
+        "UPDATE searches SET status = 'accepted', ended_on = COALESCE(ended_on, ?), updated_at = ? WHERE id = ?",
+      )
+      .bind(at.slice(0, 10), nowIso(), app!.search_id)
+      .run();
+  };
+  if (current === input.status && !input.occurred_at) {
+    await closeSearch();
+    return written(c, null, id);
+  }
   const data: StatusData = {
     from: before,
     to: input.status,
@@ -334,17 +348,10 @@ applications.post('/applications/:id/status', async (c) => {
       .bind(at.slice(0, 10), id)
       .run();
   }
-  if (input.status === 'accepted') {
-    // Accepting closes the search. Other open applications are listed so you can decline them;
-    // nothing is declined without asking.
-    const app = await loadApplication(db, id);
-    await db
-      .prepare(
-        "UPDATE searches SET status = 'accepted', ended_on = COALESCE(ended_on, ?), updated_at = ? WHERE id = ?",
-      )
-      .bind(at.slice(0, 10), nowIso(), app!.search_id)
-      .run();
-  }
+  // Accepting doesn't close the search by itself: the app (or an assistant) asks first, then
+  // passes close_search. Other open applications are listed so you can decline them; nothing is
+  // declined without asking.
+  await closeSearch();
   return written(c, event, id, 201);
 });
 
@@ -494,6 +501,7 @@ applications.delete('/events/:id', async (c) => {
 applications.post('/applications/:id/people', async (c) => {
   const id = await needApp(c);
   const input = await body(c, personInput);
+  if (input.role !== 'other') input.other_role = null;
   const pid = newId();
   const now = nowIso();
   await insertStmt(c.env.DB, 'people', {
@@ -510,6 +518,8 @@ applications.patch('/people/:id', async (c) => {
   const id = c.req.param('id');
   const input = defined(await body(c, personPatch));
   if (!(await exists(c.env.DB, 'people', id))) throw notFound('Person');
+  // Only "other" carries its own words.
+  if (input.role && input.role !== 'other') input.other_role = null;
   if (Object.keys(input).length) await updateStmt(c.env.DB, 'people', id, input).run();
   return c.json(toPerson((await first(c.env.DB, 'SELECT * FROM people WHERE id = ?', id))!));
 });

@@ -5,8 +5,7 @@ export type LogType = 'meeting' | 'email' | 'note';
 
 export interface SheetApi {
   addJob: () => void;
-  editApp: (id: string) => void;
-  status: (appId: string, to?: Status) => void;
+  status: (appId: string, to?: Status | 'closed') => void;
   /** Log a new event, or edit one (eventId). parentId attaches a note to an event. */
   log: (appId: string, o?: { type?: LogType; eventId?: string; parentId?: string }) => void;
   person: (appId: string, personId?: string) => void;
@@ -25,7 +24,6 @@ export interface SheetApi {
 const noop = () => {};
 export const SheetCtx = createContext<SheetApi>({
   addJob: noop,
-  editApp: noop,
   status: noop,
   log: noop,
   person: noop,

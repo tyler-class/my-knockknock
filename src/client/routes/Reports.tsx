@@ -1,5 +1,11 @@
 import { useMemo, useState } from 'react';
-import { buildReport, type FlowLink, type FlowNode, type Report } from '@shared/logic/report';
+import {
+  buildReport,
+  MIN_REPLIES,
+  type Breakdown,
+  type FlowLink,
+  type FlowNode,
+} from '@shared/logic/report';
 import { useData } from '../lib/queries';
 import { pct } from '../lib/format';
 import { PageHeader, Select } from '../components/ui';
@@ -96,15 +102,16 @@ function Sankey({ nodes, links }: { nodes: FlowNode[]; links: FlowLink[] }) {
   );
 }
 
-function Bars({ rows }: { rows: Report['bySource'] }) {
+/** "LinkedIn — 3 of 10 heard back · 30%", with a bar. */
+function Bars({ rows }: { rows: Breakdown[] }) {
   return (
     <div className="bars">
       {rows.map((r) => (
         <div key={r.name} className="bar-row">
           <div className="bar-label">
             <span>{r.name}</span>
-            <span className="mono">
-              {pct(r.rate)} · n={r.n}
+            <span className="sub">
+              {r.heardBack} of {r.applied} heard back · {pct(r.rate)}
             </span>
           </div>
           <div className="bar">
@@ -136,18 +143,14 @@ export function Reports() {
   }, [data, scope]);
   if (!data || !report) return null;
   const maxWeek = Math.max(...report.perWeek.map((w) => w.n), 1);
-  const kpis: [string, string, string][] = [
-    ['Sent', String(report.sent), `${report.saved} saved, not sent`],
-    ['Response rate', pct(report.responseRate), `${report.responded} heard back`],
-    ['Interview rate', pct(report.interviewRate), `${report.interviewed} of ${report.sent}`],
-    ['Offers', String(report.offers), `${report.accepted} accepted`],
-    [
-      'Median first reply',
-      report.medianReplyDays == null ? '–' : `${Math.round(report.medianReplyDays)}d`,
-      'applied → any reply',
-    ],
-    ['Ghost rate', pct(report.ghostRate), `${report.ghosted} ghosted`],
+  const ofSent = (n: number) => (report.sent ? `${pct(n / report.sent)} of applied` : '');
+  const tiles: [string, number, string][] = [
+    ['Applied', report.sent, report.saved ? `${report.saved} saved, not sent` : ''],
+    ['Heard back', report.heardBack, ofSent(report.heardBack)],
+    ['Interviews', report.interviewed, ofSent(report.interviewed)],
+    ['Offers', report.offers, ofSent(report.offers)],
   ];
+  const days = report.medianDaysToHear;
 
   return (
     <>
@@ -172,21 +175,19 @@ export function Reports() {
           ]}
         />
       </div>
-      <div className="kpis">
-        {kpis.map(([l, v, d]) => (
+      <div className="kpis home-kpis">
+        {tiles.map(([l, v, d]) => (
           <div key={l} className="kpi">
             <span className="kpi-l">{l}</span>
             <span className="kpi-v">{v}</span>
-            <span className="sub">{d}</span>
+            {d && <span className="sub">{d}</span>}
           </div>
         ))}
       </div>
 
       <section className="card sec">
-        <span className="lbl">Where {report.sent} applications went</span>
-        <p className="sub">
-          Built from status history, so each one counts in every stage it reached.
-        </p>
+        <h2 className="sec-title">Where your applications went</h2>
+        <p className="sub">Each application counts in every stage it reached.</p>
         {report.nodes.length ? (
           <div className="sankey-wrap">
             <Sankey nodes={report.nodes} links={report.links} />
@@ -220,16 +221,55 @@ export function Reports() {
 
       <div className="report-grid">
         <section className="card">
-          <span className="lbl">Response rate by source</span>
-          <Bars rows={report.bySource} />
+          <h2 className="sec-title">Response rate</h2>
+          <p className="sub">
+            Heard back: moved past Applied (Screening or later) or got a rejection, rather than
+            silence.
+          </p>
+          {report.sent ? (
+            <>
+              <div className="big-stat">
+                <span className="kpi-v">{pct(report.heardBackRate)}</span>
+                <span className="sub">
+                  {report.heardBack} of {report.sent} heard back
+                </span>
+              </div>
+              <h3 className="sub-h">By where you found the job</h3>
+              <Bars rows={report.bySource} />
+            </>
+          ) : (
+            <p className="empty">Nothing applied to yet.</p>
+          )}
+        </section>
+        {report.byResume.length > 0 && (
+          <section className="card">
+            <h2 className="sec-title">Which resume got replies</h2>
+            <p className="sub">The resume attached to each application you sent.</p>
+            <Bars rows={report.byResume} />
+          </section>
+        )}
+        <section className="card">
+          <h2 className="sec-title">Time to hear back</h2>
+          <p className="sub">
+            Median days from applying to the first status change past Applied, or a rejection.
+          </p>
+          {days == null ? (
+            <p className="empty">
+              Not enough replies yet
+              {report.replies ? ` (${report.replies} so far; needs ${MIN_REPLIES})` : ''}.
+            </p>
+          ) : (
+            <div className="big-stat">
+              <span className="kpi-v">
+                {Math.round(days)} {Math.round(days) === 1 ? 'day' : 'days'}
+              </span>
+              <span className="sub">from {report.replies} replies</span>
+            </div>
+          )}
         </section>
         <section className="card">
-          <span className="lbl">By resume sent</span>
-          <Bars rows={report.byResume} />
-          <p className="sub">Small numbers: n is shown so you don’t over-read three data points.</p>
-        </section>
-        <section className="card">
-          <span className="lbl">Applications per week</span>
+          <h2 className="sec-title">Applied per week</h2>
+          <p className="sub">The last 12 weeks, Monday to Sunday.</p>
           <div className="weeks">
             {report.perWeek.map((w) => (
               <div key={w.week} className="wk" title={`Week of ${w.week}: ${w.n}`}>

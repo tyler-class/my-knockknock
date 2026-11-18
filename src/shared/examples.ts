@@ -35,7 +35,7 @@ export const EXAMPLE_PROMPTS: ExamplePrompt[] = [
   },
   {
     prompt: 'Write a STAR story about <project> and add it to my Stories.',
-    why: 'Talk it through; it lands in the bank with probable questions.',
+    why: 'Talk it through; it lands in Stories, written in its framework’s parts.',
   },
   {
     prompt: 'How is my search going? Response rate, where things die, what’s working.',

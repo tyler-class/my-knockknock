@@ -10,6 +10,10 @@
 import { BUILTIN_FRAMEWORKS, type FrameworkSection } from '../frameworks';
 import type { Framework, JobStory, Story } from '../types';
 
+/**
+ * What a copy's hash covers. Hook, tags and questions are no longer shown or edited (stories are
+ * just their parts), but they stay in the hash so copies made before keep their sync state.
+ */
 export interface StoryContent {
   title: string;
   hook: string | null;
@@ -74,10 +78,10 @@ export const COPY_LABEL: Record<SyncState, string> = {
   both: 'Changed, older version',
 };
 
-/** Built-ins first, then custom ones. */
+/** Built-ins first, then custom ones. (`questions` is an unused column, kept for old data.) */
 export function allFrameworks(custom: Framework[]): Framework[] {
   return [
-    ...BUILTIN_FRAMEWORKS.map((f) => ({ ...f, builtin: true })),
+    ...BUILTIN_FRAMEWORKS.map((f) => ({ ...f, questions: [], builtin: true })),
     ...custom.filter((c) => !BUILTIN_FRAMEWORKS.some((b) => b.key === c.key)),
   ];
 }
@@ -129,56 +133,40 @@ const stem = (w: string) => w.replace(/(ing|ed|es|s)$/, '');
 
 export interface Searchable {
   title: string;
-  hook: string | null;
-  tags: string[];
-  questions: string[];
+  framework_key: string;
   sections: Record<string, string>;
 }
 
 export interface StoryHit<T> {
   item: T;
-  /** The probable question it matched, when it matched one. */
-  question: string | null;
   score: number;
 }
 
 /**
- * Plain word overlap, no AI: instant and works offline. Type the question you just heard and
- * stories whose probable questions share its words float up, then titles, tags and text.
+ * Plain word overlap, no AI: instant and works offline. Type the question you just heard (or any
+ * words) and stories whose title, framework name or parts share its words float up: a title word
+ * counts most, then the framework's name, then the text of the parts.
  */
 export function searchStories<T extends Searchable>(
   items: T[],
   q: string,
-  tag?: string | null,
+  frameworks: Pick<Framework, 'key' | 'name'>[] = [],
 ): StoryHit<T>[] {
-  const pool = tag ? items.filter((i) => i.tags.includes(tag)) : items;
   const qw = [...new Set(words(q).map(stem))];
-  if (!qw.length) return pool.map((item) => ({ item, question: null, score: 0 }));
+  if (!qw.length) return items.map((item) => ({ item, score: 0 }));
+  const fwName = new Map(frameworks.map((f) => [f.key, f.name]));
   const hits: StoryHit<T>[] = [];
-  for (const item of pool) {
-    let score = 0;
-    let question: string | null = null;
-    let best = 0;
-    for (const pq of item.questions) {
-      const pw = new Set(words(pq).map(stem));
-      const n = qw.filter((w) => pw.has(w)).length;
-      if (n > best) {
-        best = n;
-        question = pq;
-      }
-    }
-    score += best * 3;
+  for (const item of items) {
     const title = new Set(words(item.title).map(stem));
-    const tags = new Set(item.tags.flatMap((t) => words(t)).map(stem));
-    const rest = new Set(
-      words([item.hook ?? '', ...Object.values(item.sections)].join(' ')).map(stem),
-    );
+    const fw = new Set(words(fwName.get(item.framework_key) ?? item.framework_key).map(stem));
+    const parts = new Set(words(Object.values(item.sections).join(' ')).map(stem));
+    let score = 0;
     for (const w of qw) {
-      if (title.has(w)) score += 2;
-      if (tags.has(w)) score += 2;
-      if (rest.has(w)) score += 1;
+      if (title.has(w)) score += 3;
+      if (fw.has(w)) score += 2;
+      if (parts.has(w)) score += 1;
     }
-    if (score > 0) hits.push({ item, question: best ? question : null, score });
+    if (score > 0) hits.push({ item, score });
   }
   hits.sort((a, b) => b.score - a.score);
   // Drop stragglers that only share a word or two with the question.

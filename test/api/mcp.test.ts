@@ -299,17 +299,17 @@ describe('MCP', () => {
         action: 'Two plans side by side.',
         result: 'Shipped on time.',
       },
-      tags: ['conflict'],
-      questions: ['Tell me about a time you disagreed with a leader.'],
     });
     expect(st.error).toBeNull();
-    const hits = await tool<{ id: string; matched_question?: string }[]>(token, 'list_stories', {
-      query: 'a time you disagreed with your boss',
-    });
-    expect(hits.data[0]).toMatchObject({
-      id: st.data.created.id,
-      matched_question: 'Tell me about a time you disagreed with a leader.',
-    });
+    // Found by the words in its parts (there are no probable questions any more).
+    const hits = await tool<{ id: string; questions?: unknown; tags?: unknown }[]>(
+      token,
+      'list_stories',
+      { query: 'when a VP promised a date you could not hit' },
+    );
+    expect(hits.data[0]).toMatchObject({ id: st.data.created.id });
+    expect(hits.data[0]).not.toHaveProperty('questions');
+    expect(hits.data[0]).not.toHaveProperty('tags');
     const linked = await tool<{ linked: { job_story: string } }>(token, 'link_story', {
       application: 'Copperleaf',
       story: 'pushing back',

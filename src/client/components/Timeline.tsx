@@ -1,7 +1,7 @@
 // An application's timeline: upcoming meetings above a NOW line, then everything else newest
 // first, each a card with its own icon; notes about an event sit under it.
-import { useMemo, useState } from 'react';
-import { Link } from 'react-router';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router';
 import { emailCategoryLabel, meetingKindLabel, type EventType } from '@shared/lookups';
 import { timelineView } from '@shared/logic/timeline';
 import type { EmailData, MeetingData, StatusData, TimelineEvent } from '@shared/types';
@@ -28,6 +28,7 @@ function NoteBlock({ n, appId }: { n: TimelineEvent; appId: string }) {
   return (
     <button
       type="button"
+      id={`ev-${n.id}`}
       className="nested-note"
       onClick={() => sheets.log(appId, { eventId: n.id })}
     >
@@ -162,7 +163,7 @@ export function EventCard({
   // (A status change is undone from its toast, or changed by moving the stage again.)
   const editable = e.type !== 'created' && e.type !== 'status';
   return (
-    <div className={cx('ev', `ev-${e.type}`, upcoming && 'upcoming')}>
+    <div id={`ev-${e.id}`} className={cx('ev', `ev-${e.type}`, upcoming && 'upcoming')}>
       <div className="node" aria-hidden="true">
         {e.type === 'created' ? (
           <Asterisk size={16} />
@@ -210,6 +211,29 @@ export function EventCard({
 export function Timeline({ events, appId }: { events: TimelineEvent[]; appId: string }) {
   const [filter, setFilter] = useState<Filter>('all');
   const now = new Date();
+  // ?event=<id> (from Home's recent activity): scroll to that entry, flash it once, and take the
+  // id back out of the address so it doesn't happen again.
+  const [params, setParams] = useSearchParams();
+  const target = params.get('event');
+  useEffect(() => {
+    if (!target) return;
+    const el = document.getElementById(`ev-${target}`);
+    if (el) {
+      const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      el.scrollIntoView({ block: 'center', behavior: still ? 'auto' : 'smooth' });
+      el.classList.add('flash');
+      // Not cleared when the id leaves the address (that re-runs this effect): let it finish.
+      setTimeout(() => el.classList.remove('flash'), 1800);
+    }
+    setParams(
+      (p) => {
+        const q = new URLSearchParams(p);
+        q.delete('event');
+        return q;
+      },
+      { replace: true },
+    );
+  }, [target, setParams]);
   const view = useMemo(() => timelineView(events, new Date()), [events]);
   const count = (t: EventType | 'status') =>
     events.filter(

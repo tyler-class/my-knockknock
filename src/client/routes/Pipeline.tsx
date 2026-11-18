@@ -198,7 +198,7 @@ export function Pipeline() {
   return (
     <>
       <PageHeader
-        title="Pipeline"
+        title="Jobs"
         icon="briefcase"
         action={
           <button type="button" className="btn primary" onClick={sheets.addJob}>

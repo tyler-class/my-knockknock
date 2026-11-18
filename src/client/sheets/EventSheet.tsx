@@ -21,6 +21,7 @@ import {
   TagInput,
 } from '../components/ui';
 import { Icon, type IconName } from '../components/Icon';
+import { DateTimeField } from '../components/DateTimePicker';
 import { useSheets, type LogType } from './context';
 
 export const EVENT_ICON: Record<string, IconName> = {
@@ -190,28 +191,19 @@ export function EventSheet({
             />
           </Field>
           <Field label="Name">
-            <input
-              className="in"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder={meetingKindLabel(kind)}
-            />
+            <input className="in" value={title} onChange={(e) => setTitle(e.target.value)} />
           </Field>
           <div className="two">
             <Field label="Starts">
-              <input
-                className="in"
-                type="datetime-local"
-                value={when}
-                onChange={(e) => setWhen(e.target.value)}
-              />
+              <DateTimeField label="Starts" value={when} onChange={setWhen} />
             </Field>
             <Field label="Ends">
-              <input
-                className="in"
-                type="datetime-local"
+              <DateTimeField
+                label="Ends"
                 value={ends}
-                onChange={(e) => setEnds(e.target.value)}
+                onChange={setEnds}
+                optional
+                fallback={when}
               />
             </Field>
           </div>
@@ -237,7 +229,6 @@ export function EventSheet({
                 spellCheck={false}
                 value={joinUrl}
                 onChange={(e) => setJoinUrl(e.target.value)}
-                placeholder="https://zoom.us/j/…"
               />
             </Field>
             <Field label="Or where">
@@ -245,18 +236,16 @@ export function EventSheet({
                 className="in"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                placeholder="Phone, office…"
               />
             </Field>
           </div>
-          <Field label="Who">
+          <Field label="Who (name, title, email)">
             <div className="attendees">
               {people.map((p, i) => (
                 <div key={i} className="three att">
                   <input
                     className="in"
                     value={p.name}
-                    placeholder="Name"
                     aria-label="Name"
                     onChange={(e) =>
                       setPeople((l) =>
@@ -267,7 +256,6 @@ export function EventSheet({
                   <input
                     className="in"
                     value={p.title ?? ''}
-                    placeholder="Title"
                     aria-label="Title"
                     onChange={(e) =>
                       setPeople((l) =>
@@ -279,7 +267,6 @@ export function EventSheet({
                     <input
                       className="in"
                       value={p.email ?? ''}
-                      placeholder="Email"
                       aria-label="Email"
                       onChange={(e) =>
                         setPeople((l) =>
@@ -313,7 +300,6 @@ export function EventSheet({
               rows={3}
               value={agenda}
               onChange={(e) => setAgenda(e.target.value)}
-              placeholder="Integration architecture, a 30-minute design exercise…"
             />
           </Field>
           <Field label="Details">
@@ -342,12 +328,7 @@ export function EventSheet({
               />
             </Field>
             <Field label="When">
-              <input
-                className="in"
-                type="datetime-local"
-                value={when}
-                onChange={(e) => setWhen(e.target.value)}
-              />
+              <DateTimeField label="When" value={when} onChange={setWhen} />
             </Field>
           </div>
           <div className="two">
@@ -356,7 +337,6 @@ export function EventSheet({
                 className="in"
                 value={withName}
                 onChange={(e) => setWithName(e.target.value)}
-                placeholder="Dana Ruiz"
               />
             </Field>
             <Field label="Their email">
@@ -389,12 +369,7 @@ export function EventSheet({
             />
           </Field>
           <Field label="Key points">
-            <TagInput
-              value={points}
-              onChange={setPoints}
-              suggestions={[]}
-              placeholder="Base: $205k → asked $225k"
-            />
+            <TagInput value={points} onChange={setPoints} suggestions={[]} />
           </Field>
           <Field label="Link to the email (optional)">
             <input
@@ -405,7 +380,6 @@ export function EventSheet({
               spellCheck={false}
               value={link}
               onChange={(e) => setLink(e.target.value)}
-              placeholder="https://mail.google.com/…"
             />
           </Field>
         </>
@@ -420,7 +394,6 @@ export function EventSheet({
               autoFocus
               value={body}
               onChange={(e) => setBody(e.target.value)}
-              placeholder="A thought, something they said, how it went…"
             />
           </Field>
           <div className="two">
@@ -428,12 +401,7 @@ export function EventSheet({
               <input className="in" value={title} onChange={(e) => setTitle(e.target.value)} />
             </Field>
             <Field label="When">
-              <input
-                className="in"
-                type="datetime-local"
-                value={when}
-                onChange={(e) => setWhen(e.target.value)}
-              />
+              <DateTimeField label="When" value={when} onChange={setWhen} />
             </Field>
           </div>
           {parents.length > 0 && (

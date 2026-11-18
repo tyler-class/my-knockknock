@@ -1,23 +1,31 @@
 // Home: the chosen search at a glance. A few counts, what's coming up, and the latest activity
 // across its applications.
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { isOpen, meetingKindLabel } from '@shared/lookups';
 import { appliedAt } from '@shared/logic/status';
 import { isUpcoming } from '@shared/logic/timeline';
 import { weekOf } from '@shared/logic/report';
-import type { Application, MeetingData } from '@shared/types';
+import { activityLabel, interviewsThisWeek } from '@shared/logic/activity';
+import type { MeetingData, TimelineEvent } from '@shared/types';
 import { useData } from '../lib/queries';
-import { relDays, whenLabel } from '../lib/format';
+import { ellipsis, relDays, whenLabel } from '../lib/format';
 import { useSheets } from '../sheets/context';
-import { eventLabel } from '../sheets/EventSheet';
-import { StatusChip } from '../components/StatusChip';
+import { EVENT_ICON } from '../sheets/EventSheet';
 import { Asterisk } from '../components/Brand';
-import { Icon } from '../components/Icon';
+import { Icon, type IconName } from '../components/Icon';
 import { PageHeader } from '../components/ui';
+
+/** A job's Timeline tab, scrolled to one entry (which flashes briefly). */
+const eventHref = (e: Pick<TimelineEvent, 'application_id' | 'id'>) =>
+  `/a/${e.application_id}?tab=timeline&event=${e.id}`;
+
+const ACTIVITY_ICON = (icon: ReturnType<typeof activityLabel>['icon']): IconName =>
+  icon === 'file' ? 'file' : EVENT_ICON[icon]!;
 
 export function Home() {
   const data = useData();
   const sheets = useSheets();
+  const nav = useNavigate();
   if (!data) return null;
   const { state, apps, appById } = data;
   const now = new Date();
@@ -59,11 +67,13 @@ export function Home() {
     .filter((e) => Date.parse(e.occurred_at) <= now.getTime())
     .sort((a, b) => b.occurred_at.localeCompare(a.occurred_at))
     .slice(0, 12);
+  const interviews = interviewsThisWeek(events, now);
   const tiles: [string, number][] = [
     ['Applications', apps.length],
     ['Open', open],
     ['Applied this week', thisWeek],
   ];
+  const next = interviews[0];
 
   return (
     <>
@@ -76,6 +86,17 @@ export function Home() {
             <span className="kpi-v">{v}</span>
           </div>
         ))}
+        {/* Tapping it opens the next one on its job's timeline. */}
+        <button
+          type="button"
+          className="kpi kpi-btn"
+          disabled={!next}
+          onClick={() => next && nav(eventHref(next))}
+          aria-label={`Interviews this week: ${interviews.length}${next ? '. Open the next one' : ''}`}
+        >
+          <span className="kpi-l">Interviews this week</span>
+          <span className="kpi-v">{interviews.length}</span>
+        </button>
       </div>
 
       {upcoming.length > 0 && (
@@ -88,7 +109,7 @@ export function Home() {
               const a = appById.get(e.application_id)!;
               const d = e.data as MeetingData;
               return (
-                <Link key={e.id} to={`/a/${a.id}`} className="recent">
+                <Link key={e.id} to={eventHref(e)} className="recent">
                   <span className="recent-what">
                     <strong>{a.company}</strong> · {e.title || meetingKindLabel(d.kind)}
                   </span>
@@ -109,19 +130,29 @@ export function Home() {
         <div className="card list">
           {recent.map((e) => {
             const a = appById.get(e.application_id)!;
+            const l = activityLabel(e);
             return (
-              <Link key={e.id} to={`/a/${a.id}`} className="recent">
-                <span className="recent-what">
-                  <strong>{a.company}</strong> ·{' '}
-                  {e.type === 'status' || e.type === 'created' ? (
-                    <StatusChip status={(e.data as { to: Application['status'] }).to} small />
+              <Link key={e.id} to={eventHref(e)} className="recent activity">
+                <span className="act-icon" aria-hidden="true">
+                  {l.icon === 'created' ? (
+                    <Asterisk size={16} />
                   ) : (
-                    eventLabel(e)
+                    <Icon name={ACTIVITY_ICON(l.icon)} size={16} />
                   )}
                 </span>
-                <span className="sub">
-                  {relDays(e.occurred_at)}
-                  {e.source === 'agent' ? ` · via ${e.source_name ?? 'assistant'}` : ''}
+                <span className="act-text">
+                  <span className="act-top">
+                    <span className="lbl">{l.kind}</span>
+                    <span className="sub act-when">
+                      {relDays(e.occurred_at)}
+                      {e.source === 'agent' ? ` · via ${e.source_name ?? 'assistant'}` : ''}
+                    </span>
+                  </span>
+                  <span className="act-job">
+                    <strong>{a.company}</strong>
+                    <span className="sub"> · {ellipsis(a.title, 40)}</span>
+                  </span>
+                  {l.snippet && <span className="act-snip">{l.snippet}</span>}
                 </span>
               </Link>
             );

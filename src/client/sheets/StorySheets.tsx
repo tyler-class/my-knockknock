@@ -5,7 +5,7 @@
 // words how it compares with Stories ("You changed this for PwC") and offers at most the
 // one or two actions that make sense, never version numbers.
 import { useMemo, useState } from 'react';
-import { sectionLetter, storyExtras, type FrameworkSection } from '@shared/frameworks';
+import { sectionLetter, type FrameworkSection } from '@shared/frameworks';
 import {
   COPY_LABEL,
   frameworkOf,
@@ -16,33 +16,24 @@ import {
 import type { Framework, JobStory, Story } from '@shared/types';
 import { useActions, type Data } from '../lib/queries';
 import { useToast } from '../components/Toast';
-import { AutoTextarea, ConfirmButton, Field, Select, Sheet, TagInput, cx } from '../components/ui';
+import { AutoTextarea, ConfirmButton, Field, Select, Sheet, cx } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { useSheets } from './context';
 
+/** What the story editors change: the framework, the title, the parts and any notes. */
 interface Content {
   framework_key: string;
   title: string;
-  hook: string;
-  tags: string[];
   sections: Record<string, string>;
-  questions: string[];
   notes: string;
 }
 
 const contentOf = (s?: Story | JobStory, framework?: string): Content => ({
   framework_key: s?.framework_key ?? framework ?? 'star',
   title: s?.title ?? '',
-  hook: s?.hook ?? '',
-  tags: s?.tags ?? [],
   sections: s?.sections ?? {},
-  questions: s?.questions ?? [],
   notes: s?.notes ?? '',
 });
-
-/** Every tag used anywhere, for suggestions. */
-const allTags = (d: Data) =>
-  [...new Set([...d.state.stories, ...d.state.job_stories].flatMap((s) => s.tags))].sort();
 
 function StoryForm({
   data,
@@ -56,102 +47,45 @@ function StoryForm({
   defs: FrameworkSection[];
 }) {
   const fw = frameworkOf(v.framework_key, data.state.frameworks);
-  const suggestions = (fw?.questions ?? []).filter((q) => !v.questions.includes(q));
-  // Only the framework's parts, plus the extras that fit its kind (or already hold something).
-  const extras = storyExtras(fw?.group);
-  const showHook = extras.includes('hook') || !!v.hook.trim();
-  const showTags = extras.includes('competencies') || v.tags.length > 0;
-  const showQuestions = extras.includes('questions');
   const showNotes = !!v.notes.trim();
   return (
     <>
-      <div className="two">
-        <Field label="Framework">
-          <Select
-            value={v.framework_key}
-            onChange={(k) => {
-              const to = frameworkOf(k, data.state.frameworks);
-              if (!to) return;
-              const moved = switchFramework(v.sections, defs, to.sections, v.notes || null);
-              set({ framework_key: k, sections: moved.sections, notes: moved.notes ?? '' });
-            }}
-            groups={['Opener', 'Behavioral', 'Technical', 'Custom'].map((g) => ({
-              label: g,
-              options: data.state.frameworks
-                .filter((f) => f.group === g)
-                .map((f) => ({ value: f.key, label: f.name })),
-            }))}
-          />
-        </Field>
-        <Field label="Title">
-          <input
-            className="in"
-            value={v.title}
-            onChange={(e) => set({ title: e.target.value })}
-            placeholder="Event bus for 14 integrations"
-          />
-        </Field>
-      </div>
-      {showHook && (
-        <Field label="Hook: the line you say first">
-          <input
-            className="in"
-            value={v.hook}
-            onChange={(e) => set({ hook: e.target.value })}
-            placeholder="14 point-to-point integrations → one bus. Sev-1s 3 a quarter → 0."
-          />
-        </Field>
-      )}
+      <Field label="Framework">
+        <Select
+          value={v.framework_key}
+          onChange={(k) => {
+            const to = frameworkOf(k, data.state.frameworks);
+            if (!to) return;
+            const moved = switchFramework(v.sections, defs, to.sections, v.notes || null);
+            set({ framework_key: k, sections: moved.sections, notes: moved.notes ?? '' });
+          }}
+          groups={['Opener', 'Behavioral', 'Technical', 'Custom'].map((g) => ({
+            label: g,
+            options: data.state.frameworks
+              .filter((f) => f.group === g)
+              .map((f) => ({ value: f.key, label: f.name })),
+          }))}
+        />
+      </Field>
+      <Field label="Title">
+        <input className="in" value={v.title} onChange={(e) => set({ title: e.target.value })} />
+      </Field>
       <ol className="fw-parts" aria-label={`${fw?.name ?? 'Story'} parts`}>
         {defs.map((sec) => (
           <li key={sec.key} className="fw-part">
             <b aria-hidden="true">{sectionLetter(sec.label)}</b>
             <Field label={sec.label}>
+              {sec.prompt && <span className="part-hint">{sec.prompt}</span>}
               <AutoTextarea
                 className="in"
                 rows={3}
                 value={v.sections[sec.key] ?? ''}
-                placeholder={sec.prompt}
                 onChange={(e) => set({ sections: { ...v.sections, [sec.key]: e.target.value } })}
               />
             </Field>
           </li>
         ))}
       </ol>
-      {showTags && (
-        <Field label="Competencies">
-          <TagInput
-            value={v.tags}
-            onChange={(tags) => set({ tags })}
-            suggestions={allTags(data)}
-            placeholder="conflict, architecture, finance…"
-          />
-        </Field>
-      )}
-      {showQuestions && (
-        <Field label="Probable questions (Call Mode matches what you type against these)">
-          <TagInput
-            value={v.questions}
-            onChange={(questions) => set({ questions })}
-            suggestions={[]}
-            placeholder="Tell me about a time you disagreed with a leader."
-          />
-          {suggestions.length > 0 && (
-            <div className="seg" style={{ marginTop: 8 }}>
-              {suggestions.map((q) => (
-                <button
-                  key={q}
-                  type="button"
-                  className="chip sm new"
-                  onClick={() => set({ questions: [...v.questions, q] })}
-                >
-                  <Icon name="plus" size={13} /> {q}
-                </button>
-              ))}
-            </div>
-          )}
-        </Field>
-      )}
       {showNotes && (
         <Field label="Notes">
           <AutoTextarea
@@ -193,11 +127,11 @@ export function StorySheet({
 
   return (
     <Sheet
-      title={s ? 'Edit story' : `New ${fw?.name ?? ''} story`}
+      title={s ? 'Edit story' : 'New story'}
       sub={
         s
           ? `${fw?.name ?? s.framework_key} · used in ${copies.length} ${copies.length === 1 ? 'job' : 'jobs'}`
-          : fw?.blurb
+          : undefined
       }
       onClose={sheets.close}
       footer={
@@ -231,6 +165,12 @@ export function StorySheet({
               }}
             >
               {s.archived ? 'Unarchive' : 'Archive'}
+            </button>
+          )}
+          {/* A new story: back to the framework picker, to choose a different one. */}
+          {!s && (
+            <button type="button" className="btn left" onClick={() => sheets.newStory()}>
+              Cancel
             </button>
           )}
           <button type="button" className="btn primary" disabled={!v.title.trim()} onClick={save}>
@@ -292,7 +232,6 @@ export function FrameworkPicker({ data, onPick }: { data: Data; onPick: (key: st
                 </span>
               ))}
             </span>
-            {f.questions.length > 0 && <span className="fw-q">“{f.questions[0]}”</span>}
           </button>
         ))}
         <button type="button" className="fw-card custom" onClick={() => sheets.framework()}>
@@ -352,7 +291,7 @@ export function JobStorySheet({
 
   return (
     <Sheet
-      title={js ? js.title : `New ${fw?.name ?? ''} story for this job`}
+      title={js ? js.title : 'New story'}
       sub={
         js ? company : `${company} · only on this job (add it to Stories later if it’s a keeper)`
       }
@@ -367,6 +306,11 @@ export function JobStorySheet({
             >
               Remove
             </ConfirmButton>
+          )}
+          {!js && (
+            <button type="button" className="btn left" onClick={() => sheets.newStory(app.id)}>
+              Cancel
+            </button>
           )}
           <button type="button" className="btn primary" disabled={!v.title.trim()} onClick={save}>
             Save
@@ -440,7 +384,6 @@ export function JobStorySheet({
           rows={2}
           value={angle}
           onChange={(e) => setAngle(e.target.value)}
-          placeholder="For Leah: open with close time, skip the Apex detail."
         />
       </Field>
       <StoryForm data={data} v={v} set={set} defs={defs} />
@@ -497,8 +440,9 @@ export function LinkStorySheet({ data, appId }: { data: Data; appId: string }) {
       searchStories(
         data.state.stories.filter((s) => !s.archived),
         q,
+        data.state.frameworks,
       ).slice(0, 40),
-    [data.state.stories, q],
+    [data.state.stories, data.state.frameworks, q],
   );
   if (!app) return null;
   return (
@@ -515,17 +459,15 @@ export function LinkStorySheet({ data, appId }: { data: Data; appId: string }) {
         placeholder="Search, or type a question you expect"
       />
       <div className="link-list">
-        {hits.map(({ item: s, question }) => {
+        {hits.map(({ item: s }) => {
           const on = linked.has(s.id);
           return (
             <div key={s.id} className="link-row">
               <div style={{ minWidth: 0 }}>
                 <div className="link-title">{s.title}</div>
                 <div className="sub">
-                  {frameworkOf(s.framework_key, data.state.frameworks)?.name} ·{' '}
-                  {s.tags.join(', ') || 'no tags'}
+                  {frameworkOf(s.framework_key, data.state.frameworks)?.name}
                 </div>
-                {question && <div className="answers">Answers: “{question}”</div>}
               </div>
               <button
                 type="button"
@@ -564,7 +506,6 @@ export function FrameworkSheet({ data, fwKey }: { data: Data; fwKey?: string }) 
   const [secs, setSecs] = useState<FrameworkSection[]>(
     f?.sections ?? [{ key: '', label: '', prompt: '' }],
   );
-  const [questions, setQuestions] = useState<string[]>(f?.questions ?? []);
   const keyOf = (label: string, i: number) =>
     label
       .toLowerCase()
@@ -578,7 +519,7 @@ export function FrameworkSheet({ data, fwKey }: { data: Data; fwKey?: string }) 
         label: s.label.trim(),
         prompt: s.prompt,
       }));
-    const body = { name, blurb, sections, questions };
+    const body = { name, blurb, sections };
     const ok = f
       ? await act.patch(`/frameworks/${f.key}`, body)
       : await act.post('/frameworks', body, 'Framework added');
@@ -613,29 +554,18 @@ export function FrameworkSheet({ data, fwKey }: { data: Data; fwKey?: string }) 
     >
       <div className="two">
         <Field label="Name">
-          <input
-            className="in"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="PAR"
-          />
+          <input className="in" value={name} onChange={(e) => setName(e.target.value)} />
         </Field>
         <Field label="When to use it">
-          <input
-            className="in"
-            value={blurb}
-            onChange={(e) => setBlurb(e.target.value)}
-            placeholder="Short project stories."
-          />
+          <input className="in" value={blurb} onChange={(e) => setBlurb(e.target.value)} />
         </Field>
       </div>
-      <Field label="Sections">
+      <Field label="Sections: a name, and an optional nudge">
         {secs.map((s, i) => (
           <div key={i} className="two sec-row">
             <input
               className="in"
               value={s.label}
-              placeholder={`Section ${i + 1}`}
               aria-label="Section name"
               onChange={(e) =>
                 setSecs((l) => l.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))
@@ -645,7 +575,6 @@ export function FrameworkSheet({ data, fwKey }: { data: Data; fwKey?: string }) 
               <input
                 className="in"
                 value={s.prompt}
-                placeholder="A nudge (optional)"
                 aria-label="Prompt"
                 onChange={(e) =>
                   setSecs((l) => l.map((x, j) => (j === i ? { ...x, prompt: e.target.value } : x)))
@@ -669,14 +598,6 @@ export function FrameworkSheet({ data, fwKey }: { data: Data; fwKey?: string }) 
         >
           <Icon name="plus" size={14} /> Add a section
         </button>
-      </Field>
-      <Field label="Questions it answers">
-        <TagInput
-          value={questions}
-          onChange={setQuestions}
-          suggestions={[]}
-          placeholder="Tell me about a project you led."
-        />
       </Field>
     </Sheet>
   );

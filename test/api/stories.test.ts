@@ -4,7 +4,7 @@ import { syncState } from '../../src/shared/logic/stories';
 import { session } from './helpers';
 
 describe('story bank and job copies', () => {
-  it('an opener is just its parts and answers its framework’s usual questions', async () => {
+  it('a story is just its parts: no questions are added for it', async () => {
     const api = await session();
     const intro = (
       await api.post<Story>('/stories', {
@@ -13,11 +13,8 @@ describe('story bank and job copies', () => {
         sections: { present: 'I build CRMs.' },
       })
     ).data;
-    expect(intro.questions).toContain('Tell me about yourself.');
-    const star = (
-      await api.post<Story>('/stories', { framework_key: 'star', title: 'No questions yet' })
-    ).data;
-    expect(star.questions).toEqual([]);
+    expect(intro.sections).toEqual({ present: 'I build CRMs.' });
+    expect(intro.questions).toEqual([]);
   });
 
   it('copies on link, tracks edits and versions, pushes, pulls and saves as new', async () => {
@@ -26,14 +23,12 @@ describe('story bank and job copies', () => {
       await api.post<Story>('/stories', {
         framework_key: 'star',
         title: 'Event bus for 14 integrations',
-        tags: ['architecture'],
         sections: {
           situation: 'Fourteen brittle integrations.',
           action: 'One bus.',
           result: 'Sev-1s to zero.',
           bogus: 'dropped',
         },
-        questions: ['Tell me about a complex system you designed.'],
       })
     ).data;
     expect(s.version).toBe(1);
@@ -67,11 +62,11 @@ describe('story bank and job copies', () => {
     expect(syncState(edited, bank1)).toBe('edited');
     expect(bank1.sections.result).toBe('Sev-1s to zero.');
 
-    // Edit the bank: version goes up; a tag-only reorder doesn't.
-    const bank2 = (await api.patch<Story>(`/stories/${s.id}`, { hook: 'Fourteen to one.' })).data;
+    // Edit the bank: version goes up; saving it unchanged doesn't.
+    const bank2 = (await api.patch<Story>(`/stories/${s.id}`, { title: 'Fourteen to one' })).data;
     expect(bank2.version).toBe(2);
     expect(
-      (await api.patch<Story>(`/stories/${s.id}`, { tags: ['architecture'] })).data.version,
+      (await api.patch<Story>(`/stories/${s.id}`, { title: 'Fourteen to one' })).data.version,
     ).toBe(2);
     expect(syncState(edited, bank2)).toBe('both');
 
@@ -79,7 +74,7 @@ describe('story bank and job copies', () => {
     const pushed = (
       await api.post<{ job_story: JobStory; story: Story }>(`/job-stories/${js.id}/push`)
     ).data;
-    expect(pushed.story).toMatchObject({ version: 3, hook: null });
+    expect(pushed.story).toMatchObject({ version: 3, title: s.title });
     expect(pushed.story.sections.result).toBe('Sev-1s to zero in two quarters.');
     expect(syncState(pushed.job_story, pushed.story)).toBe('in_sync');
 
@@ -144,7 +139,6 @@ describe('story bank and job copies', () => {
         { key: 'action', label: 'Action' },
         { key: 'result', label: 'Result' },
       ],
-      questions: ['Tell me about a project you led.'],
     });
     expect(fw.status).toBe(201);
     const frameworks = (await api.get<AppState>('/state')).data.frameworks;

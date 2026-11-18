@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { buildReport } from '@shared/logic/report';
+import { buildReport, heardBack, heardBackAt, median } from '@shared/logic/report';
 import { dueNotices } from '@shared/logic/notify';
-import type { AppState } from '@shared/types';
+import type { AppState, FileRef } from '@shared/types';
 import { app, created, ev, st } from './fixtures';
 
 describe('report', () => {
@@ -26,12 +26,13 @@ describe('report', () => {
       created('saved', '2026-11-04T10:00:00Z', on('d')),
     ];
     const r = buildReport(apps, events, [], 4, new Date('2026-11-12T12:00:00Z'));
-    expect([r.sent, r.saved, r.responded, r.interviewed, r.rejected, r.ghosted, r.open]).toEqual([
+    expect([r.sent, r.saved, r.heardBack, r.interviewed, r.rejected, r.ghosted, r.open]).toEqual([
       3, 1, 2, 1, 1, 1, 1,
     ]);
-    expect(r.responseRate).toBeCloseTo(2 / 3);
-    // a: 4 days; b: 2 days (the scheduling email).
-    expect(r.medianReplyDays).toBe(3);
+    expect(r.heardBackRate).toBeCloseTo(2 / 3);
+    // a: 4 days (to Screening); b: 4 days (to Interviewing; the email alone doesn't count).
+    expect(r.medianDaysToHear).toBe(4);
+    expect(r.replies).toBe(2);
     const link = (from: string, to: string) =>
       r.links.find((l) => l.from === from && l.to === to)?.n;
     expect(link('applied', 'screening')).toBe(2);
@@ -39,8 +40,116 @@ describe('report', () => {
     expect(link('screening', 'rejected@screening')).toBe(1);
     expect(link('applied', 'ghosted@applied')).toBe(1);
     expect(link('interviewing', 'open@interviewing')).toBe(1);
-    expect(r.bySource.find((s) => s.name === 'LinkedIn')).toMatchObject({ n: 2, responded: 1 });
+    expect(r.bySource).toEqual([
+      { name: 'LinkedIn', applied: 2, heardBack: 1, rate: 0.5 },
+      { name: 'Referral', applied: 1, heardBack: 1, rate: 1 },
+    ]);
     expect(r.perWeek.map((w) => w.n)).toEqual([0, 0, 3, 0]);
+  });
+});
+
+describe('heard back', () => {
+  const on = { application_id: 'x' };
+  it('means past Applied, or a rejection; not silence, ghosting or withdrawing', () => {
+    const applied = created('applied', '2026-11-02T10:00:00Z', on);
+    expect(heardBack([applied])).toBe(false);
+    expect(heardBack([applied, st('ghosted', '2026-12-02T10:00:00Z', 'applied', on)])).toBe(false);
+    expect(heardBack([applied, st('declined', '2026-11-04T10:00:00Z', 'applied', on)])).toBe(false);
+    expect(
+      heardBack([
+        applied,
+        ev('email', '2026-11-03T10:00:00Z', { direction: 'in', category: 'scheduling' }, on),
+      ]),
+    ).toBe(false);
+    expect(heardBack([applied, st('rejected', '2026-11-05T10:00:00Z', 'applied', on)])).toBe(true);
+    expect(heardBack([applied, st('screening', '2026-11-05T10:00:00Z', 'applied', on)])).toBe(true);
+  });
+  it('is dated by the first status change past Applied', () => {
+    const evs = [
+      created('saved', '2026-11-01T10:00:00Z', on),
+      st('applied', '2026-11-02T10:00:00Z', 'saved', on),
+      st('interviewing', '2026-11-09T10:00:00Z', 'screening', on),
+      st('screening', '2026-11-06T10:00:00Z', 'applied', on),
+    ];
+    expect(heardBackAt(evs)).toBe('2026-11-06T10:00:00Z');
+    expect(heardBackAt([created('applied', '2026-11-02T10:00:00Z', on)])).toBeNull();
+  });
+  it('median', () => {
+    expect(median([])).toBeNull();
+    expect(median([5, 1, 3])).toBe(3);
+    expect(median([1, 2, 3, 10])).toBe(2.5);
+  });
+});
+
+describe('report breakdowns and empty states', () => {
+  const NOW = new Date('2026-11-12T12:00:00Z');
+  const sent = (id: string, o: Parameters<typeof app>[0], heard: boolean, day = 2) => ({
+    app: app({ id, ...o }),
+    events: [
+      created('applied', `2026-11-0${day}T10:00:00Z`, { application_id: id }),
+      ...(heard
+        ? [st('screening', '2026-11-08T10:00:00Z', 'applied', { application_id: id })]
+        : []),
+    ],
+  });
+  const build = (rows: ReturnType<typeof sent>[], files: FileRef[] = []) =>
+    buildReport(
+      rows.map((x) => x.app),
+      rows.flatMap((x) => x.events),
+      files,
+      4,
+      NOW,
+    );
+  const file = (id: string, label: string) => ({ id, label, filename: `${label}.pdf` }) as FileRef;
+
+  it('nothing sent: no rates, no median, no rows', () => {
+    const r = build([]);
+    expect([r.sent, r.heardBack, r.heardBackRate, r.medianDaysToHear, r.replies]).toEqual([
+      0,
+      0,
+      null,
+      null,
+      0,
+    ]);
+    expect(r.bySource).toEqual([]);
+    expect(r.byResume).toEqual([]);
+  });
+  it('one reply is not enough for a median time', () => {
+    const r = build([sent('a', {}, true), sent('b', {}, false)]);
+    expect(r.replies).toBe(1);
+    expect(r.medianDaysToHear).toBeNull();
+  });
+  it('sources: no source reads "Not set"; most applications first', () => {
+    const r = build([
+      sent('a', { source: 'LinkedIn' }, true),
+      sent('b', { source: null }, false),
+      sent('c', { source: 'LinkedIn' }, false),
+    ]);
+    expect(r.bySource.map((b) => [b.name, b.heardBack, b.applied])).toEqual([
+      ['LinkedIn', 1, 2],
+      ['Not set', 0, 1],
+    ]);
+  });
+  it('resumes: hidden with one resume, shown with two', () => {
+    const files = [file('r1', 'Resume A'), file('r2', 'Resume B')];
+    expect(
+      build(
+        [sent('a', { resume_file_id: 'r1' }, true), sent('b', { resume_file_id: null }, false)],
+        files,
+      ).byResume,
+    ).toEqual([]);
+    const r = build(
+      [
+        sent('a', { resume_file_id: 'r1' }, true),
+        sent('b', { resume_file_id: 'r2' }, false),
+        sent('c', { resume_file_id: 'r1' }, false),
+      ],
+      files,
+    );
+    expect(r.byResume.map((b) => [b.name, b.heardBack, b.applied])).toEqual([
+      ['Resume A', 1, 2],
+      ['Resume B', 0, 1],
+    ]);
   });
 });
 

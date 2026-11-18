@@ -25,7 +25,7 @@ One deployment is one person's job search (or many, one after another: searches 
 
 ## Screenshots
 
-![The pipeline board: Saved, Applied, Screening, Interviewing and Offer columns, with pay, work mode and the next step on each card](docs/screenshots/pipeline.png)
+![The Jobs board: Saved, Applied, Screening, Interviewing and Offer columns, with pay, work mode and the next step on each card](docs/screenshots/pipeline.png)
 
 ![The report: a Sankey of where applications went, rates, and breakdowns by source and resume](docs/screenshots/report.png)
 

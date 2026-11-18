@@ -305,9 +305,12 @@ h3,
     padding-left: 240px;
   }
   .appbar,
-  .glass-bar,
-  .fab {
+  .glass-bar {
     display: none;
+  }
+  .fab {
+    bottom: 28px;
+    right: 28px;
   }
   .main {
     padding: 24px 32px 48px;
@@ -638,20 +641,6 @@ textarea.in {
 .step.compact .in {
   min-width: 0;
 }
-/* "New" chip: dashed to read as an action, not a value. */
-.chip.new {
-  border-style: dashed;
-  background: transparent;
-}
-.chip.new svg {
-  margin-left: -3px;
-}
-.chip-in {
-  min-height: 38px;
-  border-radius: 999px;
-  padding: 6px 15px;
-  border-style: dashed;
-}
 
 /* Styled dropdown (Select in ui.tsx). */
 .sel {
@@ -719,7 +708,9 @@ textarea.in {
   padding: 9px 10px;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 15px;
+  font-size: 16px;
+  font-weight: 550;
+  line-height: 1.35;
 }
 .sel-opt.hi {
   background: var(--surface2);
@@ -727,7 +718,6 @@ textarea.in {
 .sel-opt[aria-selected='true'] {
   background: var(--sel, var(--surface2));
   color: var(--ink);
-  font-weight: 600;
 }
 .ratio {
   display: flex;
@@ -2480,9 +2470,20 @@ time {
   border-radius: 4px;
   font-weight: 500;
 }
-.tag.dashed {
-  background: transparent;
-  border: 1.5px dashed var(--ink2);
+/* Multi-value fields (must-haves, nice-to-haves, any tag list): one chip, the same at rest and
+   while editing (where it's a button that removes it). */
+.tag-rm {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  font-family: inherit;
+  cursor: pointer;
+}
+.tag-rm .x,
+.kv .tag-rm .x {
+  font-size: 11px;
+  color: var(--ink2);
 }
 .tag.key {
   background: var(--accent-soft);
@@ -2503,9 +2504,6 @@ time {
   background: var(--sel);
   border-color: var(--ink);
   color: var(--ink);
-}
-.chip.new {
-  border-style: dashed;
 }
 .callout {
   background: var(--accent-soft);
@@ -2750,8 +2748,30 @@ time {
   border-top: 1px solid var(--rule);
 }
 .home-kpis {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-bottom: 6px;
+}
+@media (min-width: 768px) {
+  .home-kpis {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+/* Interviews this week: a tile you can tap (to the next one), looking like the others. */
+.kpi-btn {
+  border-top: 0;
+  border-left: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.kpi-btn:disabled {
+  cursor: default;
+}
+.kpi-btn:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -4px;
 }
 .home-kpis .kpi-l {
   min-height: 2.4em;
@@ -2934,6 +2954,55 @@ time {
   gap: 6px;
   flex-wrap: wrap;
 }
+/* Recent activity on Home: the entry's icon, what kind of thing it is, the job, a line of it. */
+.recent.activity {
+  justify-content: flex-start;
+  align-items: flex-start;
+}
+.act-icon {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1.5px solid var(--ink);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.act-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.act-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+.act-top .lbl {
+  margin: 0;
+  color: var(--ink);
+}
+.act-when {
+  flex: none;
+  font-size: 13px;
+}
+.act-job,
+.act-snip {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.act-snip {
+  color: var(--ink2);
+  font-size: 14px;
+}
 
 /* ---------- Pipeline ---------- */
 
@@ -3049,27 +3118,33 @@ time {
 /* ---------- Application ---------- */
 
 .app-page .crumbs {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
   margin: 4px 0 10px;
+  min-height: 34px;
 }
+/* Title, then "at Company", then a small row of just pay and work mode. */
 .app-head {
   display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  align-items: flex-start;
-}
-.app-head-text {
-  flex: 1 1 360px;
-  min-width: 0;
-  display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
+  min-width: 0;
 }
 h1.title {
   font-size: 28px;
   line-height: 1.1;
 }
+.app-co {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 650;
+  color: var(--ink);
+}
 .app-head .tags {
   align-items: center;
+  margin-top: 4px;
 }
 .stepper {
   list-style: none;
@@ -3394,6 +3469,30 @@ h1.title {
   gap: 8px;
   flex-wrap: wrap;
 }
+/* The entry Home linked to: a short ink outline flash (held still with reduced motion). */
+.ev.flash > .ev-card,
+.nested-note.flash {
+  animation: ev-flash 1.8s ease-out;
+}
+@keyframes ev-flash {
+  0%,
+  45% {
+    outline: 2.5px solid var(--ink);
+    outline-offset: 3px;
+  }
+  100% {
+    outline: 2.5px solid transparent;
+    outline-offset: 3px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ev.flash > .ev-card,
+  .nested-note.flash {
+    animation: none;
+    outline: 2.5px solid var(--ink);
+    outline-offset: 3px;
+  }
+}
 .nested-note {
   display: flex;
   flex-direction: column;
@@ -3477,14 +3576,6 @@ h1.title {
 }
 .kv span:last-child {
   font-weight: 550;
-}
-.inferred {
-  font-family: var(--mono);
-  font-size: 10px;
-  padding: 0 4px;
-  border: 1px dashed var(--ink2);
-  border-radius: 3px;
-  margin-left: 4px;
 }
 .details .lbl {
   margin-top: 6px;
@@ -3919,9 +4010,29 @@ textarea.in.angle {
 }
 .bar-label {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
+  gap: 2px 10px;
   font-size: 13px;
   font-weight: 600;
+}
+.bar-label .sub {
+  font-weight: 500;
+}
+/* Report: one big number with its "N of M" under it, and a small sub-heading. */
+.big-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 12px 0 4px;
+}
+.big-stat .kpi-v {
+  font-size: 40px;
+}
+.sub-h {
+  margin: 18px 0 0;
+  font-size: 14px;
+  font-weight: 700;
 }
 .weeks {
   position: relative;
@@ -4085,11 +4196,6 @@ textarea.in.angle {
 .reader-title {
   font-size: 30px;
   line-height: 1.1;
-}
-.reader-hook {
-  font-size: 16px;
-  font-weight: 600;
-  margin: 0;
 }
 .reader-sec {
   display: grid;
@@ -4311,14 +4417,19 @@ textarea.in.angle {
   display: none;
 }
 
-/* Job page tabs: Details, Timeline, Stories, Files. Folder-style: the open tab is a box joined to
-   the line under the row. */
+/* Job page tabs: Details, Timeline, Stories, Files. Folder-style: the open tab is a solid ink
+   tab (white text and icon) standing on the line under the row; the others are plain ink2 text.
+   On phones the row scrolls sideways only, with hard stops at both ends: no vertical movement and
+   no rubber-banding past the edges. */
 .tabs {
   display: flex;
   gap: 4px;
   margin: 8px 0 18px;
   border-bottom: 1.5px solid var(--ink);
   overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior: contain;
+  touch-action: pan-x;
   scrollbar-width: none;
 }
 .tabs::-webkit-scrollbar {
@@ -4329,10 +4440,8 @@ textarea.in.angle {
   align-items: center;
   gap: 7px;
   flex: none;
-  margin-bottom: -1.5px;
   padding: 10px 16px;
-  border: 1.5px solid transparent;
-  border-bottom: 0;
+  border: 0;
   border-radius: 6px 6px 0 0;
   background: none;
   color: var(--ink2);
@@ -4342,15 +4451,15 @@ textarea.in.angle {
   cursor: pointer;
 }
 .tab[aria-selected='true'] {
-  border-color: var(--ink);
-  background: var(--surface);
-  color: var(--ink);
-  box-shadow: 0 1.5px 0 var(--surface);
+  background: var(--ink);
+  color: #fff;
+}
+.tab[aria-selected='true'] .sub {
+  color: #fff;
 }
 @media (hover: hover) and (pointer: fine) {
   .tab:not([aria-selected='true']):hover {
     color: var(--ink);
-    background: var(--sel);
   }
 }
 .tab:focus-visible {
@@ -4369,6 +4478,32 @@ textarea.in.angle {
 }
 .jd-card {
   margin-top: 14px;
+}
+/* The Pay editor: a range (min, max, per) and a note on pay, each with a small label. */
+.pay-range {
+  display: grid;
+  grid-template-columns: 1fr 1fr minmax(96px, 0.8fr);
+  gap: 8px;
+}
+/* A story part's nudge, shown under its label (not as grey text inside the field). */
+.part-hint {
+  display: block;
+  margin: -3px 0 6px;
+  font-size: 13px;
+  color: var(--ink2);
+}
+.mini-l {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink2);
+}
+/* Room at the bottom so the log button never sits on the page's last row. */
+.app-page {
+  padding-bottom: 72px;
 }
 
 /* Phones: the top bar is the logo on the left and the search switch on the right, side by side
@@ -4455,11 +4590,6 @@ textarea.in.angle {
   box-shadow: var(--ext2);
   transform: translate(-2px, -2px);
 }
-@media (hover: hover) and (pointer: fine) {
-  .tab:not([aria-selected='true']):hover {
-    background: none;
-  }
-}
 
 /* The asterisk sits close to the wordmark (about a third less room than before). */
 .brand {
@@ -4542,12 +4672,37 @@ textarea.in.angle {
   font-size: inherit;
   color: inherit;
 }
+/* Chips in a detail: beat the label rules (.kv span:first-child / :last-child) so every chip is
+   the same size, weight and ink colour. */
+.kv .tags .tag,
+.tag-rm {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  padding: 3px 10px;
+}
 .ikv .in,
 .ikv .in.sm,
 .ikv textarea.in {
   font-size: 16px;
   font-weight: 550;
   line-height: 1.35;
+}
+/* A pick list or date field in a detail is the resting value's box exactly (size, padding, border,
+   type), so opening it doesn't move or resize anything; its options use the same type. */
+.ikv .sel-btn.sm,
+.ikv .dt-field.sm {
+  min-height: 36px;
+  padding: 6px 8px;
+  border-width: 1.5px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 550;
+  line-height: 1.35;
+}
+.ikv .sel-btn.sm.ph,
+.sel-btn.ph .sel-val {
+  font-weight: 550;
 }
 
 /* Closed on the stage bar: green when it ended Accepted, grey for every other ending. */
@@ -4558,4 +4713,325 @@ textarea.in.angle {
 .stepper li.muted.here,
 .stepper li.muted.picked {
   --chev-fill: var(--surface2);
+}
+
+/* ---------- date and time pickers (components/DateTimePicker.tsx) ----------
+   The app's own pickers in place of the browser's: a field-like button (the .in look) that opens
+   a white pop-up on the page body with an ink border and the raised hard shadow. The chosen day or
+   time is the selected state (--sel fill, ink border); today carries a small ink dot. */
+.dt-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: inherit;
+  font-size: 16px;
+  text-align: left;
+  cursor: pointer;
+}
+.dt-field.sm {
+  min-height: 36px;
+  padding: 6px 8px;
+  font-size: 16px;
+  font-weight: 550;
+  line-height: 1.35;
+}
+.dt-field svg {
+  flex: none;
+  color: var(--ink);
+}
+.dt-field.ph {
+  color: var(--ink2);
+}
+.dt-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* A date and a time side by side on one row at every width: the date takes what's left (its
+   text cuts short with an ellipsis rather than wrapping), the time stays compact. */
+.dt-pair {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+.dt-pair > .dt-field:first-child {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.dt-pair > .dt-field + .dt-field {
+  flex: none;
+  width: auto;
+}
+/* Narrow phones: a little less padding and gap so both fit a 360px screen. */
+@media (max-width: 420px) {
+  .dt-pair {
+    gap: 6px;
+  }
+  .dt-pair > .dt-field {
+    padding-left: 9px;
+    padding-right: 9px;
+    gap: 6px;
+  }
+}
+.dt-pop {
+  position: fixed;
+  z-index: 90;
+  width: min(296px, calc(100vw - 16px));
+  padding: 10px;
+  border: 1.5px solid var(--ink);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--sans);
+  box-shadow: var(--ext4);
+}
+/* Keyboard focus inside the pop-up is an ink ring: no yellow outlines on white. */
+.dt-pop :focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+.cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.cal-title {
+  font-family: var(--display);
+  font-stretch: 125%;
+  font-weight: 800;
+  font-size: 15px;
+}
+.cal-nav {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1.5px solid var(--ink);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+.cal-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cal-row {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+}
+.cal-dow {
+  padding: 2px 0 4px;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink2);
+}
+.cal-row > [role='gridcell'] {
+  display: block;
+}
+.cal-day {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  max-height: 38px;
+  padding: 0;
+  border: 1.5px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.cal-day.today {
+  font-weight: 700;
+}
+.cal-day.today::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 3px;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--ink);
+}
+.cal-day.on {
+  background: var(--sel);
+  border-color: var(--ink);
+  font-weight: 700;
+}
+.cal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--rule);
+}
+.time-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: min(264px, 50vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: -4px;
+  padding: 4px;
+}
+.dt-pop:has(.time-list) {
+  width: min(180px, calc(100vw - 16px));
+  padding: 6px;
+}
+.time-opt {
+  padding: 8px 10px;
+  border: 1.5px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+  cursor: pointer;
+}
+.time-opt.on {
+  background: var(--sel);
+  border-color: var(--ink);
+  font-weight: 650;
+}
+.cal-nav,
+.cal-day,
+.time-opt {
+  transition:
+    transform 0.1s ease,
+    box-shadow 0.1s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .cal-nav:hover,
+  .cal-day:hover,
+  .time-opt:hover {
+    border-color: var(--ink);
+    background-color: var(--surface);
+    transform: translate(-2px, -2px);
+    box-shadow: var(--ext2);
+  }
+  .cal-day.on:hover,
+  .time-opt.on:hover {
+    background-color: var(--sel);
+  }
+}
+.cal-nav:active,
+.cal-day:active,
+.time-opt:active {
+  transform: none;
+  box-shadow: none;
+}
+
+/* Phone tab bar: one even ink outline all the way round (no glass rim, which made the edge look
+   thicker in some places than others), and the current tab's lens outlined evenly too, at rest
+   and while dragging. */
+.glass-bar {
+  box-shadow:
+    0 0 0 1.5px var(--ink),
+    var(--glass-shadow);
+}
+.glass-bar::before {
+  display: none;
+}
+.glass-lens,
+.glass-lens[data-motion='follow'],
+.glass-lens[data-motion='spring'] {
+  box-shadow: inset 0 0 0 1.5px var(--ink);
+}
+/* The current tab's icon fills with yellow (Report gets a yellow disc behind its bars instead). */
+.glass-tab[data-lit][data-icon='home'] svg,
+.glass-tab[data-lit][data-icon='briefcase'] svg,
+.glass-tab[data-lit][data-icon='quote'] svg,
+.glass-tab[data-lit][data-icon='settings'] svg {
+  fill: var(--accent);
+}
+.glass-tab[data-lit][data-icon='chart'] svg {
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent);
+}
+
+/* Report bars: the fill is yellow and fills its square-cornered track exactly (no rounded fill
+   leaving a gap at the track's corners). */
+.bar > i,
+.bar i {
+  border-radius: 0;
+  background: var(--accent);
+}
+/* Report card headings read as headings, not small labels. */
+.report-grid .sec-title,
+.sec > .sec-title {
+  margin-bottom: 10px;
+}
+
+/* Page title icons: a white box with an ink outline, and the icon itself filled yellow, as on the
+   phone tab bar (Report: a yellow disc behind the bars). */
+.h-icon {
+  background: var(--surface);
+}
+.h-icon svg {
+  fill: var(--accent);
+}
+.h-icon[data-icon='chart'] svg {
+  fill: none;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent);
+}
+/* The gear's centre stays an empty white circle when the gear fills yellow (it's drawn on top). */
+.glass-tab[data-lit][data-icon='settings'] svg circle,
+.h-icon[data-icon='settings'] svg circle {
+  fill: var(--surface);
+}
+
+/* Settings' About button: one line, icon full size; "Knock Knock" only on wider screens. */
+.about-m {
+  white-space: nowrap;
+  flex: none;
+}
+.about-m svg {
+  flex: none;
+}
+.wide-only {
+  display: none;
+}
+@media (min-width: 768px) {
+  .wide-only {
+    display: inline;
+  }
+}
+
+/* Notes (and the job description): one full-width field inside its card, resting and editing, at
+   every screen size. The editor and its textarea always take the full width of the field. */
+.notes-card .kvs,
+.jd-card .kvs {
+  grid-template-columns: minmax(0, 1fr);
+}
+.ikv {
+  min-width: 0;
+}
+.ikv > div,
+.ikv .kv-v {
+  width: 100%;
+}
+.ikv textarea.in {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
 }

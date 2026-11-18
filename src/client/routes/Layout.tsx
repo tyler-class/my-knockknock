@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 import { GlassTabBar, type GlassTab } from '../components/GlassTabBar';
 import { Icon } from '../components/Icon';
 import { Asterisk, Joke, Spinner, Wordmark } from '../components/Brand';
@@ -13,7 +13,7 @@ import { onPushOpen } from '../kit/push';
 
 const TABS: GlassTab[] = [
   ['/', 'Home', 'home'],
-  ['/pipeline', 'Pipeline', 'briefcase'],
+  ['/jobs', 'Jobs', 'briefcase'],
   ['/stories', 'Stories', 'quote'],
   ['/reports', 'Report', 'chart'],
   ['/settings', 'Settings', 'settings'],
@@ -27,7 +27,7 @@ function tabRoot(path: string): string | null {
 }
 
 function activeTab(path: string): string {
-  if (path.startsWith('/a/')) return '/pipeline';
+  if (path.startsWith('/a/')) return '/jobs';
   for (const [p] of TABS.slice(1)) if (path.startsWith(p)) return p;
   return '/';
 }
@@ -153,10 +153,12 @@ export function Layout() {
   const data = useData();
   useEffect(() => onPushOpen((url) => nav(url)), [nav]);
   const tab = ([to, label, icon]: GlassTab) => (
-    <NavLink key={to} to={to} aria-current={active === to ? 'page' : undefined}>
+    // A plain link marked current by section, not by exact address: a job page (/a/…) still shows
+    // Jobs, and anything under /stories still shows Stories.
+    <Link key={to} to={to} aria-current={active === to ? 'page' : undefined}>
       <Icon name={icon} size={20} />
       {label}
-    </NavLink>
+    </Link>
   );
   return (
     <div className="shell">

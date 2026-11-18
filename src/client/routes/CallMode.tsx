@@ -1,5 +1,6 @@
 // Call mode: open it beside the video call. Type the question you just heard and the stories
-// whose probable questions match rise to the top (plain word overlap: instant, offline). This
+// whose title, framework or parts share its words rise to the top (plain word overlap: instant,
+// offline). This
 // job's copies come first, then the whole bank. The notepad saves itself into one note on
 // the job's timeline (on the meeting, if there is one) and stays on screen; ending the call
 // asks how it went and saves that as its own note.
@@ -8,13 +9,13 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { meetingKindLabel } from '@shared/lookups';
 import { frameworkOf, searchStories } from '@shared/logic/stories';
 import { isUpcoming } from '@shared/logic/timeline';
-import { sectionLetter, storyExtras, type FrameworkSection } from '@shared/frameworks';
+import { sectionLetter, type FrameworkSection } from '@shared/frameworks';
 import type { JobStory, MeetingData, Story, TimelineEvent } from '@shared/types';
 import { useActions, useData } from '../lib/queries';
 import { whenLabel } from '../lib/format';
 import { Asterisk } from '../components/Brand';
 import { Icon } from '../components/Icon';
-import { AutoTextarea, Field, Sheet, SlideToggle, cx } from '../components/ui';
+import { AutoTextarea, Field, Sheet, cx } from '../components/ui';
 
 type Item = (JobStory | Story) & { kind: 'job' | 'bank'; defs: FrameworkSection[] };
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
@@ -60,7 +61,6 @@ export function CallMode() {
   const act = useActions();
   const nav = useNavigate();
   const [q, setQ] = useState('');
-  const [tag, setTag] = useState<string | null>(null);
   const [sel, setSel] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
   const [saveState, setSaveState] = useState<SaveState>('idle');
@@ -201,49 +201,38 @@ export function CallMode() {
     return [...job, ...bank];
   }, [data, a]);
 
-  const hits = useMemo(() => searchStories(items, q, tag), [items, q, tag]);
-  const tags = useMemo(() => {
-    const count = new Map<string, number>();
-    for (const i of items)
-      for (const t of i.tags) count.set(t, (count.get(t) ?? 0) + (i.kind === 'job' ? 3 : 1));
-    return [...count.entries()]
-      .sort((x, y) => y[1] - x[1])
-      .slice(0, 10)
-      .map(([t]) => t);
-  }, [items]);
+  const frameworks = data?.state.frameworks;
+  const hits = useMemo(() => searchStories(items, q, frameworks), [items, q, frameworks]);
 
   if (!data) return null;
   if (!a)
     return (
       <div className="empty">
-        That application is gone. <Link to="/pipeline">Back</Link>
+        That application is gone. <Link to="/jobs">Back</Link>
       </div>
     );
 
   const md = meeting?.data as MeetingData | undefined;
   const attendees = md?.attendees.map((x) => x.name) ?? [];
   const current = items.find((i) => i.id === sel) ?? hits[0]?.item ?? items[0];
-  const curHit = hits.find((h) => h.item.id === current?.id);
   const start = meeting ? Date.parse(meeting.occurred_at) : null;
   const live = start != null && now >= start && now - start < 4 * 3600_000;
 
-  const row = (i: Item) => {
-    const hit = hits.find((h) => h.item.id === i.id);
-    return (
-      <button
-        key={i.id}
-        type="button"
-        className={cx('srow', current?.id === i.id && 'on', i.kind === 'bank' && 'bank')}
-        onClick={() => setSel(i.id)}
-      >
-        <span className="srow-top">
-          <strong>{i.title}</strong>
-        </span>
-        {i.hook && <span className="srow-hook">{i.hook}</span>}
-        {hit?.question && q && <span className="answers">Answers: “{hit.question}”</span>}
-      </button>
-    );
-  };
+  const row = (i: Item) => (
+    <button
+      key={i.id}
+      type="button"
+      className={cx('srow', current?.id === i.id && 'on', i.kind === 'bank' && 'bank')}
+      onClick={() => setSel(i.id)}
+    >
+      <span className="srow-top">
+        <strong>{i.title}</strong>
+      </span>
+      <span className="srow-hook">
+        {frameworkOf(i.framework_key, data.state.frameworks)?.name ?? i.framework_key}
+      </span>
+    </button>
+  );
   const jobHits = hits.filter((h) => h.item.kind === 'job').map((h) => h.item);
   const bankHits = hits.filter((h) => h.item.kind === 'bank').map((h) => h.item);
 
@@ -319,7 +308,6 @@ export function CallMode() {
               value={notes}
               onChange={(e) => typeNotes(e.target.value)}
               onBlur={() => void save()}
-              placeholder="Jot things down as you go"
             />
           </section>
         </aside>
@@ -333,17 +321,11 @@ export function CallMode() {
                     current.framework_key}{' '}
                   · {current.kind === 'job' ? 'linked to this job' : 'from Stories'}
                 </span>
-                {current.tags.map((t) => (
-                  <span key={t} className="tag">
-                    {t}
-                  </span>
-                ))}
               </div>
               <h2 className="reader-title">{current.title}</h2>
               {'angle' in current && current.angle && (
                 <div className="angle-line big">{current.angle}</div>
               )}
-              {current.hook && <p className="reader-hook">{current.hook}</p>}
               {current.defs.map((d) =>
                 current.sections[d.key]?.trim() ? (
                   <div key={d.key} className="reader-sec">
@@ -355,21 +337,6 @@ export function CallMode() {
                   </div>
                 ) : null,
               )}
-              {current.questions.length > 0 &&
-                storyExtras(
-                  frameworkOf(current.framework_key, data.state.frameworks)?.group,
-                ).includes('questions') && (
-                  <div className="reader-qs">
-                    <span className="lbl">Probable questions</span>
-                    <div className="tags">
-                      {current.questions.map((x) => (
-                        <span key={x} className={cx('tag', curHit?.question === x && 'hit')}>
-                          {x}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
             </>
           ) : (
             <p className="empty">
@@ -394,15 +361,6 @@ export function CallMode() {
             />
             <kbd>/</kbd>
           </label>
-          {tags.length > 0 && (
-            <SlideToggle
-              label="Competency"
-              value={tag}
-              onChange={setTag}
-              allowClear
-              options={tags.map((t) => [t, t] as const)}
-            />
-          )}
           <span className="lbl">This job · {jobHits.length}</span>
           {jobHits.map(row)}
           <span className="lbl">Full bank · {bankHits.length}</span>
@@ -444,7 +402,6 @@ export function CallMode() {
               autoFocus
               value={reflection}
               onChange={(e) => setReflection(e.target.value)}
-              placeholder="What went well, what to follow up on"
             />
           </Field>
         </Sheet>

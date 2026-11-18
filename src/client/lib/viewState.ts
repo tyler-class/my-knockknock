@@ -1,4 +1,4 @@
-// View choices (Pipeline view, stage and search; Stories filters) remembered on this device and
+// View choices (Jobs view, stage and search; Stories filters) remembered on this device and
 // kept in the address so a view can be bookmarked or shared. The address wins when it says
 // something; otherwise the last choice on this device; otherwise the default.
 import { useCallback, useMemo, useState } from 'react';

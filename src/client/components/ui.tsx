@@ -15,119 +15,83 @@ export function cx(...c: (string | false | null | undefined)[]) {
 
 export type Tone = 'good' | 'warn' | 'bad' | 'blue';
 
-/** Chips for known values plus a dashed "New" chip to type one. */
-export function ChoiceInput({
-  options,
-  value,
-  onChange,
-  placeholder,
-  small,
-}: {
-  options: string[];
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  small?: boolean;
-}) {
-  const known = options.some((o) => o === value);
-  const [typing, setTyping] = useState(!!value && !known);
-  return (
-    <div className="seg">
-      {options.map((o) => (
-        <button
-          key={o}
-          type="button"
-          className={cx('chip', small && 'sm')}
-          aria-pressed={!typing && value === o}
-          onClick={() => {
-            setTyping(false);
-            onChange(value === o ? '' : o);
-          }}
-        >
-          {o}
-        </button>
-      ))}
-      {typing ? (
-        <input
-          className="in chip-in"
-          style={{ maxWidth: 220 }}
-          autoFocus={!value}
-          value={value}
-          placeholder={placeholder ?? 'Type one'}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      ) : (
-        <button
-          type="button"
-          className={cx('chip new', small && 'sm')}
-          onClick={() => {
-            setTyping(true);
-            onChange('');
-          }}
-        >
-          <Icon name="plus" size={14} /> New
-        </button>
-      )}
-    </div>
-  );
-}
-
 export interface SelectGroup {
   label?: string;
   options: { value: string; label: string }[];
 }
 
-/** A styled dropdown: a field-like button that opens a list below it. */
+/**
+ * A styled dropdown: a field-like button that opens a list below it. `autoOpen` opens it as it
+ * appears (an inline editor), and `onClose` hears every close: a pick, a tap outside, Escape or
+ * tabbing away.
+ */
 export function Select({
   value,
   onChange,
   groups,
   placeholder = 'Choose',
+  autoOpen,
+  onClose,
+  className,
 }: {
   value: string;
   onChange: (v: string) => void;
   groups: SelectGroup[];
   placeholder?: string;
+  autoOpen?: boolean;
+  onClose?: () => void;
+  className?: string;
 }) {
-  const [open, setOpen] = useState(false);
-  const [hi, setHi] = useState(-1);
-  const root = useRef<HTMLDivElement>(null);
-  const list = useRef<HTMLDivElement>(null);
-  const listId = useId();
   const flat = groups.flatMap((g) => g.options);
   const current = flat.find((o) => o.value === value);
+  const at = () =>
+    Math.max(
+      0,
+      flat.findIndex((o) => o.value === value),
+    );
+  const [open, setOpen] = useState(!!autoOpen);
+  const [hi, setHi] = useState(() => (autoOpen ? at() : -1));
+  const root = useRef<HTMLDivElement>(null);
+  const btn = useRef<HTMLButtonElement>(null);
+  const list = useRef<HTMLDivElement>(null);
+  const listId = useId();
 
+  const close = () => {
+    setOpen(false);
+    onClose?.();
+  };
+  // Opened as it appears: take focus so the arrows, Enter and Escape work straight away.
+  useEffect(() => {
+    if (autoOpen) btn.current?.focus({ preventScroll: true });
+    // Only on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => {
     if (!open) return;
     const away = (e: PointerEvent) => {
-      if (!root.current?.contains(e.target as Node)) setOpen(false);
+      if (!root.current?.contains(e.target as Node)) close();
     };
     document.addEventListener('pointerdown', away);
     return () => document.removeEventListener('pointerdown', away);
-  }, [open]);
+  });
   useEffect(() => {
     if (!open || hi < 0) return;
     list.current?.querySelector(`[data-i="${hi}"]`)?.scrollIntoView({ block: 'nearest' });
   }, [open, hi]);
 
   const show = () => {
-    setHi(
-      Math.max(
-        0,
-        flat.findIndex((o) => o.value === value),
-      ),
-    );
+    setHi(at());
     setOpen(true);
   };
   const pick = (v: string) => {
     onChange(v);
-    setOpen(false);
+    close();
   };
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape' && open) {
       e.stopPropagation();
       e.nativeEvent.stopImmediatePropagation();
-      setOpen(false);
+      close();
     } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
       if (!open) return show();
@@ -143,14 +107,23 @@ export function Select({
     groups.slice(0, gi).reduce((sum, g) => sum + g.options.length, 0),
   );
   return (
-    <div className="sel" ref={root} onKeyDown={onKey}>
+    <div
+      className="sel"
+      ref={root}
+      onKeyDown={onKey}
+      onBlur={(e) => {
+        const to = e.relatedTarget as Node | null;
+        if (open && to && !root.current?.contains(to)) close();
+      }}
+    >
       <button
+        ref={btn}
         type="button"
-        className={cx('in sel-btn', !current && 'ph')}
+        className={cx('in sel-btn', !current && 'ph', className)}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listId}
-        onClick={() => (open ? setOpen(false) : show())}
+        onClick={() => (open ? close() : show())}
       >
         <span className="sel-val">{current?.label ?? placeholder}</span>
         <Icon name="chevDown" size={16} />
@@ -215,14 +188,18 @@ export function TagInput({
       {value.length > 0 && (
         <div className="seg">
           {value.map((v) => (
+            // The same chip as at rest (.tag), with an ✕ to remove it.
             <button
               key={v}
               type="button"
-              className="chip sm"
-              aria-pressed
+              className="tag tag-rm"
+              aria-label={`Remove ${decorate ? decorate(v) : v}`}
               onClick={() => onChange(value.filter((x) => x !== v))}
             >
-              {decorate ? decorate(v) : v} <span className="x">✕</span>
+              {decorate ? decorate(v) : v}{' '}
+              <span className="x" aria-hidden="true">
+                ✕
+              </span>
             </button>
           ))}
         </div>
@@ -462,7 +439,7 @@ export function PageHeader({
     <header className="page-h">
       <h1>
         {icon && (
-          <span className="h-icon" aria-hidden="true">
+          <span className="h-icon" data-icon={icon} aria-hidden="true">
             <Icon name={icon} size={24} />
           </span>
         )}

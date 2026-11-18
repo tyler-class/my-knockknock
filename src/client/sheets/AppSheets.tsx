@@ -22,7 +22,6 @@ import { useToast } from '../components/Toast';
 import { fromLocalInput, toLocalInput } from '../lib/format';
 import {
   AutoTextarea,
-  ChoiceInput,
   ConfirmButton,
   Field,
   Select,
@@ -33,13 +32,10 @@ import {
 import { CLOSED_ICON, STATUS_ICON, StatusChip } from '../components/StatusChip';
 import { StageBar } from '../components/StageBar';
 import { Icon } from '../components/Icon';
+import { DatePicker, DateTimeField } from '../components/DateTimePicker';
 import { useSheets } from './context';
 import { useNavigate } from 'react-router';
-
-const num = (s: string) => {
-  const v = Number(s.replace(/[^0-9.]/g, ''));
-  return s.trim() === '' || !Number.isFinite(v) ? null : v;
-};
+import { payRange } from '@shared/logic/pay';
 
 type Form = Record<
   | 'title'
@@ -109,25 +105,25 @@ export function ApplicationSheet() {
   const set = (k: keyof Form) => (e: { target: { value: string } }) =>
     setF((p) => ({ ...p, [k]: e.target.value }));
   // Links are plain text fields (the server adds https://), so "fathom.com" is fine.
-  const inp = (k: keyof Form, placeholder?: string, type = 'text') => (
+  const inp = (k: keyof Form, type = 'text') => (
     <input
       className="in"
       type={type === 'url' ? 'text' : type}
       {...(type === 'url' ? { inputMode: 'url', autoCapitalize: 'off', spellCheck: false } : {})}
       value={f[k]}
       onChange={set(k)}
-      placeholder={placeholder}
     />
   );
 
   async function save() {
     if (!f.title.trim() || !f.company.trim()) return;
     setBusy(true);
+    const [salaryMin, salaryMax] = payRange(f.salary_min, f.salary_max);
     const body = {
       ...f,
-      salary_min: num(f.salary_min),
-      salary_max: num(f.salary_max),
-      salary_period: num(f.salary_min) != null || num(f.salary_max) != null ? period : null,
+      salary_min: salaryMin,
+      salary_max: salaryMax,
+      salary_period: salaryMin != null || salaryMax != null ? period : null,
       posted_on: f.posted_on || null,
       work_mode: mode,
       must_haves: must,
@@ -158,10 +154,10 @@ export function ApplicationSheet() {
         </>
       }
     >
-      <Field label="Job link">{inp('url', 'https://…', 'url')}</Field>
+      <Field label="Job link">{inp('url', 'url')}</Field>
       <div className="two">
-        <Field label="Company">{inp('company', 'Fathom Systems')}</Field>
-        <Field label="Title">{inp('title', 'Principal CRM Architect')}</Field>
+        <Field label="Company">{inp('company')}</Field>
+        <Field label="Title">{inp('title')}</Field>
       </div>
       <Field label="Status">
         <SlideToggle
@@ -174,34 +170,37 @@ export function ApplicationSheet() {
           ]}
         />
       </Field>
-      <Field label="Pay">
-        <div className="three">
-          <input
-            className="in"
-            inputMode="numeric"
-            value={f.salary_min}
-            onChange={set('salary_min')}
-            placeholder="Min"
-            aria-label="Minimum"
-          />
-          <input
-            className="in"
-            inputMode="numeric"
-            value={f.salary_max}
-            onChange={set('salary_max')}
-            placeholder="Max"
-            aria-label="Maximum"
-          />
-          <Select
-            value={period}
-            onChange={(v) => setPeriod(v as SalaryPeriod)}
-            groups={[{ options: SALARY_PERIODS.map((p) => ({ value: p, label: `per ${p}` })) }]}
-          />
+      <Field label="Pay range">
+        <div className="pay-range">
+          <label className="mini-l">
+            Min
+            <input
+              className="in"
+              inputMode="decimal"
+              value={f.salary_min}
+              onChange={set('salary_min')}
+            />
+          </label>
+          <label className="mini-l">
+            Max
+            <input
+              className="in"
+              inputMode="decimal"
+              value={f.salary_max}
+              onChange={set('salary_max')}
+            />
+          </label>
+          <div className="mini-l">
+            Per
+            <Select
+              value={period}
+              onChange={(v) => setPeriod(v as SalaryPeriod)}
+              groups={[{ options: SALARY_PERIODS.map((p) => ({ value: p, label: p })) }]}
+            />
+          </div>
         </div>
       </Field>
-      <Field label="Pay as written (optional)">
-        {inp('salary_text', '$205k + 15% bonus + equity')}
-      </Field>
+      <Field label="Notes on pay (bonus, equity…)">{inp('salary_text')}</Field>
       <Field label="Work mode">
         <SlideToggle
           label="Work mode"
@@ -212,19 +211,33 @@ export function ApplicationSheet() {
         />
       </Field>
       <div className="two">
-        <Field label="Location">{inp('location', 'Remote (US)')}</Field>
-        <Field label="Seniority">{inp('seniority', 'Principal IC')}</Field>
-        <Field label="Reports to">{inp('reports_to', 'VP Revenue Ops')}</Field>
-        <Field label="Team">{inp('team', '6 people')}</Field>
-        <Field label="Type">{inp('employment_type', 'Full-time')}</Field>
-        <Field label="Posted">{inp('posted_on', '', 'date')}</Field>
+        <Field label="Location">{inp('location')}</Field>
+        <Field label="Seniority">{inp('seniority')}</Field>
+        <Field label="Reports to">{inp('reports_to')}</Field>
+        <Field label="Team">{inp('team')}</Field>
+        <Field label="Type">{inp('employment_type')}</Field>
+        <Field label="Posted">
+          <DatePicker
+            label="Posted"
+            clearable
+            value={f.posted_on || null}
+            onChange={(v) => setF((p) => ({ ...p, posted_on: v ?? '' }))}
+          />
+        </Field>
       </div>
       <Field label="Source">
-        <ChoiceInput
-          small
-          options={SOURCES}
+        <Select
           value={f.source}
           onChange={(v) => setF((p) => ({ ...p, source: v }))}
+          placeholder="Not set"
+          groups={[
+            {
+              options: [
+                { value: '', label: 'Not set' },
+                ...SOURCES.map((s) => ({ value: s, label: s })),
+              ],
+            },
+          ]}
         />
       </Field>
       <Field label="Must-haves">
@@ -245,22 +258,16 @@ export function ApplicationSheet() {
       </Field>
       <span className="lbl sheet-sec">Company</span>
       <div className="two">
-        <Field label="Domain">{inp('company_domain', 'fathom.com')}</Field>
-        <Field label="Website">{inp('company_website', 'https://…', 'url')}</Field>
-        <Field label="LinkedIn">{inp('company_linkedin', 'https://…', 'url')}</Field>
-        <Field label="HQ">{inp('company_hq', 'Denver, CO')}</Field>
-        <Field label="Size">{inp('company_size', '501–1,000')}</Field>
-        <Field label="Industry">{inp('company_industry', 'Logistics SaaS')}</Field>
-        <Field label="Funding">{inp('company_funding', 'Series D')}</Field>
+        <Field label="Domain">{inp('company_domain')}</Field>
+        <Field label="Website">{inp('company_website', 'url')}</Field>
+        <Field label="LinkedIn">{inp('company_linkedin', 'url')}</Field>
+        <Field label="HQ">{inp('company_hq')}</Field>
+        <Field label="Size">{inp('company_size')}</Field>
+        <Field label="Industry">{inp('company_industry')}</Field>
+        <Field label="Funding">{inp('company_funding')}</Field>
       </div>
       <Field label="Job description" className="mt">
-        <textarea
-          className="in"
-          rows={6}
-          value={f.description}
-          onChange={set('description')}
-          placeholder="Paste the posting: it disappears later."
-        />
+        <textarea className="in" rows={6} value={f.description} onChange={set('description')} />
       </Field>
       <Field label="Notes">
         <AutoTextarea className="in" rows={3} value={f.notes} onChange={set('notes')} />
@@ -476,12 +483,7 @@ export function StatusSheet({
       )}
       <div className="two" style={{ marginTop: 16 }}>
         <Field label="When">
-          <input
-            className="in"
-            type="datetime-local"
-            value={when}
-            onChange={(e) => setWhen(e.target.value)}
-          />
+          <DateTimeField label="When" value={when} onChange={setWhen} />
         </Field>
       </div>
       <Field label="Comments">
@@ -490,7 +492,6 @@ export function StatusSheet({
           rows={2}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          placeholder="“Went with an internal candidate.”"
         />
       </Field>
       {next === 'accepted' && others.length > 0 && (
@@ -567,12 +568,7 @@ export function PersonSheet({ data, appId, id }: { data: Data; appId: string; id
           <input className="in" value={name} onChange={(e) => setName(e.target.value)} />
         </Field>
         <Field label="Title">
-          <input
-            className="in"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="VP Revenue Ops"
-          />
+          <input className="in" value={title} onChange={(e) => setTitle(e.target.value)} />
         </Field>
       </div>
       <Field label="Role">
@@ -585,12 +581,7 @@ export function PersonSheet({ data, appId, id }: { data: Data; appId: string; id
       </Field>
       {role === 'other' && (
         <Field label="Other role">
-          <input
-            className="in"
-            value={otherRole}
-            onChange={(e) => setOtherRole(e.target.value)}
-            placeholder="Head of Talent"
-          />
+          <input className="in" value={otherRole} onChange={(e) => setOtherRole(e.target.value)} />
         </Field>
       )}
       <Field label="Email">
@@ -610,7 +601,6 @@ export function PersonSheet({ data, appId, id }: { data: Data; appId: string; id
           spellCheck={false}
           value={linkedin}
           onChange={(e) => setLinkedin(e.target.value)}
-          placeholder="https://…"
         />
       </Field>
       <Field label="Notes">
@@ -682,12 +672,7 @@ export function SearchSheet({ data, id }: { data: Data; id?: string }) {
       }
     >
       <Field label="Name">
-        <input
-          className="in"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Fall 2026"
-        />
+        <input className="in" value={name} onChange={(e) => setName(e.target.value)} />
       </Field>
       {s && (
         <Field label="Status">
@@ -709,7 +694,6 @@ export function SearchSheet({ data, id }: { data: Data; id?: string }) {
           rows={3}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          placeholder="What you're looking for, your number, your walk-away."
         />
       </Field>
     </Sheet>

@@ -101,30 +101,42 @@ describe('call-mode search', () => {
     story({
       id: 's2',
       title: 'Event bus for 14 integrations',
-      tags: ['architecture'],
-      hook: null,
-      sections: { action: 'Platform events' },
-      questions: ['Tell me about a complex system you designed.'],
+      sections: {
+        situation: 'Fourteen point-to-point integrations kept breaking.',
+        action: 'Designed a platform event architecture.',
+      },
     }),
     story({
       id: 's3',
+      framework_key: 'why_job',
       title: 'Quote-to-cash with Finance',
-      tags: ['finance'],
-      hook: null,
-      sections: {},
-      questions: ['Tell me about working with Finance.'],
+      sections: { present: 'I run revenue systems with the controller.' },
     }),
   ];
-  it('matches the question you heard against probable questions first', () => {
-    const hits = searchStories(bank, 'tell me about a time you disagreed with your leader');
-    expect(hits[0]!.item.id).toBe('s1');
-    expect(hits[0]!.question).toBe('Tell me about a time you disagreed with a leader.');
-    expect(searchStories(bank, 'complex systems')[0]!.item.id).toBe('s2');
-    expect(searchStories(bank, 'finance').map((h) => h.item.id)).toEqual(['s3']);
+  const fws = BUILTIN_FRAMEWORKS.map((f) => ({ key: f.key, name: f.name }));
+  it('finds stories by the text of their parts', () => {
+    expect(searchStories(bank, 'how did you handle the board deadline')[0]!.item.id).toBe('s1');
+    expect(searchStories(bank, 'Walk me through an architecture you designed')[0]!.item.id).toBe(
+      's2',
+    );
+    expect(searchStories(bank, 'revenue controller').map((h) => h.item.id)).toEqual(['s3']);
   });
-  it('an empty query lists everything; a tag filters', () => {
+  it('a title word counts more than the same word in a part', () => {
+    const hits = searchStories(
+      [
+        story({ id: 'a', title: 'Migration plan', sections: { action: 'Wrote it down.' } }),
+        story({ id: 'b', title: 'Something else', sections: { action: 'A migration.' } }),
+      ],
+      'migration',
+    );
+    expect(hits.map((h) => h.item.id)).toEqual(['a', 'b']);
+  });
+  it('matches the framework name', () => {
+    const fwName = BUILTIN_FRAMEWORKS.find((f) => f.key === 'why_job')!.name;
+    expect(searchStories(bank, fwName, fws)[0]!.item.id).toBe('s3');
+  });
+  it('an empty query lists everything', () => {
     expect(searchStories(bank, '')).toHaveLength(3);
-    expect(searchStories(bank, '', 'architecture').map((h) => h.item.id)).toEqual(['s2']);
   });
   it('section letters', () => {
     expect(star.sections.map((s) => sectionLetter(s.label)).join('')).toBe('STAR');

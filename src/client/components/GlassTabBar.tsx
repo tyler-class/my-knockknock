@@ -57,8 +57,12 @@ export function GlassTabBar({ tabs, active }: { tabs: GlassTab[]; active: string
       const el = lens.current;
       if (!el) return;
       el.dataset.motion = mode;
-      el.style.width = `${width}px`;
-      el.style.transform = `translateX(${centre - width / 2}px) scale(${sx}, ${sy})`;
+      // Whole pixels at rest, so its outline is equally crisp on every side.
+      const still = sx === 1 && sy === 1;
+      const w = still ? Math.round(width) : width;
+      const x = still ? Math.round(centre - width / 2) : centre - width / 2;
+      el.style.width = `${w}px`;
+      el.style.transform = still ? `translateX(${x}px)` : `translateX(${x}px) scale(${sx}, ${sy})`;
     },
     [],
   );
@@ -210,6 +214,7 @@ export function GlassTabBar({ tabs, active }: { tabs: GlassTab[]; active: string
             to={to}
             draggable={false}
             className="glass-tab"
+            data-icon={icon}
             data-lit={i === lit || undefined}
             aria-current={active === to ? 'page' : undefined}
           >

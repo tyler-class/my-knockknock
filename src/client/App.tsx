@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Spinner } from './components/Brand';
 import { useEffect } from 'react';
-import { createBrowserRouter, Navigate, RouterProvider } from 'react-router';
+import { createBrowserRouter, Navigate, RouterProvider, useLocation } from 'react-router';
 import { api, ApiError, onUnauthorized } from './lib/api';
 import { startPwa } from './lib/pwa';
 import { keys, useActions, useAppState } from './lib/queries';
@@ -28,6 +28,12 @@ const queryClient = new QueryClient({
 
 startPwa();
 
+/** /pipeline was renamed /jobs: old links keep their view choices (?view=…). */
+function ToJobs() {
+  const { search } = useLocation();
+  return <Navigate to={`/jobs${search}`} replace />;
+}
+
 const router = createBrowserRouter([
   {
     // Call mode is full-screen: no tabs or sidebar, so it fits beside a video call.
@@ -47,7 +53,9 @@ const router = createBrowserRouter([
     children: [
       { path: '/', element: <Home /> },
       { path: '/today', element: <Navigate to="/" replace /> },
-      { path: '/pipeline', element: <Pipeline /> },
+      { path: '/jobs', element: <Pipeline /> },
+      // Old links, notifications and push URLs.
+      { path: '/pipeline', element: <ToJobs /> },
       { path: '/a/:id', element: <ApplicationPage /> },
       { path: '/stories', element: <Stories /> },
       { path: '/reports', element: <Reports /> },

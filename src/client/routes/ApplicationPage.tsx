@@ -18,28 +18,22 @@ import {
   type Status,
 } from '@shared/lookups';
 import { stagesReached } from '@shared/logic/status';
+import { payRange } from '@shared/logic/pay';
 import { withScheme } from '@shared/url';
 import { SYNC_LABEL, frameworkOf, syncState } from '@shared/logic/stories';
 import type { Application, JobStory } from '@shared/types';
 import { useActions, useData, type Data } from '../lib/queries';
 import { fileUrl, uploadFile } from '../lib/api';
 import { bytes, compLabel, dayLabel, relDays } from '../lib/format';
+import { shortDateLabel } from '../lib/dates';
+import { DatePicker } from '../components/DateTimePicker';
 import { useSheets } from '../sheets/context';
 import { useViewState } from '../lib/viewState';
 import { Timeline } from '../components/Timeline';
 import { CLOSED_ICON, STATUS_ICON } from '../components/StatusChip';
 import { Icon } from '../components/Icon';
 import { StageBar } from '../components/StageBar';
-import {
-  AutoTextarea,
-  ChoiceInput,
-  ConfirmButton,
-  Field,
-  Select,
-  Sheet,
-  TagInput,
-  cx,
-} from '../components/ui';
+import { AutoTextarea, ConfirmButton, Field, Select, Sheet, TagInput, cx } from '../components/ui';
 import { useToast } from '../components/Toast';
 
 const workModeLabel = (m: string) => WORK_MODES.find((w) => w.key === m)?.label ?? m;
@@ -102,12 +96,22 @@ function Stepper({ a, data }: { a: Application; data: Data }) {
   );
 }
 
-type EditKind = 'text' | 'date' | 'url' | 'mode';
+type EditKind = 'text' | 'date' | 'url' | 'choice';
 
-const num = (s: string) => {
-  const v = Number(s.replace(/[^0-9.]/g, ''));
-  return s.trim() === '' || !Number.isFinite(v) ? null : v;
-};
+/** Choices for a pick-list detail, with "Not set" first and any other stored value kept. */
+const choiceGroups = (options: { value: string; label: string }[], current: string) => [
+  {
+    options: [
+      { value: '', label: 'Not set' },
+      ...options,
+      ...(current && !options.some((o) => o.value === current)
+        ? [{ value: current, label: current }]
+        : []),
+    ],
+  },
+];
+const WORK_MODE_CHOICES = WORK_MODES.map((w) => ({ value: w.key, label: w.label }));
+const SOURCE_CHOICES = SOURCES.map((s) => ({ value: s, label: s }));
 
 /**
  * One detail (or a small group that edits together) in its edit container: the value with a
@@ -115,7 +119,6 @@ const num = (s: string) => {
  */
 function EditBox({
   label,
-  inferred,
   full,
   shown,
   editing,
@@ -123,7 +126,6 @@ function EditBox({
   children,
 }: {
   label: string;
-  inferred?: boolean;
   full?: boolean;
   /** What it shows when not editing; empty shows "Add". */
   shown: ReactNode;
@@ -135,14 +137,7 @@ function EditBox({
   const empty = shown == null || shown === '' || (Array.isArray(shown) && !shown.length);
   return (
     <div className={cx('kv ikv', full && 'kv-full')}>
-      <span className="kv-l">
-        {label}
-        {inferred && (
-          <span className="inferred" title="Inferred by an assistant, not read off the posting">
-            inferred
-          </span>
-        )}
-      </span>
+      <span className="kv-l">{label}</span>
       {editing ? (
         children
       ) : (
@@ -195,15 +190,16 @@ const groupKeys = (save: () => void, cancel: () => void, enterSaves = true) => (
 
 /**
  * One detail, edited where it's shown: tap the value (or "Add"), change it, and Enter or
- * leaving the field saves it. Escape puts it back.
+ * leaving the field saves it. Escape puts it back. Dates and pick lists open their calendar or
+ * list straight away: a pick saves, and Escape or a tap outside leaves it as it was.
  */
 function InlineField({
   a,
   k,
   label,
   kind = 'text',
+  choices = [],
   display,
-  inferred,
   placeholder,
   required,
   full,
@@ -214,14 +210,19 @@ function InlineField({
   full?: boolean;
   label: string;
   kind?: EditKind;
+  /** The options for kind 'choice'. */
+  choices?: { value: string; label: string }[];
   display?: ReactNode;
-  inferred?: boolean;
   placeholder?: string;
   /** Can't be emptied (title, company): an empty value puts the old one back. */
   required?: boolean;
 }) {
   const act = useActions();
-  const raw = (a[k] as string | null) ?? '';
+  const stored = (a[k] as string | null) ?? '';
+  // What was just picked or typed, shown straight away until the save lands (the state is
+  // refetched before the patch resolves), so the old value never flashes back in between.
+  const [pending, setPending] = useState<string | null>(null);
+  const raw = pending ?? stored;
   const [editing, setEditing] = useState(false);
   const [v, setV] = useState(raw);
   const begin = () => {
@@ -231,8 +232,11 @@ function InlineField({
   const save = async (next = v) => {
     setEditing(false);
     if (next.trim() === raw || (required && !next.trim())) return;
+    setPending(next.trim());
     await act.patch(`/applications/${a.id}`, { [k]: next.trim() || null });
+    setPending(null);
   };
+  const cancel = () => setEditing(false);
   const shown = !raw
     ? null
     : (display ??
@@ -246,51 +250,38 @@ function InlineField({
           {raw.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}
         </a>
       ) : kind === 'date' ? (
-        dayLabel(raw)
-      ) : kind === 'mode' ? (
-        workModeLabel(raw)
+        shortDateLabel(raw)
+      ) : kind === 'choice' ? (
+        (choices.find((c) => c.value === raw)?.label ?? raw)
       ) : (
         raw
       )));
   return (
-    <EditBox
-      label={label}
-      inferred={inferred}
-      full={full}
-      shown={shown}
-      editing={editing}
-      onEdit={begin}
-    >
-      {kind === 'mode' ? (
-        // A themed dropdown: picking saves; Escape puts it back.
-        <div
-          className="inline-select"
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              e.stopPropagation();
-              setEditing(false);
-            }
-          }}
-        >
-          <Select
-            value={raw}
-            onChange={(v) => void save(v)}
-            placeholder="Not set"
-            groups={[
-              {
-                options: [
-                  { value: '', label: 'Not set' },
-                  ...WORK_MODES.map((w) => ({ value: w.key, label: w.label })),
-                ],
-              },
-            ]}
-          />
-        </div>
+    <EditBox label={label} full={full} shown={shown} editing={editing} onEdit={begin}>
+      {kind === 'choice' ? (
+        <Select
+          className="sm"
+          autoOpen
+          value={raw}
+          onChange={(next) => void save(next)}
+          onClose={cancel}
+          placeholder="Not set"
+          groups={choiceGroups(choices, raw)}
+        />
+      ) : kind === 'date' ? (
+        <DatePicker
+          className="sm"
+          label={label}
+          autoOpen
+          clearable={!required}
+          value={raw || null}
+          onChange={(next) => void save(next ?? '')}
+          onDismiss={cancel}
+        />
       ) : (
         <input
           className="in sm"
           autoFocus
-          type={kind === 'date' ? 'date' : 'text'}
           {...(kind === 'url'
             ? { inputMode: 'url', autoCapitalize: 'off', spellCheck: false }
             : {})}
@@ -312,7 +303,10 @@ function InlineField({
   );
 }
 
-/** Pay edits as one group: min, max, per what, and the pay as written. */
+/**
+ * Pay edits as one group: a range (min, max, per what) and a note on pay (bonus, equity, the
+ * posting's own words). Either, both or neither can be set; min and max swap if entered backwards.
+ */
 function PayField({ a }: { a: Application }) {
   const act = useActions();
   const str = (n: number | null) => (n == null ? '' : String(n));
@@ -329,82 +323,59 @@ function PayField({ a }: { a: Application }) {
     setEditing(true);
   };
   const save = async () => {
+    const [min, max] = payRange(lo, hi);
+    const ranged = min != null || max != null;
     const body = {
-      salary_min: num(lo),
-      salary_max: num(hi),
-      salary_period: num(lo) != null || num(hi) != null ? period : null,
+      salary_min: min,
+      salary_max: max,
+      salary_period: ranged ? period : null,
+      ...(ranged && !a.salary_currency ? { salary_currency: 'USD' } : {}),
       salary_text: text.trim() || null,
     };
     const same =
       body.salary_min === a.salary_min &&
       body.salary_max === a.salary_max &&
       body.salary_period === a.salary_period &&
-      body.salary_text === (a.salary_text || null);
+      body.salary_text === (a.salary_text?.trim() || null);
     if (same || (await act.patch(`/applications/${a.id}`, body))) setEditing(false);
   };
   return (
-    <EditBox label="Pay" full shown={compLabel(a)} editing={editing} onEdit={begin}>
-      <div {...groupKeys(save, () => setEditing(false))}>
-        <div className="three">
-          <input
-            className="in sm"
-            autoFocus
-            inputMode="numeric"
-            value={lo}
-            onChange={(e) => setLo(e.target.value)}
-            placeholder="Min"
-            aria-label="Minimum"
-          />
-          <input
-            className="in sm"
-            inputMode="numeric"
-            value={hi}
-            onChange={(e) => setHi(e.target.value)}
-            placeholder="Max"
-            aria-label="Maximum"
-          />
-          <Select
-            value={period}
-            onChange={(v) => setPeriod(v as SalaryPeriod)}
-            groups={[{ options: SALARY_PERIODS.map((p) => ({ value: p, label: `per ${p}` })) }]}
-          />
+    <EditBox label="Pay" full shown={compLabel(a, true)} editing={editing} onEdit={begin}>
+      <div className="pay-edit" {...groupKeys(save, () => setEditing(false))}>
+        <div className="pay-range">
+          <label className="mini-l">
+            Min
+            <input
+              className="in sm"
+              autoFocus
+              inputMode="decimal"
+              value={lo}
+              onChange={(e) => setLo(e.target.value)}
+            />
+          </label>
+          <label className="mini-l">
+            Max
+            <input
+              className="in sm"
+              inputMode="decimal"
+              value={hi}
+              onChange={(e) => setHi(e.target.value)}
+            />
+          </label>
+          <div className="mini-l">
+            Per
+            <Select
+              className="sm"
+              value={period}
+              onChange={(v) => setPeriod(v as SalaryPeriod)}
+              groups={[{ options: SALARY_PERIODS.map((p) => ({ value: p, label: p })) }]}
+            />
+          </div>
         </div>
-        <input
-          className="in sm mt-s"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="As written: $205k + 15% bonus + equity"
-          aria-label="Pay as written"
-        />
-        <EditActs onSave={() => void save()} onCancel={() => setEditing(false)} />
-      </div>
-    </EditBox>
-  );
-}
-
-/** Where it came from: the usual sources as chips, or type one. */
-function SourceField({ a }: { a: Application }) {
-  const act = useActions();
-  const [editing, setEditing] = useState(false);
-  const [v, setV] = useState('');
-  const save = async () => {
-    const next = v.trim() || null;
-    if (next === (a.source || null) || (await act.patch(`/applications/${a.id}`, { source: next })))
-      setEditing(false);
-  };
-  return (
-    <EditBox
-      label="Source"
-      full
-      shown={a.source}
-      editing={editing}
-      onEdit={() => {
-        setV(a.source ?? '');
-        setEditing(true);
-      }}
-    >
-      <div {...groupKeys(save, () => setEditing(false))}>
-        <ChoiceInput small options={SOURCES} value={v} onChange={setV} />
+        <label className="mini-l mt-s">
+          Notes on pay (bonus, equity…)
+          <input className="in sm" value={text} onChange={(e) => setText(e.target.value)} />
+        </label>
         <EditActs onSave={() => void save()} onCancel={() => setEditing(false)} />
       </div>
     </EditBox>
@@ -416,12 +387,10 @@ function TagsField({
   a,
   k,
   label,
-  dashed,
 }: {
   a: Application;
   k: 'must_haves' | 'nice_to_haves';
   label: string;
-  dashed?: boolean;
 }) {
   const act = useActions();
   const [editing, setEditing] = useState(false);
@@ -438,7 +407,7 @@ function TagsField({
         a[k].length ? (
           <span className="tags">
             {a[k].map((m) => (
-              <span key={m} className={cx('tag', dashed && 'dashed')}>
+              <span key={m} className="tag">
                 {m}
               </span>
             ))}
@@ -516,7 +485,6 @@ function TextField({
 function Details({ a, data }: { a: Application; data: Data }) {
   const sheets = useSheets();
   const people = data.state.people.filter((p) => p.application_id === a.id);
-  const inf = (k: string) => a.inferred.includes(k);
   return (
     // Two columns that each stack on their own (The job; Company, Notes, People), so a short card
     // isn't pushed down by a tall one beside it. One column on phones.
@@ -529,33 +497,26 @@ function Details({ a, data }: { a: Application; data: Data }) {
             </h2>
           </div>
           <div className="kvs">
-            <InlineField a={a} k="title" label="Title" required />
-            <InlineField a={a} k="company" label="Company" required />
+            <InlineField a={a} k="title" label="Title" required full />
             <PayField a={a} />
-            <InlineField a={a} k="work_mode" label="Work mode" kind="mode" />
-            <InlineField a={a} k="location" label="Location" placeholder="Remote (US)" />
             <InlineField
               a={a}
-              k="seniority"
-              label="Seniority"
-              inferred={inf('seniority')}
-              placeholder="Principal IC"
+              k="work_mode"
+              label="Work mode"
+              kind="choice"
+              choices={WORK_MODE_CHOICES}
             />
-            <InlineField
-              a={a}
-              k="reports_to"
-              label="Reports to"
-              inferred={inf('reports_to')}
-              placeholder="VP Revenue Ops"
-            />
-            <InlineField a={a} k="team" label="Team" inferred={inf('team')} />
-            <InlineField a={a} k="employment_type" label="Type" placeholder="Full-time" />
+            <InlineField a={a} k="location" label="Location" />
+            <InlineField a={a} k="seniority" label="Seniority" />
+            <InlineField a={a} k="reports_to" label="Reports to" />
+            <InlineField a={a} k="team" label="Team" />
+            <InlineField a={a} k="employment_type" label="Type" />
             <InlineField a={a} k="posted_on" label="Posted" kind="date" />
             <InlineField a={a} k="applied_on" label="Applied" kind="date" />
-            <InlineField a={a} k="url" label="Job link" kind="url" placeholder="https://…" full />
-            <SourceField a={a} />
+            <InlineField a={a} k="url" label="Job link" kind="url" full />
+            <InlineField a={a} k="source" label="Source" kind="choice" choices={SOURCE_CHOICES} />
             <TagsField a={a} k="must_haves" label="Must-haves" />
-            <TagsField a={a} k="nice_to_haves" label="Nice-to-haves" dashed />
+            <TagsField a={a} k="nice_to_haves" label="Nice-to-haves" />
           </div>
         </section>
       </div>
@@ -567,25 +528,14 @@ function Details({ a, data }: { a: Application; data: Data }) {
             </h2>
           </div>
           <div className="kvs">
-            <InlineField a={a} k="company_domain" label="Domain" placeholder="fathom.com" />
-            <InlineField a={a} k="company_hq" label="HQ" placeholder="Denver, CO" />
-            <InlineField a={a} k="company_size" label="Size" placeholder="501–1,000" />
+            <InlineField a={a} k="company" label="Name" required full />
+            <InlineField a={a} k="company_domain" label="Domain" />
+            <InlineField a={a} k="company_hq" label="HQ" />
+            <InlineField a={a} k="company_size" label="Size" />
             <InlineField a={a} k="company_industry" label="Industry" />
-            <InlineField a={a} k="company_funding" label="Funding" placeholder="Series D" />
-            <InlineField
-              a={a}
-              k="company_website"
-              label="Website"
-              kind="url"
-              placeholder="https://…"
-            />
-            <InlineField
-              a={a}
-              k="company_linkedin"
-              label="LinkedIn"
-              kind="url"
-              placeholder="https://…"
-            />
+            <InlineField a={a} k="company_funding" label="Funding" />
+            <InlineField a={a} k="company_website" label="Website" kind="url" />
+            <InlineField a={a} k="company_linkedin" label="LinkedIn" kind="url" />
           </div>
         </section>
         <section className="card notes-card">
@@ -777,12 +727,7 @@ function PasteSheet({ a, data, onClose }: { a: Application; data: Data; onClose:
           />
         </Field>
         <Field label="Name (optional)">
-          <input
-            className="in"
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            placeholder="Screen call"
-          />
+          <input className="in" value={label} onChange={(e) => setLabel(e.target.value)} />
         </Field>
       </div>
       {kind === 'transcript' && meetings.length > 0 && (
@@ -805,13 +750,7 @@ function PasteSheet({ a, data, onClose }: { a: Application; data: Data; onClose:
         </Field>
       )}
       <Field label="Text">
-        <textarea
-          className="in"
-          rows={12}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Paste the call transcript from Zoom, Otter, Granola…"
-        />
+        <textarea className="in" rows={12} value={text} onChange={(e) => setText(e.target.value)} />
       </Field>
     </Sheet>
   );
@@ -940,7 +879,7 @@ export function ApplicationPage() {
   if (!a)
     return (
       <div className="empty">
-        That application is gone. <Link to="/pipeline">Back to the pipeline</Link>
+        That application is gone. <Link to="/jobs">Back to Jobs</Link>
       </div>
     );
   const events = data.eventsByApp.get(a.id) ?? [];
@@ -958,31 +897,25 @@ export function ApplicationPage() {
         <button
           type="button"
           className="linkish"
-          onClick={() => (history.length > 1 ? nav(-1) : nav('/pipeline'))}
+          onClick={() => (history.length > 1 ? nav(-1) : nav('/jobs'))}
         >
-          ‹ Pipeline
+          ‹ Jobs
         </button>
+        {a.url && (
+          <a className="btn sm" href={withScheme(a.url)} target="_blank" rel="noreferrer">
+            Posting <Icon name="external" size={14} />
+          </a>
+        )}
       </div>
       <header className="app-head">
-        <div className="app-head-text">
-          <h1 className="title">{a.title}</h1>
+        <h1 className="title">{a.title}</h1>
+        <p className="app-co">at {a.company}</p>
+        {(pay || a.work_mode) && (
           <div className="tags">
-            <strong>{a.company}</strong>
             {pay && <span className="tag mono">{pay}</span>}
             {a.work_mode && <span className="tag">{workModeLabel(a.work_mode)}</span>}
-            {a.location && <span className="tag">{a.location}</span>}
           </div>
-        </div>
-        <div className="acts">
-          {a.url && (
-            <a className="btn" href={withScheme(a.url)} target="_blank" rel="noreferrer">
-              Posting <Icon name="external" size={14} />
-            </a>
-          )}
-          <button type="button" className="btn primary" onClick={() => sheets.log(a.id)}>
-            <Icon name="plus" size={16} /> Log
-          </button>
-        </div>
+        )}
       </header>
       <Stepper a={a} data={data} />
       <div className="tabs" role="tablist" aria-label="Sections">
@@ -1021,7 +954,6 @@ export function ApplicationPage() {
                   rows={12}
                   fixed
                   className="jd"
-                  placeholder="Paste the posting: the full text, for reference."
                 />
               </div>
             </section>
@@ -1029,7 +961,7 @@ export function ApplicationPage() {
               <ConfirmButton
                 confirm="Delete it and its timeline?"
                 onConfirm={async () => {
-                  if (await act.del(`/applications/${a.id}`, 'Deleted')) nav('/pipeline');
+                  if (await act.del(`/applications/${a.id}`, 'Deleted')) nav('/jobs');
                 }}
               >
                 Delete application
@@ -1041,6 +973,16 @@ export function ApplicationPage() {
         {tab === 'stories' && <StoriesSection a={a} data={data} />}
         {tab === 'files' && <FilesSection a={a} data={data} />}
       </div>
+      {/* Job pages only: log a meeting, email or note to this job's timeline. */}
+      <button
+        type="button"
+        className="fab"
+        aria-label="Log to timeline"
+        title="Log to timeline"
+        onClick={() => sheets.log(a.id)}
+      >
+        <Icon name="plus" size={26} />
+      </button>
     </div>
   );
 }

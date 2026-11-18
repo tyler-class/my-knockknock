@@ -20,7 +20,6 @@ import {
   statusLabel,
 } from '@shared/lookups';
 import { EXAMPLE_PROMPTS, MCP_PROMPTS } from '@shared/examples';
-import { storyExtras } from '@shared/frameworks';
 import { searchStories, syncState, frameworkOf } from '@shared/logic/stories';
 import { dayIn, parseLocal, whenIn } from '@shared/logic/tz';
 import {
@@ -254,7 +253,7 @@ const INSTRUCTIONS =
     'Before logging an email, meeting or note, call get_timeline with around set to its date (days 3, the same type) and read what is there. Same type, same people, within the window: it is probably the same thing, so update it instead of adding another. Pass external_ref (the Gmail message id or calendar event id) whenever you have one; the app refuses an exact repeat. If unsure, add a note saying what you saw instead of guessing.',
     'Log emails as summaries of what happened, not the whole email. For negotiation, put the numbers in key_points.',
     'Times without an offset are the owner’s local time.',
-    'Stories: list_stories searches the bank by the question being asked. link_story copies a bank story to an application; edits to the copy stay with that job.',
+    'Stories: a story is just its framework’s parts (no hook, tags or probable questions). list_stories searches the bank by the question being asked, matching titles, frameworks and the parts’ text. link_story copies a bank story to an application; edits to the copy stay with that job.',
     'Archived stories are left out of list_stories, search_overview and get_started. To find one, use list_archived_stories; if the owner asks to bring one back, call update_story with archived: false.',
     'To attach a file the person has (resume, transcript), call upload_link and give them the link; a file seen in the chat cannot be passed to a tool. For a transcript you already have as text, use add_text_file. Adding a file puts a "File added" note on the timeline (with file_id); change its time with update_event if the file belongs to an earlier moment.',
     'People have a role (recruiter, hiring_manager, interviewer, referrer or other); for other, put their actual role in other_role.',
@@ -335,10 +334,7 @@ function buildServer(call: Call) {
       id: s.id,
       title: s.title,
       framework: fw?.name ?? s.framework_key,
-      ...(s.hook ? { hook: s.hook } : {}),
-      tags: s.tags,
       ...(full ? { sections: sectionsOut(defs, s.sections) } : {}),
-      questions: s.questions,
       ...(full && s.notes ? { notes: s.notes } : {}),
     };
   };
@@ -1002,7 +998,7 @@ function buildServer(call: Call) {
     {
       title: 'Story frameworks',
       description:
-        'The story frameworks (STAR, Introduction, Why this job, …) with their sections and the questions each answers.',
+        'The story frameworks (STAR, Introduction, Why this job, …) with their sections. A story is just its framework’s parts.',
       inputSchema: z.object({}),
       annotations: { readOnlyHint: true },
     },
@@ -1013,9 +1009,7 @@ function buildServer(call: Call) {
         name: f.name,
         group: f.group,
         when: f.blurb,
-        sections: f.sections.map((s) => ({ key: s.key, label: s.label })),
-        questions: f.questions,
-        extra_fields: storyExtras(f.group),
+        sections: f.sections.map((s) => ({ key: s.key, label: s.label, prompt: s.prompt })),
       }));
     }),
   );
@@ -1025,19 +1019,18 @@ function buildServer(call: Call) {
     {
       title: 'Search Stories',
       description:
-        'Bank stories, best match first. Put the interview question in `query` ("tell me about a time you disagreed with a leader") and stories whose probable questions match rise to the top.',
+        'Bank stories, best match first. Put the interview question or a few words in `query` ("tell me about a time you disagreed with a leader"): stories whose title, framework or parts share its words rise to the top.',
       inputSchema: z.object({
         query: z.string().optional(),
-        tag: z.string().optional(),
         framework: z.string().optional().describe('A framework key or name.'),
         full: z
           .boolean()
           .optional()
-          .describe('Include the sections (default false: titles, hooks and questions).'),
+          .describe('Include the sections (default false: titles and frameworks only).'),
       }),
       annotations: { readOnlyHint: true },
     },
-    safe(async ({ query, tag, framework, full }) => {
+    safe(async ({ query, framework, full }) => {
       const c = await load();
       let pool = c.state.stories.filter((s) => !s.archived);
       if (framework) {
@@ -1047,11 +1040,8 @@ function buildServer(call: Call) {
         if (!fw) throw new ToolError(`No framework “${framework}”. Use list_frameworks.`);
         pool = pool.filter((s) => s.framework_key === fw.key);
       }
-      const hits = searchStories(pool, query ?? '', tag);
-      return hits.slice(0, 25).map((h) => ({
-        ...storyOut(h.item, c, !!full),
-        ...(h.question ? { matched_question: h.question } : {}),
-      }));
+      const hits = searchStories(pool, query ?? '', c.state.frameworks);
+      return hits.slice(0, 25).map((h) => storyOut(h.item, c, !!full));
     }),
   );
 
@@ -1063,21 +1053,19 @@ function buildServer(call: Call) {
         'Archived bank stories, which list_stories and the overview leave out. Use it when the owner asks about a story you can’t find, or about what they archived. Each result is archived; to bring one back, only if the owner asks, call update_story with archived: false.',
       inputSchema: z.object({
         query: z.string().optional().describe('Words or an interview question to match.'),
-        tag: z.string().optional(),
       }),
       annotations: { readOnlyHint: true },
     },
-    safe(async ({ query, tag }) => {
+    safe(async ({ query }) => {
       const c = await load();
       const pool = c.state.stories.filter((s) => s.archived);
-      const hits = searchStories(pool, query ?? '', tag);
+      const hits = searchStories(pool, query ?? '', c.state.frameworks);
       return {
         note: 'These stories are archived: they are not in list_stories or the overview. To restore one when the owner asks, call update_story with its id and archived: false.',
         count: hits.length,
         stories: hits.slice(0, 25).map((h) => ({
           ...storyOut(h.item, c, false),
           archived: true,
-          ...(h.question ? { matched_question: h.question } : {}),
         })),
       };
     }),
@@ -1113,27 +1101,11 @@ function buildServer(call: Call) {
 
   const storyFields = {
     title: z.string(),
-    hook: z
-      .string()
-      .optional()
-      .describe('The line you say first. Behavioral, technical and custom stories only.'),
     sections: z
       .record(z.string(), z.string())
       .optional()
       .describe(
         'Section key → text, e.g. {"situation": "...", "task": "...", "action": "...", "result": "..."}. Keys from list_frameworks.',
-      ),
-    tags: z
-      .array(z.string())
-      .optional()
-      .describe(
-        'Competencies: "conflict", "architecture", "finance". Behavioral, technical and custom stories only; openers have none.',
-      ),
-    questions: z
-      .array(z.string())
-      .optional()
-      .describe(
-        'Interview questions it answers, in the words an interviewer would use. Openers can leave it out: they get their framework’s usual questions.',
       ),
     notes: z.string().optional(),
   };
@@ -1143,7 +1115,7 @@ function buildServer(call: Call) {
     {
       title: 'Add a story to the bank',
       description:
-        'A new bank story. Pick the framework that fits (list_frameworks) and fill its sections: a story is its framework’s parts. For behavioral, technical and custom frameworks also add a hook, competencies (tags) and several probable questions in interviewer wording; openers (intro, why_job, why_looking) are just their sections.',
+        'A new bank story. Pick the framework that fits (list_frameworks) and fill its sections: a story is its framework’s parts, and Call Mode finds it by the words in them, so write the parts in full.',
       inputSchema: z.object({
         framework: z
           .string()
@@ -1234,7 +1206,7 @@ function buildServer(call: Call) {
     {
       title: 'Edit a story on an application',
       description:
-        'Edits the application’s copy of a story (its angle, sections, questions). The bank story doesn’t change.',
+        'Edits the application’s copy of a story (its angle, title or sections). The bank story doesn’t change.',
       inputSchema: z.object({
         application: z.string(),
         story: z.string().describe('The copy’s title or job story id.'),

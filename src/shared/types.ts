@@ -164,6 +164,7 @@ export interface Framework {
   group: string;
   blurb: string;
   sections: FrameworkSection[];
+  /** Unused (the probable-questions idea was dropped); the column stays for old data. */
   questions: string[];
   builtin: boolean;
 }
@@ -173,11 +174,13 @@ export interface Story {
   id: string;
   framework_key: string;
   title: string;
-  /** The line you say first. */
+  /**
+   * Hook, tags (competencies) and questions are no longer shown, edited or searched: a story is
+   * its parts. The columns stay (unused, still exported) rather than a migration.
+   */
   hook: string | null;
   tags: string[];
   sections: Record<string, string>;
-  /** Interview questions it answers. Call mode matches what you type against these. */
   questions: string[];
   notes: string | null;
   /** Goes up by one each time the content changes. Job copies remember the version they came from. */

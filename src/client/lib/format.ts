@@ -21,18 +21,23 @@ export function compLabel(
     Application,
     'salary_min' | 'salary_max' | 'salary_currency' | 'salary_period' | 'salary_text'
   >,
+  /** Add the pay as written after the range (the Pay field; chips show the range alone). */
+  withNote = false,
 ): string | null {
   const { salary_min: lo, salary_max: hi } = a;
-  if (lo == null && hi == null) return a.salary_text;
+  const note = a.salary_text?.trim() || null;
+  if (lo == null && hi == null) return note;
   const per = a.salary_period === 'hour' ? '/hr' : a.salary_period === 'month' ? '/mo' : '';
+  let range: string;
   if (lo != null && hi != null && lo !== hi) {
     const a1 = money(lo, a.salary_currency);
     const b1 = money(hi, a.salary_currency);
     // "$215k–$250k" → "$215–250k"
     const same = a1.endsWith('k') && b1.endsWith('k') && a1[0] === b1[0];
-    return `${same ? a1.slice(0, -1) : a1}–${same ? b1.slice(1) : b1}${per}`;
-  }
-  return `${money((lo ?? hi)!, a.salary_currency)}${per}`;
+    range = `${same ? a1.slice(0, -1) : a1}–${same ? b1.slice(1) : b1}${per}`;
+  } else range = `${money((lo ?? hi)!, a.salary_currency)}${per}`;
+  // A range and the pay as written can both be set: show both ("$150–180k · + 15% bonus").
+  return note && withNote ? `${range} · ${note}` : range;
 }
 
 export const ellipsis = (s: string, n: number) => (s.length > n ? s.slice(0, n) + '…' : s);

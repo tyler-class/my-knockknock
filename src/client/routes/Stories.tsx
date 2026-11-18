@@ -11,8 +11,8 @@ export function Stories() {
   const data = useData();
   const sheets = useSheets();
   const [q, setQ] = useState('');
-  // Remembered on this device and kept in the address (?fw=star&tag=conflict&archived=1).
-  const [choice, choose] = useViewState('kk:stories', { fw: 'all', tag: '', archived: '' });
+  // Remembered on this device and kept in the address (?fw=star&archived=1).
+  const [choice, choose] = useViewState('kk:stories', { fw: 'all', archived: '' });
   const archived = choice.archived === '1';
   const stories = useMemo(() => data?.state.stories ?? [], [data]);
   const frameworks = useMemo(() => data?.state.frameworks ?? [], [data]);
@@ -22,13 +22,12 @@ export function Stories() {
   );
   if (!data) return null;
   const used = counts.frameworks;
-  // A framework or competency from an old link that no longer has stories falls back to all.
+  // A framework from an old link that no longer has stories falls back to all.
   const fw = used.some((f) => f.key === choice.fw) ? choice.fw : 'all';
-  const tag = counts.tags.some((t) => t.tag === choice.tag) ? choice.tag : null;
   const pool = stories.filter(
     (s) => s.archived === archived && (fw === 'all' || s.framework_key === fw),
   );
-  const hits = searchStories(pool, q, tag);
+  const hits = searchStories(pool, q, frameworks);
   const custom = frameworks.filter((f) => !f.builtin);
 
   return (
@@ -68,19 +67,8 @@ export function Stories() {
           ]}
         />
       )}
-      {counts.tags.length > 0 && (
-        <div style={{ marginTop: 10 }}>
-          <SlideToggle
-            label="Competency"
-            value={tag}
-            onChange={(v) => choose({ tag: v ?? '' })}
-            allowClear
-            options={counts.tags.map((t) => [t.tag, `${t.tag} ${t.n}`] as const)}
-          />
-        </div>
-      )}
       <div className="story-grid">
-        {hits.map(({ item: s, question }) => {
+        {hits.map(({ item: s }) => {
           const copies = data.state.job_stories.filter((j) => j.story_id === s.id);
           return (
             <button
@@ -93,17 +81,6 @@ export function Stories() {
                 {frameworkOf(s.framework_key, frameworks)?.name ?? s.framework_key}
               </span>
               <strong className="story-title">{s.title}</strong>
-              {s.hook && <span className="sub">{s.hook}</span>}
-              {question && q && <span className="answers">Answers: “{question}”</span>}
-              {s.tags.length > 0 && (
-                <span className="tags">
-                  {s.tags.map((t) => (
-                    <span key={t} className="tag">
-                      {t}
-                    </span>
-                  ))}
-                </span>
-              )}
               <span className="mono sub">
                 v{s.version} · in {copies.length} {copies.length === 1 ? 'job' : 'jobs'}
               </span>

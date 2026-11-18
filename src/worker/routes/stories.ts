@@ -13,7 +13,7 @@ import {
   storyInput,
   storyPatch,
 } from '@shared/schemas';
-import { BUILTIN_KEYS, storyExtras } from '@shared/frameworks';
+import { BUILTIN_KEYS } from '@shared/frameworks';
 import { contentHash, frameworkOf, switchFramework } from '@shared/logic/stories';
 import type { Framework, Story } from '@shared/types';
 import {
@@ -37,13 +37,6 @@ async function framework(db: D1Database, key: string): Promise<Framework> {
   if (!f) throw new ApiError(400, 'invalid', `No story framework “${key}”.`);
   return f;
 }
-
-/**
- * Openers (Introduction, Why this job, Why I'm looking) don't ask for questions; a new one
- * answers its framework's usual questions, so Call Mode still finds it.
- */
-const defaultQuestions = (questions: string[], f: Framework) =>
-  questions.length || storyExtras(f.group).includes('questions') ? questions : f.questions;
 
 /** Only sections the framework has, trimmed; empty ones dropped. */
 function clean(sections: Record<string, string>, f: Framework | { sections: { key: string }[] }) {
@@ -126,7 +119,6 @@ stories.post('/stories', async (c) => {
     ...encode({
       ...input,
       sections: clean(input.sections, f),
-      questions: defaultQuestions(input.questions, f),
     }),
     version: 1,
     created_at: now,
@@ -244,7 +236,6 @@ stories.post('/applications/:id/stories', async (c) => {
     const input = r.data;
     const f = await framework(db, input.framework_key);
     const sections = clean(input.sections, f);
-    input.questions = defaultQuestions(input.questions, f);
     await insertStmt(db, 'job_stories', {
       id,
       application_id: appId,

@@ -7,7 +7,7 @@ export interface FrameworkSection {
   /** Stable key, shared across frameworks where the meaning is the same. */
   key: string;
   label: string;
-  /** A nudge shown as the field's placeholder. */
+  /** A nudge shown under the part's label. */
   prompt: string;
 }
 
@@ -18,8 +18,6 @@ export interface FrameworkDef {
   /** One line on when to use it. */
   blurb: string;
   sections: FrameworkSection[];
-  /** Questions this kind of story usually answers. Stories start with these as suggestions. */
-  questions: string[];
 }
 
 const s = (key: string, label: string, prompt: string): FrameworkSection => ({
@@ -39,7 +37,6 @@ export const BUILTIN_FRAMEWORKS: FrameworkDef[] = [
       s('past', 'Past', 'How you got here: the two or three moves that matter.'),
       s('future', 'Future', 'What you want next, and why this role fits it.'),
     ],
-    questions: ['Tell me about yourself.', 'Walk me through your resume.', 'What do you do today?'],
   },
   {
     key: 'why_job',
@@ -52,7 +49,6 @@ export const BUILTIN_FRAMEWORKS: FrameworkDef[] = [
       s('now', 'Why now', 'Why this is the right moment.'),
       s('fit', 'Why I fit', 'The one thing you bring that they need.'),
     ],
-    questions: ['Why do you want to work here?', 'Why this role?', 'What do you know about us?'],
   },
   {
     key: 'why_looking',
@@ -64,7 +60,6 @@ export const BUILTIN_FRAMEWORKS: FrameworkDef[] = [
       s('missing', 'What’s missing', 'What you can’t get there, said plainly and kindly.'),
       s('next', 'What I want next', 'What you are moving toward.'),
     ],
-    questions: ['Why are you leaving your current role?', 'What are you looking for next?'],
   },
   {
     key: 'star',
@@ -77,7 +72,6 @@ export const BUILTIN_FRAMEWORKS: FrameworkDef[] = [
       s('action', 'Action', 'What you did, in your own words, step by step.'),
       s('result', 'Result', 'What changed, with a number if you have one.'),
     ],
-    questions: ['Tell me about a time you…', 'Give me an example of…'],
   },
   {
     key: 'car',
@@ -89,7 +83,6 @@ export const BUILTIN_FRAMEWORKS: FrameworkDef[] = [
       s('action', 'Action', 'What you did.'),
       s('result', 'Result', 'What changed.'),
     ],
-    questions: ['Can you give me another example?', 'Quick example of…?'],
   },
   {
     key: 'soar',
@@ -102,7 +95,6 @@ export const BUILTIN_FRAMEWORKS: FrameworkDef[] = [
       s('action', 'Action', 'How you got past it.'),
       s('result', 'Result', 'What changed.'),
     ],
-    questions: ['What is the hardest problem you have solved?', 'Biggest obstacle on a project?'],
   },
   {
     key: 'failure',
@@ -115,10 +107,6 @@ export const BUILTIN_FRAMEWORKS: FrameworkDef[] = [
       s('lesson', 'Lesson', 'What you learned.'),
       s('what_now', 'What I do now', 'The habit you changed because of it.'),
     ],
-    questions: [
-      'Tell me about a mistake you made.',
-      'Tell me about a project that did not go well.',
-    ],
   },
   {
     key: 'weakness',
@@ -130,7 +118,6 @@ export const BUILTIN_FRAMEWORKS: FrameworkDef[] = [
       s('example', 'Example', 'When it showed up.'),
       s('doing', 'What I’m doing about it', 'The concrete practice that is working.'),
     ],
-    questions: ['What is your biggest weakness?', 'What feedback do you get most often?'],
   },
   {
     key: 'design',
@@ -143,32 +130,10 @@ export const BUILTIN_FRAMEWORKS: FrameworkDef[] = [
       s('decision', 'Decision', 'What you chose and why.'),
       s('tradeoffs', 'Trade-offs', 'What it cost, and what you would revisit.'),
     ],
-    questions: [
-      'Walk me through an architecture decision you made.',
-      'Build vs. buy: how do you decide?',
-      'Tell me about a complex system you designed.',
-    ],
   },
 ];
 
 export const BUILTIN_KEYS = BUILTIN_FRAMEWORKS.map((f) => f.key);
-
-/**
- * Fields a story has besides its framework's sections. A story shows only its framework's parts
- * plus the extras that fit its kind: openers (Introduction, Why this job, Why I'm looking) are
- * just their parts; behavioral, technical and custom stories also get a hook, competencies and
- * the questions they answer. A field that already holds something still shows, so nothing
- * stored is hidden.
- */
-export type StoryExtra = 'hook' | 'competencies' | 'questions';
-const EXTRAS: Record<FrameworkDef['group'], StoryExtra[]> = {
-  Opener: [],
-  Behavioral: ['hook', 'competencies', 'questions'],
-  Technical: ['hook', 'competencies', 'questions'],
-  Custom: ['hook', 'competencies', 'questions'],
-};
-export const storyExtras = (group: string | undefined): StoryExtra[] =>
-  EXTRAS[(group ?? 'Custom') as FrameworkDef['group']] ?? EXTRAS.Custom;
 
 /** The letter badge shown next to a section in call mode ("S", "T", "A", "R"). */
 export const sectionLetter = (label: string) =>

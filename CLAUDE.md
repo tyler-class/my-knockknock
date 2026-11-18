@@ -15,6 +15,12 @@ this app's existing look for anything new.
   with the ink border, and lifts on a black extrusion when hovered. The selected or current
   state (active nav item, chosen segment or option, picked chip, current search) is `--sel`, a
   light tint of the yellow, with ink text and an ink border, so the black extrusion still reads.
+- Exception: the job page's tabs (Details, Timeline, Stories, Files). Tabs don't lift, so the
+  "no black buttons" rule (lifted buttons losing their shadow) doesn't apply: the open tab is a
+  solid ink folder tab with white text and icon on the line under the row; the others are plain
+  `--ink2` text with no box. The row scrolls sideways only on phones, with hard stops.
+- The round yellow "+" (`.fab`, "Log to timeline") appears on job pages only: it opens the log
+  sheet for that job. No other page (Call Mode included) has it.
 - Yellow is a fill, never thin text, icon strokes or outlines on white: icons and text on light
   backgrounds are ink (or `--ink2` grey). A ghost button gets its ink outline back when it lifts.
 - Sliding toggles (`SlideToggle`) don't lift on hover; the stage stepper doesn't either.
@@ -54,10 +60,18 @@ this app's existing look for anything new.
 - Files are just there or not (no locking). Adding one writes a "File added" note on the
   timeline (`data.file_id`), dated when it was uploaded and editable like any note; deleting the
   file removes it.
-- A story shows only its framework's parts, plus the extras that fit its kind
-  (`storyExtras` in `src/shared/frameworks.ts`): openers are just their parts; behavioral,
-  technical and custom stories also get a hook, competencies and probable questions. A field
-  that already holds something still shows; stored data is never dropped.
+- A story is its framework, its title and its parts (plus notes, shown only when there are
+  some). There's no hook, competencies or probable questions: anything you'd search for is in
+  the parts, so Stories, Call Mode, linking and `list_stories` search the title, the framework's
+  name and the parts' text (`searchStories` in `src/shared/logic/stories.ts`). The `hook`,
+  `tags` and `questions` columns (and frameworks' `questions`) stay in D1 and in exports, unused,
+  rather than dropping them with a migration; they also stay in the copy hash so existing job
+  copies keep their sync state. The UI and MCP tools don't show or take them.
+- A new story's sheet is titled "New story" whatever the framework; Cancel goes back to the
+  framework picker.
+- Report numbers come from `src/shared/logic/report.ts`. "Heard back" means the application
+  moved past Applied (Screening or later) or was rejected; time to hear back is from applying to
+  the first such status change (shown from 2 replies). Say "3 of 10 heard back", never "n=".
 - A sheet and its backdrop open and close together (nothing pops in or out partway), and
   `prefers-reduced-motion` turns motion off.
 - If drag to reorder is added: start it after a short press on touch so a swipe still scrolls,
@@ -75,7 +89,7 @@ this app's existing look for anything new.
 - An application, event or story is changed the same way wherever it appears: one shared sheet
   (`useSheets()`), as now.
 - After a save, everything on screen updates straight away; nothing needs a reload.
-- View choices (Pipeline view, stage and search; Stories filters) are remembered on the device, and
+- View choices (Jobs view, stage and search; Stories filters) are remembered on the device, and
   put in the address when it makes sense to bookmark or share the view (`useViewState` in
   `src/client/lib/viewState.ts`; the address wins when present).
 - A list or column with nothing in it is hidden or says clearly that it's empty.

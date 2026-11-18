@@ -1,4 +1,4 @@
-// The search this device is looking at. Everything but Stories (Home, Pipeline, Report,
+// The search this device is looking at. Everything but Stories (Home, Jobs, Report,
 // counts) follows it. Remembered on the device; picking one also tells the server, so new
 // applications and assistants (MCP's "current search") follow the latest pick.
 import { useSyncExternalStore } from 'react';

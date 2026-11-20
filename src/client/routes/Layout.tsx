@@ -9,7 +9,7 @@ import { useTabSwipe } from '../lib/tabSwipe';
 import { useActions, useData, type Data } from '../lib/queries';
 import { cx } from '../components/ui';
 import type { Search } from '@shared/types';
-import { onPushOpen } from '../kit/push';
+import { onPushOpen, syncBadge } from '../kit/push';
 
 const TABS: GlassTab[] = [
   ['/', 'Home', 'home'],
@@ -152,6 +152,9 @@ export function Layout() {
   const nav = useNavigate();
   const data = useData();
   useEffect(() => onPushOpen((url) => nav(url)), [nav]);
+  // On open: a notification subscription the push service stopped accepting is replaced
+  // quietly (and the app-icon count, if any, refreshed).
+  useEffect(() => void syncBadge(), []);
   const tab = ([to, label, icon]: GlassTab) => (
     // A plain link marked current by section, not by exact address: a job page (/a/…) still shows
     // Jobs, and anything under /stories still shows Stories.

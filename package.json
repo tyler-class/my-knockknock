@@ -1,6 +1,6 @@
 {
   "name": "knockknock",
-  "version": "0.1.3",
+  "version": "0.1.5",
   "private": true,
   "description": "A job search tracker you host yourself on Cloudflare: applications as timelines, a story bank for interviews, and an MCP server so your AI assistant keeps it up to date.",
   "license": "MIT",
@@ -23,7 +23,7 @@
   "cloudflare": {
     "bindings": {
       "APP_PASSWORD": {
-        "description": "The password you sign in to Knock Knock with. Pick something long; you can change it later in the Cloudflare dashboard under **Workers \u2192 knockknock \u2192 Settings \u2192 Variables and Secrets**."
+        "description": "The password you sign in to Knock Knock with. Pick something long; you can change it later in the Cloudflare dashboard under **Workers → knockknock → Settings → Variables and Secrets**."
       },
       "DB": {
         "description": "Where your searches, applications, timelines and stories are stored."

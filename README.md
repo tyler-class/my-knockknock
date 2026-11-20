@@ -90,6 +90,8 @@ Click **Create and deploy**. Cloudflare copies the code to your GitHub, creates 
 
 Open it, sign in with your password, and you're done. Bookmark it, or add it to your phone's home screen.
 
+<!-- 📸 SCREENSHOT docs/screenshots/install-7-signed-in.png: Knock Knock right after signing in -->
+
 ### 8. Set up automatic updates (recommended)
 
 Your copy updates itself every Monday once you allow it. That takes one click, once:
@@ -99,6 +101,7 @@ Your copy updates itself every Monday once you allow it. That takes one click, o
 
 That brings in the latest Knock Knock straight away, then every week. See [Updates](#updates) for how it works.
 
+<!-- 📸 SCREENSHOT docs/screenshots/install-8-updates.png: Settings → Updates with the Set up automatic updates button -->
 <!-- 📸 SCREENSHOT docs/screenshots/install-8-commit.png: GitHub's new-file page with the update file filled in, and the Commit changes button -->
 
 ## Notifications
@@ -113,7 +116,7 @@ Knock Knock can send notifications to your phone. They only work in the app inst
 
 **Install it on Android:** open Knock Knock in Chrome, open the menu **⋮** and tap **Install app** (or **Add to Home screen**), then open it from the new icon.
 
-**Turn them on:** in the installed app, open **Settings → Notifications** and switch on **Notifications on this device**. Allow notifications when your phone asks. Each phone chooses its own, so each device picks what it gets. **Send a test** checks it's working.
+**Turn them on:** in the installed app, open **Settings → Notifications** and switch on **Notifications on this device**. Allow notifications when your phone asks. Each device has its own on/off switch and choices. **Send a test** checks it's working.
 
 ## Updates
 
@@ -141,7 +144,7 @@ Everyone is signed out and signs in again with the new password.
 Your address starts as `https://knockknock.<your-subdomain>.workers.dev`. Two ways to change it:
 
 - **Rename your workers.dev subdomain.** In Cloudflare, open **Compute → Workers & Pages**. Your subdomain is shown on the right, with **Change**. It applies to every Worker in your account, so all your apps move together.
-- **Give Knock Knock its own address on a domain you own**, like `jobs.example.com`. The domain has to be on Cloudflare. Open the Worker, go to **Settings → Domains & Routes → Add → Custom domain**, and enter the address. Cloudflare sets up DNS and the certificate. Repeat for each app to give each one its own subdomain.
+- **Give Knock Knock its own address on a domain you own**, like `knockknock.example.com`. The domain has to be on Cloudflare. Open the Worker, go to **Settings → Domains & Routes → Add → Custom domain**, and enter the address. Cloudflare sets up DNS and the certificate. Repeat for each app to give each one its own subdomain.
 
 <!-- 📸 SCREENSHOT docs/screenshots/domain-1-custom-domain.png: Settings → Domains & Routes → Add → Custom domain -->
 

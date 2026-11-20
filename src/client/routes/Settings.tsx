@@ -205,17 +205,7 @@ function Notifications() {
     }
   }
 
-  // The kit's help text is written for family apps ("every family member's phone"); Knock Knock
-  // is for one person, so that line says devices instead.
-  const kitInfo = pushInfo({ badge: BADGE_MEANS });
-  const info = {
-    ...kitInfo,
-    lines: kitInfo.lines.map((l) =>
-      /famil/i.test(l)
-        ? 'Each device chooses its own notifications, so your phone and your computer can each pick what they get.'
-        : l,
-    ),
-  };
+  const info = pushInfo({ badge: BADGE_MEANS });
   const blocker = state && pushBlocker(state, 'Knock Knock');
   const on = !!state?.on;
   const row = { borderTop: '1px solid var(--line)', marginTop: 12, paddingTop: 12 };

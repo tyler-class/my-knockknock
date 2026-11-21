@@ -1309,7 +1309,7 @@ textarea.in {
 .toast {
   pointer-events: auto;
   background: var(--ink);
-  color: var(--bg);
+  color: var(--surface);
   padding: 11px 16px;
   border-radius: 14px;
   display: flex;
@@ -2158,7 +2158,8 @@ textarea.in {
    ============================================================================================= */
 
 :root {
-  --bg: #ffffff;
+  /* The page is a very light grey so white cards stand off it. */
+  --bg: #f3f3f0;
   --surface: #ffffff;
   --surface2: #f1f1ec;
   --ink: #0b0b0b;
@@ -2319,6 +2320,7 @@ time {
 .search-switch,
 .recent,
 .person,
+.ev-card.open,
 .closed-line,
 .side nav a,
 .next-title {
@@ -2334,6 +2336,7 @@ time {
   .fw-card:hover,
   .srow:hover,
   .type-tile:hover,
+  .ev-card.open:hover,
   .status-opt:hover:not([disabled]),
   .search-switch:hover {
     transform: translate(-4px, -4px);
@@ -2581,7 +2584,7 @@ time {
   flex: none;
   border-radius: 6px;
   background: var(--ink);
-  color: var(--bg);
+  color: var(--surface);
   font-family: var(--display);
   font-stretch: 125%;
   font-weight: 900;
@@ -3396,15 +3399,6 @@ h1.title {
   display: grid;
   place-items: center;
 }
-.ev-status .node,
-.ev-created .node {
-  background: var(--accent);
-  color: var(--ink);
-}
-.ev.upcoming .node {
-  background: var(--accent);
-  color: var(--accent-ink);
-}
 .ev-card {
   border: 1.5px solid var(--ink);
   border-radius: 8px;
@@ -3417,9 +3411,6 @@ h1.title {
 }
 .ev.upcoming .ev-card {
   background: var(--accent-soft);
-}
-.ev-created .ev-card {
-  border-style: dashed;
 }
 .ev-head {
   display: flex;
@@ -3438,18 +3429,6 @@ h1.title {
   align-items: center;
   font-size: 12px;
   color: var(--ink2);
-}
-.src {
-  font-family: var(--mono);
-  font-size: 11px;
-  padding: 1px 6px;
-  border: 1px solid var(--ink);
-  border-radius: 3px;
-  color: var(--ink);
-}
-.src.agent {
-  background: var(--accent);
-  color: var(--accent-ink);
 }
 .ev-title {
   font-weight: 700;
@@ -3514,32 +3493,6 @@ h1.title {
 .ev-foot {
   display: flex;
   gap: 14px;
-}
-.now {
-  display: grid;
-  grid-template-columns: 40px 1fr auto;
-  gap: 14px;
-  align-items: center;
-}
-.now span {
-  position: relative;
-  z-index: 1;
-  justify-self: center;
-  font-family: var(--mono);
-  font-size: 10.5px;
-  font-weight: 700;
-  background: var(--accent);
-  color: var(--ink);
-  border: 1.5px solid var(--ink);
-  padding: 2px 6px;
-  border-radius: 3px;
-}
-.now i {
-  border-top: 2px solid var(--ink);
-}
-.now time {
-  font-size: 12px;
-  font-weight: 700;
 }
 
 /* ---------- Details, stories, files ---------- */
@@ -3673,7 +3626,7 @@ h1.title {
 }
 .sync-bank_newer {
   background: var(--ink);
-  color: var(--bg);
+  color: var(--surface);
 }
 .sync-job_only,
 .sync-source_gone {
@@ -4656,8 +4609,13 @@ textarea.in.angle {
     opacity: 0;
   }
 }
+/* Tapping the logo: one quick turn. */
+.asterisk.twirl {
+  animation: asterisk-turn 0.6s cubic-bezier(0.3, 0, 0.2, 1);
+}
 @media (prefers-reduced-motion: reduce) {
-  .asterisk.spinning {
+  .asterisk.spinning,
+  .asterisk.twirl {
     animation: none;
   }
 }
@@ -4994,6 +4952,19 @@ textarea.in.angle {
   background: var(--accent);
   box-shadow: 0 0 0 4px var(--accent);
 }
+/* Timeline and recent-activity icons: a white tile with the icon filled yellow, like the page
+   titles. The asterisk (a job added) is solid, so it's yellow with an ink outline. */
+.node svg,
+.act-icon svg {
+  fill: var(--accent);
+}
+.node .asterisk,
+.act-icon .asterisk {
+  color: var(--accent);
+  filter: drop-shadow(1.2px 0 0 var(--ink)) drop-shadow(-1.2px 0 0 var(--ink))
+    drop-shadow(0 1.2px 0 var(--ink)) drop-shadow(0 -1.2px 0 var(--ink));
+}
+
 /* The gear's centre stays an empty white circle when the gear fills yellow (it's drawn on top). */
 .glass-tab[data-lit][data-icon='settings'] svg circle,
 .h-icon[data-icon='settings'] svg circle {
@@ -5034,4 +5005,129 @@ textarea.in.angle {
   display: block;
   width: 100%;
   box-sizing: border-box;
+}
+
+/* A timeline card that opens (meetings, emails, notes, files): the whole card is the target. */
+.ev-card.open {
+  cursor: pointer;
+}
+.ev-card.open:focus-visible {
+  outline: 2.5px solid var(--ink);
+  outline-offset: 3px;
+}
+
+/* An entry's panel: its own groups, each a card like a job's Details, on the grey sheet. */
+.ev-view {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ev-view .ev-group {
+  margin: 0;
+  padding: 14px 16px 4px;
+}
+.ev-view .ev-group .card-h {
+  margin-bottom: 10px;
+}
+.ev-view .ev-group > .nested-note + .nested-note {
+  margin-top: 8px;
+}
+.ev-view .ev-group > .sub {
+  margin: 0 0 12px;
+}
+.ev-acts {
+  margin: 0;
+}
+.att-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ev-file {
+  font-weight: 550;
+  overflow-wrap: anywhere;
+}
+
+/* Deleting a job or an entry: a boxed red button at the lower right of the page or panel, which
+   asks in a small popup first. */
+.del-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+.btn.danger.destroy {
+  background: var(--bad-soft);
+  border-color: var(--bad);
+  color: var(--bad);
+  border-radius: 4px;
+  --ext: var(--bad);
+}
+.confirm-ov {
+  z-index: 70;
+  align-items: center;
+  padding: 24px;
+}
+.confirm-box {
+  position: relative;
+  width: 100%;
+  max-width: 380px;
+  background: var(--surface);
+  border: 1.5px solid var(--ink);
+  border-radius: 8px;
+  box-shadow: var(--ext6);
+  padding: 20px;
+  animation: fade 0.15s;
+}
+.confirm-box h2 {
+  margin: 0 0 18px;
+  font-size: 19px;
+  line-height: 1.25;
+}
+.confirm-box .acts {
+  justify-content: flex-end;
+  margin: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .confirm-box {
+    animation: none;
+  }
+}
+
+/* Status icons are filled inside: yellow along the way, then a colour for how it ended. */
+.sti-saved,
+.sti-applied,
+.sti-screening,
+.sti-interviewing {
+  fill: var(--accent);
+}
+/* Interviewing: only the front person is filled. */
+.sti-interviewing .bk {
+  fill: none;
+}
+.sti-offer {
+  fill: #4cc970;
+}
+.sti-accepted {
+  fill: #6f9bff;
+}
+.sti-rejected {
+  fill: #ff6a5f;
+}
+.sti-ghosted {
+  fill: #dcdcd6;
+}
+
+/* A note under its meeting or email: four lines, then Show more opens it to full size. */
+.nested-note {
+  cursor: pointer;
+}
+.nested-note .clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
+}
+.nested-note .more {
+  align-self: flex-start;
 }

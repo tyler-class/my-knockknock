@@ -4,6 +4,7 @@ import { useData } from '../lib/queries';
 import { AboutSheet } from './AboutSheet';
 import { ApplicationSheet, PersonSheet, SearchSheet, StatusSheet } from './AppSheets';
 import { EventSheet } from './EventSheet';
+import { EventView } from './EventView';
 import {
   FrameworkPicker,
   FrameworkSheet,
@@ -69,17 +70,23 @@ export function SheetProvider({ children }: { children: ReactNode }) {
     if (open.type === 'app') sheet = <ApplicationSheet key={k} />;
     if (open.type === 'status')
       sheet = <StatusSheet key={k} data={data} appId={open.appId} to={open.to} />;
-    if (open.type === 'log')
-      sheet = (
+    if (open.type === 'log') {
+      // An entry already logged opens as itself, edited in place; otherwise a new one is logged.
+      const ev = open.eventId
+        ? data.eventsByApp.get(open.appId)?.find((e) => e.id === open.eventId)
+        : undefined;
+      sheet = ev ? (
+        <EventView key={k} data={data} appId={open.appId} ev={ev} />
+      ) : (
         <EventSheet
           key={k}
           data={data}
           appId={open.appId}
           type={open.logType}
-          eventId={open.eventId}
           parentId={open.parentId}
         />
       );
+    }
     if (open.type === 'person')
       sheet = <PersonSheet key={k} data={data} appId={open.appId} id={open.id} />;
     if (open.type === 'search') sheet = <SearchSheet key={k} data={data} id={open.id} />;

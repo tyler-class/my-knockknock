@@ -2,7 +2,6 @@
 // the last one being Closed. Used on the job page (tap a stage to move there) and in the Change
 // status sheet (tap to pick).
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { Icon, type IconName } from './Icon';
 
 /** A closed path through `pts` with every corner rounded by `r` (a quadratic curve per corner). */
 function roundedPath(pts: [number, number][], r: number): string {
@@ -67,8 +66,8 @@ function Chevron({ first, last }: { first: boolean; last: boolean }) {
 export interface Stage {
   key: string;
   label: ReactNode;
-  /** The stage's icon (its status icon). */
-  icon?: IconName;
+  /** The stage's icon (its status icon, `StatusIcon`). */
+  icon?: ReactNode;
   /** todo: not reached; done: passed; here: the current stage; picked: chosen (in the sheet). */
   state: 'todo' | 'done' | 'here' | 'picked';
   /** Closed only: green for Accepted, grey for the other endings (instead of yellow). */
@@ -105,7 +104,7 @@ export function StageBar({ stages, label }: { stages: Stage[]; label: string }) 
             title={s.title}
             onClick={s.onClick}
           >
-            {s.icon && <Icon name={s.icon} size={15} />}
+            {s.icon}
             {s.label}
           </button>
         </li>

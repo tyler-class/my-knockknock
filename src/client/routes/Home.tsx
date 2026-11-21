@@ -143,10 +143,7 @@ export function Home() {
                 <span className="act-text">
                   <span className="act-top">
                     <span className="lbl">{l.kind}</span>
-                    <span className="sub act-when">
-                      {relDays(e.occurred_at)}
-                      {e.source === 'agent' ? ` · via ${e.source_name ?? 'assistant'}` : ''}
-                    </span>
+                    <span className="sub act-when">{relDays(e.occurred_at)}</span>
                   </span>
                   <span className="act-job">
                     <strong>{a.company}</strong>

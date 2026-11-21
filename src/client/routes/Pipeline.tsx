@@ -21,13 +21,13 @@ import {
   STAGES,
   isStage,
   stageCounts,
-  stageLabel,
+  stageName,
   stageStatuses,
   type Stage,
 } from '../lib/filters';
 import { useViewState } from '../lib/viewState';
 import { useSheets } from '../sheets/context';
-import { CompanyMark, StatusChip } from '../components/StatusChip';
+import { CompanyMark, StatusChip, StatusIcon } from '../components/StatusChip';
 import { Icon } from '../components/Icon';
 import { PageHeader, SlideToggle } from '../components/ui';
 
@@ -173,7 +173,7 @@ export function Pipeline() {
   // Remembered on this device and kept in the address (?view=list&stage=applied&q=acme).
   const [choice, choose] = useViewState('kk:pipeline', {
     view: window.matchMedia('(min-width: 900px)').matches ? 'board' : 'list',
-    stage: 'open',
+    stage: 'saved',
     q: '',
   });
   const view: View = choice.view === 'list' ? 'list' : 'board';
@@ -185,7 +185,7 @@ export function Pipeline() {
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
     useSensor(KeyboardSensor),
   );
-  const stage: Stage = isStage(choice.stage) ? choice.stage : 'open';
+  const stage: Stage = isStage(choice.stage) ? choice.stage : 'saved';
   const q = choice.q;
   if (!data) return null;
   const now = new Date();
@@ -290,16 +290,27 @@ export function Pipeline() {
         </DndContext>
       ) : (
         <>
-          <SlideToggle
-            label="Stage"
-            value={stage}
-            onChange={(v) => choose({ stage: v })}
-            options={[
-              ...STAGES.map((s) => [s, stageLabel(s, counts)] as const),
+          {/* The list's stages are tabs (the job page's style), not a second toggle under View. */}
+          <div className="tabs stage-tabs" role="tablist" aria-label="Stage">
+            {[
+              ...STAGES,
               // A closed status picked from the board's Closed box stays a choice here.
-              ...(STAGES.includes(stage) ? [] : [[stage, stageLabel(stage, counts)] as const]),
-            ]}
-          />
+              ...(STAGES.includes(stage) ? [] : [stage]),
+            ].map((s) => (
+              <button
+                key={s}
+                type="button"
+                role="tab"
+                aria-selected={stage === s}
+                className="tab"
+                onClick={() => choose({ stage: s })}
+              >
+                <StatusIcon status={s === 'active' ? 'interviewing' : s} size={15} />
+                {stageName(s)}
+                <span className="mono sub">{counts.count(s)}</span>
+              </button>
+            ))}
+          </div>
           <div className="plist">
             {stageStatuses(stage).map((s) => {
               const rows = by(s);

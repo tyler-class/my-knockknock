@@ -29,9 +29,8 @@ import {
   SlideToggle,
   TagInput,
 } from '../components/ui';
-import { CLOSED_ICON, STATUS_ICON, StatusChip } from '../components/StatusChip';
+import { StatusChip, StatusIcon } from '../components/StatusChip';
 import { StageBar } from '../components/StageBar';
-import { Icon } from '../components/Icon';
 import { DatePicker, DateTimeField } from '../components/DateTimePicker';
 import { useSheets } from './context';
 import { useNavigate } from 'react-router';
@@ -421,7 +420,7 @@ export function StatusSheet({
           ...OPEN_STATUSES.map((s) => ({
             key: s,
             label: statusLabel(s),
-            icon: STATUS_ICON[s],
+            icon: <StatusIcon status={s} size={15} />,
             state:
               !closing && next === s
                 ? ('picked' as const)
@@ -438,7 +437,7 @@ export function StatusSheet({
           {
             key: 'closed',
             label: next && closing ? statusLabel(next) : 'Closed',
-            icon: next && closing ? STATUS_ICON[next] : CLOSED_ICON,
+            icon: <StatusIcon status={next && closing ? next : 'closed'} size={15} />,
             state: closing
               ? ('picked' as const)
               : CLOSE_TYPES.includes(a.status)
@@ -473,7 +472,7 @@ export function StatusSheet({
                 onClick={() => setNext(s)}
                 disabled={s === a.status}
               >
-                <Icon name={STATUS_ICON[s]} size={16} />
+                <StatusIcon status={s} size={16} />
                 {statusLabel(s)}
               </button>
             ))}

@@ -1,22 +1,26 @@
 // The counts every filter shows. A filter over the same data shows the same choices and the same
-// numbers wherever it appears (the Jobs board, its list and the Stage toggle; Stories'
+// numbers wherever it appears (the Jobs board, its list and the list's stage tabs; Stories'
 // Framework and Competency toggles), so they all count here.
-import { CLOSED_STATUSES, OPEN_STATUSES, statusLabel, type Status } from '@shared/lookups';
+import { CLOSED_STATUSES, statusLabel, type Status } from '@shared/lookups';
 import type { Application, Framework, Story } from '@shared/types';
 
-export type Stage = Status | 'open' | 'closed';
+export type Stage = Status | 'active' | 'closed';
 
 /** Accepted sits with the closed ones: the search is over. */
 export const CLOSED_STAGES: Status[] = ['accepted', ...CLOSED_STATUSES];
 
-export const STAGES: Stage[] = ['open', ...OPEN_STATUSES, 'closed'];
+/** Active: talking to them (Screening and Interviewing together). */
+const ACTIVE_STATUSES: Status[] = ['interviewing', 'screening'];
+
+/** The Jobs list's tabs, in order. */
+export const STAGES: Stage[] = ['saved', 'applied', 'active', 'offer', 'closed'];
 
 export const isStage = (v: string): v is Stage =>
   (STAGES as string[]).includes(v) || (CLOSED_STAGES as string[]).includes(v);
 
-/** The statuses a stage covers, in the order the list shows them. */
+/** The statuses a stage covers, in the order the list shows them (furthest along first). */
 export function stageStatuses(stage: Stage): Status[] {
-  if (stage === 'open') return OPEN_STATUSES.slice().reverse();
+  if (stage === 'active') return ACTIVE_STATUSES;
   if (stage === 'closed') return CLOSED_STAGES;
   return [stage];
 }
@@ -33,19 +37,13 @@ export function stageCounts(apps: Application[]): StageCounts {
     by.get(a.status)!.push(a);
   }
   const byStatus = (s: Status) => by.get(s) ?? [];
-  const count = (stage: Stage) =>
-    stage === 'open' || stage === 'closed'
-      ? (stage === 'open' ? OPEN_STATUSES : CLOSED_STAGES).reduce(
-          (n, s) => n + byStatus(s).length,
-          0,
-        )
-      : byStatus(stage).length;
+  const count = (stage: Stage) => stageStatuses(stage).reduce((n, s) => n + byStatus(s).length, 0);
   return { byStatus, count };
 }
 
-/** "Open 5", "Applied 2", "Closed 3": the Stage toggle's choices. */
-export const stageLabel = (stage: Stage, counts: StageCounts) =>
-  `${stage === 'open' ? 'Open' : stage === 'closed' ? 'Closed' : statusLabel(stage)} ${counts.count(stage)}`;
+/** A Jobs list tab's name: "Saved", "Active", "Closed". */
+export const stageName = (stage: Stage) =>
+  stage === 'active' ? 'Active' : stage === 'closed' ? 'Closed' : statusLabel(stage);
 
 /** Stories filters: frameworks in use, counted within current or archived. */
 export function storyCounts(stories: Story[], frameworks: Framework[], archived: boolean) {

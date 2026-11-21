@@ -205,7 +205,7 @@ function Notifications() {
     }
   }
 
-  const info = pushInfo({ badge: BADGE_MEANS });
+  const info = pushInfo({ badge: BADGE_MEANS, title: 'Knock Knock' });
   const blocker = state && pushBlocker(state, 'Knock Knock');
   const on = !!state?.on;
   const row = { borderTop: '1px solid var(--line)', marginTop: 12, paddingTop: 12 };

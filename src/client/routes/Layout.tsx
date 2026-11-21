@@ -126,11 +126,17 @@ function SearchSwitch({ data, compact }: { data: Data | null; compact?: boolean 
 
 export function Brand() {
   // The asterisk turns while anything is loading or saving (after a beat, so quick ones don't
-  // flicker).
+  // flicker), and once round each time the logo is tapped.
   const busy = useIsFetching() + useIsMutating() > 0;
+  const [twirl, setTwirl] = useState(0);
   return (
-    <div className="brand">
-      <Asterisk size={26} className={busy ? 'spinning delayed' : undefined} />
+    <div className="brand" onClick={() => setTwirl((n) => n + 1)}>
+      <Asterisk
+        // A new key restarts the turn on every tap, even mid-turn.
+        key={twirl}
+        size={26}
+        className={busy ? 'spinning delayed' : twirl ? 'twirl' : undefined}
+      />
       <Wordmark />
     </div>
   );

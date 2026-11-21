@@ -15,7 +15,8 @@ this app's existing look for anything new.
   with the ink border, and lifts on a black extrusion when hovered. The selected or current
   state (active nav item, chosen segment or option, picked chip, current search) is `--sel`, a
   light tint of the yellow, with ink text and an ink border, so the black extrusion still reads.
-- Exception: the job page's tabs (Details, Timeline, Stories, Files). Tabs don't lift, so the
+- Exception: the job page's tabs (Details, Timeline, Stories, Files), also used for the Jobs
+  list's stages (a toggle under the Board/List toggle was too much). Tabs don't lift, so the
   "no black buttons" rule (lifted buttons losing their shadow) doesn't apply: the open tab is a
   solid ink folder tab with white text and icon on the line under the row; the others are plain
   `--ink2` text with no box. The row scrolls sideways only on phones, with hard stops.
@@ -57,6 +58,18 @@ this app's existing look for anything new.
   and Escape cancels. There's no edit sheet for an existing job (the sheet only adds a new one);
   deleting sits at the bottom of the page. Tapping a stage on the stepper opens the status sheet
   for that stage.
+- Timeline entries work the same way: tapping a meeting, email, note or file card opens it in a
+  sheet (a drawer on phones, a panel on wider screens) where every value edits in place, with
+  no Edit button or separate form. Each kind has its own fields, grouped into cards like a job's
+  Details (`sheets/EventView.tsx`; the in-place pieces are in `components/edit.tsx`). Status
+  changes and the job being added are the app's own record: their cards don't open. The log
+  sheet (`EventSheet`) is only for logging something new.
+- On the timeline, a note sits under the meeting or email it's about; a note attached to nothing
+  that was written during a meeting (15 minutes before it starts to 30 after it ends) shows under
+  that meeting too (`timelineView`). Notes under an event show four lines with Show more.
+- Deleting a job, a timeline entry or a file asks first in a small popup ("Are you sure you want
+  to delete …?", Cancel and Delete). Jobs and entries use a boxed red button at the lower right of the page or
+  panel (`ConfirmButton solid`); a file keeps its small trash button (`ConfirmDialog`).
 - Files are just there or not (no locking). Adding one writes a "File added" note on the
   timeline (`data.file_id`), dated when it was uploaded and editable like any note; deleting the
   file removes it.
@@ -82,8 +95,9 @@ this app's existing look for anything new.
   two-tap confirm only where undo isn't possible. Status changes undo by deleting the status
   events they wrote (status is derived from the timeline), and archiving a story undoes by
   unarchiving. Deleting an application, event, story or search is still a hard delete (it
-  cascades to timelines, notes, copies and files), so those keep the two-tap confirm until the
-  API can restore them.
+  cascades to timelines, notes, copies and files), so those ask first until the API can restore
+  them: jobs and timeline entries in the popup above, stories and searches with the two-tap
+  confirm.
 - A filter shows the same choices and counts everywhere the same data appears: count in
   `src/client/lib/filters.ts`, not inline.
 - An application, event or story is changed the same way wherever it appears: one shared sheet
@@ -115,8 +129,10 @@ this app's existing look for anything new.
 
 ## Statuses and stories
 
-- Statuses show an icon, not a colour (`STATUS_ICON` in `components/StatusChip.tsx`); every
-  status chip is the same plain chip.
+- Statuses show an icon (`STATUS_ICON`, drawn with `StatusIcon` in `components/StatusChip.tsx`),
+  filled inside: yellow for Saved, Applied, Screening and Interviewing (only the front person),
+  green for Offer, blue for Accepted, red for Rejected, light grey for Ghosted, none for
+  Declined. Every status chip is otherwise the same plain chip.
 - The stage bar (`components/StageBar.tsx`) is Saved → Applied → Screening → Interviewing → Offer →
   Closed. Closed covers Accepted, Rejected, Declined and Ghosted; picking it asks how it ended.
 - Call Mode's notepad ("Call notes") saves itself (about a second after typing stops, and on

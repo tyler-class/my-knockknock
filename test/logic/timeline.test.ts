@@ -28,6 +28,15 @@ const meeting = (at: string, state = 'scheduled', extra = {}) =>
   );
 
 describe('timeline view', () => {
+  it('nests a loose note under the meeting it was written during, and leaves others alone', () => {
+    const call = meeting('2026-11-10T18:00:00Z', 'held', {});
+    const during = ev('note', '2026-11-10T18:20:00Z', {}, { body: 'call notes' });
+    const after = ev('note', '2026-11-10T20:00:00Z', {}, { body: 'later thought' });
+    const file = ev('note', '2026-11-10T18:10:00Z', { file_id: 'f1' }, { body: 'resume' });
+    const v = timelineView([call, during, after, file], NOW);
+    expect(v.children.get(call.id)?.map((n) => n.id)).toEqual([during.id]);
+    expect(v.past.map((e) => e.id)).toEqual([after.id, file.id, call.id]);
+  });
   it('puts upcoming meetings above now, the rest newest first, and notes under their event', () => {
     const past = meeting('2026-10-30T18:00:00Z', 'held');
     const next = meeting('2026-11-14T19:00:00Z');

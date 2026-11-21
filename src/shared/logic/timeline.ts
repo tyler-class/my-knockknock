@@ -16,8 +16,27 @@ export interface TimelineView {
   upcoming: TimelineEvent[];
   /** Everything else at the top level, newest first. */
   past: TimelineEvent[];
-  /** Notes attached to an event, oldest first. */
+  /** Notes attached to an event (or written during a meeting), oldest first. */
   children: Map<string, TimelineEvent[]>;
+}
+
+const MIN = 60_000;
+
+/**
+ * The meeting a note was written during, if it isn't attached to anything: from 15 minutes
+ * before it starts to 30 minutes after it ends (an hour long when no end is set).
+ */
+export function meetingDuring(note: TimelineEvent, events: TimelineEvent[]) {
+  if (note.type !== 'note' || note.parent_id || (note.data as { file_id?: string }).file_id)
+    return undefined;
+  const t = Date.parse(note.occurred_at);
+  return events.find((m) => {
+    if (m.type !== 'meeting') return false;
+    const start = Date.parse(m.occurred_at);
+    const ends = (m.data as MeetingData).ends_at;
+    const end = ends ? Date.parse(ends) : start + 60 * MIN;
+    return t >= start - 15 * MIN && t <= end + 30 * MIN;
+  });
 }
 
 export function timelineView(events: TimelineEvent[], now: Date): TimelineView {
@@ -25,9 +44,11 @@ export function timelineView(events: TimelineEvent[], now: Date): TimelineView {
   const children = new Map<string, TimelineEvent[]>();
   const top: TimelineEvent[] = [];
   for (const e of events) {
-    if (e.parent_id && ids.has(e.parent_id)) {
-      if (!children.has(e.parent_id)) children.set(e.parent_id, []);
-      children.get(e.parent_id)!.push(e);
+    // A note sits under the event it's about, or under the meeting it was written during.
+    const parent = e.parent_id && ids.has(e.parent_id) ? e.parent_id : meetingDuring(e, events)?.id;
+    if (parent) {
+      if (!children.has(parent)) children.set(parent, []);
+      children.get(parent)!.push(e);
     } else top.push(e);
   }
   for (const list of children.values())

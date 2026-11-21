@@ -1,5 +1,5 @@
-// An application's timeline: upcoming meetings above a NOW line, then everything else newest
-// first, each a card with its own icon; notes about an event sit under it.
+// An application's timeline: upcoming meetings first, then everything else newest first, each
+// a card with its own icon; notes about an event sit under it.
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { emailCategoryLabel, meetingKindLabel, type EventType } from '@shared/lookups';
@@ -16,26 +16,43 @@ import { SlideToggle, cx } from './ui';
 
 type Filter = 'all' | 'meeting' | 'email' | 'note' | 'status';
 
-function Source({ e }: { e: TimelineEvent }) {
-  return e.source === 'agent' ? (
-    <span className="src agent">via {e.source_name ?? 'assistant'}</span>
-  ) : // Entries you made yourself carry no tag; only an assistant's are named.
-  null;
-}
-
+/**
+ * A note under its meeting or email: a few lines of it, with Show more to open it to full size
+ * in place. Tapping the note itself opens it to edit.
+ */
 function NoteBlock({ n, appId }: { n: TimelineEvent; appId: string }) {
   const sheets = useSheets();
+  const [full, setFull] = useState(false);
+  const long = (n.body ?? '').length > 220 || (n.body ?? '').split('\n').length > 4;
   return (
-    <button
-      type="button"
+    <div
       id={`ev-${n.id}`}
       className="nested-note"
-      onClick={() => sheets.log(appId, { eventId: n.id })}
+      role="button"
+      tabIndex={0}
+      onClick={(e) =>
+        !(e.target as HTMLElement).closest('button') && sheets.log(appId, { eventId: n.id })
+      }
+      onKeyDown={(e) => {
+        if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return;
+        e.preventDefault();
+        sheets.log(appId, { eventId: n.id });
+      }}
     >
       <span className="lbl">Note · {whenLabel(n.occurred_at)}</span>
       {n.title && <strong>{n.title}</strong>}
-      <span className="pre">{n.body}</span>
-    </button>
+      <span className={cx('pre', long && !full && 'clamp')}>{n.body}</span>
+      {long && (
+        <button
+          type="button"
+          className="linkish more"
+          aria-expanded={full}
+          onClick={() => setFull((f) => !f)}
+        >
+          {full ? 'Show less' : 'Show more'}
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -51,7 +68,8 @@ export function EventCard({
   upcoming?: boolean;
 }) {
   const sheets = useSheets();
-  const edit = () => sheets.log(appId, { eventId: e.id });
+  const open = () => sheets.log(appId, { eventId: e.id });
+  const opens = e.type === 'meeting' || e.type === 'email' || e.type === 'note';
   const fileId = e.type === 'note' ? (e.data as { file_id?: string }).file_id : undefined;
   let label: string;
   let body: React.ReactNode;
@@ -90,9 +108,6 @@ export function EventCard({
             >
               + Note
             </button>
-            <button type="button" className="btn sm" onClick={edit}>
-              Edit
-            </button>
           </div>
         )}
       </>
@@ -126,7 +141,7 @@ export function EventCard({
     body =
       e.type === 'created' ? (
         <div className="ev-title">
-          Created as <StatusChip status={d.to} small />
+          Created in <StatusChip status={d.to} small />
         </div>
       ) : (
         <div className="status-move">
@@ -159,9 +174,6 @@ export function EventCard({
       </>
     );
   }
-  // Created and status entries are records of what happened, not things you write: no Edit.
-  // (A status change is undone from its toast, or changed by moving the stage again.)
-  const editable = e.type !== 'created' && e.type !== 'status';
   return (
     <div id={`ev-${e.id}`} className={cx('ev', `ev-${e.type}`, upcoming && 'upcoming')}>
       <div className="node" aria-hidden="true">
@@ -171,11 +183,27 @@ export function EventCard({
           <Icon name={fileId ? 'file' : EVENT_ICON[e.type]!} size={18} />
         )}
       </div>
-      <article className="ev-card">
+      {/* Meetings, emails, notes and files open on a tap anywhere on the card (their own buttons
+          and links still work as they are). Status changes are the app's record: they don't. */}
+      <article
+        className={cx('ev-card', opens && 'open')}
+        {...(opens
+          ? {
+              tabIndex: 0,
+              'aria-label': `Open ${label}`,
+              onClick: (x: React.MouseEvent) =>
+                !(x.target as HTMLElement).closest('a, button, .nested-note') && open(),
+              onKeyDown: (x: React.KeyboardEvent) => {
+                if (x.target !== x.currentTarget || (x.key !== 'Enter' && x.key !== ' ')) return;
+                x.preventDefault();
+                open();
+              },
+            }
+          : {})}
+      >
         <div className="ev-head">
           <span className="lbl">{label}</span>
           <span className="ev-meta">
-            <Source e={e} />
             <time dateTime={e.occurred_at}>
               {upcoming
                 ? `${whenLabel(e.occurred_at)} · ${relDays(e.occurred_at)}`
@@ -187,19 +215,14 @@ export function EventCard({
         {notes.map((n) => (
           <NoteBlock key={n.id} n={n} appId={appId} />
         ))}
-        {editable && !upcoming && (
+        {(e.type === 'meeting' || e.type === 'email') && !upcoming && (
           <div className="ev-foot">
-            {(e.type === 'meeting' || e.type === 'email') && !fileId && (
-              <button
-                type="button"
-                className="linkish"
-                onClick={() => sheets.log(appId, { type: 'note', parentId: e.id })}
-              >
-                + Note
-              </button>
-            )}
-            <button type="button" className="linkish" onClick={edit}>
-              Edit
+            <button
+              type="button"
+              className="linkish"
+              onClick={() => sheets.log(appId, { type: 'note', parentId: e.id })}
+            >
+              + Note
             </button>
           </div>
         )}
@@ -210,7 +233,6 @@ export function EventCard({
 
 export function Timeline({ events, appId }: { events: TimelineEvent[]; appId: string }) {
   const [filter, setFilter] = useState<Filter>('all');
-  const now = new Date();
   // ?event=<id> (from Home's recent activity): scroll to that entry, flash it once, and take the
   // id back out of the address so it doesn't happen again.
   const [params, setParams] = useSearchParams();
@@ -271,17 +293,6 @@ export function Timeline({ events, appId }: { events: TimelineEvent[]; appId: st
             upcoming
           />
         ))}
-        <div className="now">
-          <span>NOW</span>
-          <i />
-          <time>
-            {now.toLocaleDateString(undefined, {
-              weekday: 'short',
-              month: 'short',
-              day: 'numeric',
-            })}
-          </time>
-        </div>
         {past.map((e) => (
           <EventCard key={e.id} e={e} notes={view.children.get(e.id) ?? []} appId={appId} />
         ))}

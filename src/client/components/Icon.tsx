@@ -4,6 +4,8 @@ const P = {
     '<rect x="2.5" y="6" width="13" height="12" rx="2"/><path d="M15.5 10.5l6-3.5v10l-6-3.5"/>',
   file: '<path d="M6 2.5h8.5L19 7v14.5H6z"/><path d="M14 2.5V7.5h5M9 12h7M9 16h5"/>',
   arrowRight: '<path d="M4 12h15M13 6l6 6-6 6"/>',
+  /** A solid arrow (fills yellow on the timeline): a status change. */
+  move: '<path d="M3 9h10V5l8 7-8 7v-4H3z"/>',
   bookmark: '<path d="M6 3.5h12v17l-6-4.5-6 4.5z"/>',
   send: '<path d="M21 3 10 14M21 3l-7 18-4-7-7-4z"/>',
   checkCircle: '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.8 2.8L16.5 9.5"/>',
@@ -36,7 +38,7 @@ const P = {
   check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
   more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
   users:
-    '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18.5 14a6 6 0 0 1 3 6"/>',
+    '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path class="bk" d="M16 4.5a3.5 3.5 0 0 1 0 7M18.5 14a6 6 0 0 1 3 6"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
   cal: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   moon: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',

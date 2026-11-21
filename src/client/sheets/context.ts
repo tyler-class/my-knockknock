@@ -6,7 +6,7 @@ export type LogType = 'meeting' | 'email' | 'note';
 export interface SheetApi {
   addJob: () => void;
   status: (appId: string, to?: Status | 'closed') => void;
-  /** Log a new event, or edit one (eventId). parentId attaches a note to an event. */
+  /** Log a new event, or open one (eventId) to edit in place. parentId puts a note on an event. */
   log: (appId: string, o?: { type?: LogType; eventId?: string; parentId?: string }) => void;
   person: (appId: string, personId?: string) => void;
   search: (id?: string) => void;

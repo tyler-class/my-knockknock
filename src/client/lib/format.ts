@@ -102,3 +102,17 @@ export function fromLocalInput(v: string): string | null {
   const d = new Date(v);
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
+
+/** A meeting's time: "Tue Nov 24 · 2:00 to 2:45 PM" (AM/PM once when both share it). */
+export function rangeLabel(start: string, end: string | null, now = new Date()): string {
+  if (!end) return whenLabel(start, now);
+  const s = new Date(start);
+  const e = new Date(end);
+  if (s.toDateString() !== e.toDateString())
+    return `${whenLabel(start, now)} to ${whenLabel(end, now)}`;
+  const a = timeFmt.format(s);
+  const b = timeFmt.format(e);
+  const half = /\s?[AP]M$/i;
+  const shared = a.match(half)?.[0] === b.match(half)?.[0] ? a.replace(half, '') : a;
+  return `${wdFmt.format(s)} ${dayLabel(start, now)} · ${shared} to ${b}`;
+}

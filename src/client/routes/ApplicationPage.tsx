@@ -21,7 +21,7 @@ import { stagesReached } from '@shared/logic/status';
 import { payRange } from '@shared/logic/pay';
 import { withScheme } from '@shared/url';
 import { SYNC_LABEL, frameworkOf, syncState } from '@shared/logic/stories';
-import type { Application, JobStory } from '@shared/types';
+import type { Application, FileRef, JobStory } from '@shared/types';
 import { useActions, useData, type Data } from '../lib/queries';
 import { fileUrl, uploadFile } from '../lib/api';
 import { bytes, compLabel, dayLabel, relDays } from '../lib/format';
@@ -30,11 +30,21 @@ import { DatePicker } from '../components/DateTimePicker';
 import { useSheets } from '../sheets/context';
 import { useViewState } from '../lib/viewState';
 import { Timeline } from '../components/Timeline';
-import { CLOSED_ICON, STATUS_ICON } from '../components/StatusChip';
+import { StatusIcon } from '../components/StatusChip';
 import { Icon } from '../components/Icon';
 import { StageBar } from '../components/StageBar';
-import { AutoTextarea, ConfirmButton, Field, Select, Sheet, TagInput, cx } from '../components/ui';
+import {
+  AutoTextarea,
+  ConfirmButton,
+  ConfirmDialog,
+  Field,
+  Select,
+  Sheet,
+  TagInput,
+  cx,
+} from '../components/ui';
 import { useToast } from '../components/Toast';
+import { EditActs, EditBox, groupKeys } from '../components/edit';
 
 const workModeLabel = (m: string) => WORK_MODES.find((w) => w.key === m)?.label ?? m;
 
@@ -58,7 +68,7 @@ function Stepper({ a, data }: { a: Application; data: Data }) {
           return {
             key: s,
             label: statusLabel(s),
-            icon: STATUS_ICON[s],
+            icon: <StatusIcon status={s} size={15} />,
             state: here
               ? ('here' as const)
               : reached.includes(s)
@@ -71,7 +81,7 @@ function Stepper({ a, data }: { a: Application; data: Data }) {
         }),
         {
           key: 'closed',
-          icon: closed ? STATUS_ICON[a.status] : CLOSED_ICON,
+          icon: <StatusIcon status={closed ? a.status : 'closed'} size={15} />,
           label: closed ? (
             <>
               {statusLabel(a.status)}
@@ -112,81 +122,6 @@ const choiceGroups = (options: { value: string; label: string }[], current: stri
 ];
 const WORK_MODE_CHOICES = WORK_MODES.map((w) => ({ value: w.key, label: w.label }));
 const SOURCE_CHOICES = SOURCES.map((s) => ({ value: s, label: s }));
-
-/**
- * One detail (or a small group that edits together) in its edit container: the value with a
- * pencil at the right. Tap either to edit in place.
- */
-function EditBox({
-  label,
-  full,
-  shown,
-  editing,
-  onEdit,
-  children,
-}: {
-  label: string;
-  full?: boolean;
-  /** What it shows when not editing; empty shows "Add". */
-  shown: ReactNode;
-  editing: boolean;
-  onEdit: () => void;
-  /** The editor. */
-  children: ReactNode;
-}) {
-  const empty = shown == null || shown === '' || (Array.isArray(shown) && !shown.length);
-  return (
-    <div className={cx('kv ikv', full && 'kv-full')}>
-      <span className="kv-l">{label}</span>
-      {editing ? (
-        children
-      ) : (
-        <button
-          type="button"
-          className={cx('kv-v', empty && 'empty-v')}
-          onClick={onEdit}
-          aria-label={`${label}${empty ? ': not set' : ''}. Edit`}
-        >
-          <span>{empty ? 'Add' : shown}</span>
-          <Icon name="edit" size={13} />
-        </button>
-      )}
-    </div>
-  );
-}
-
-/** Save and Cancel under a group editor (Enter saves, Escape cancels, where Enter is free). */
-function EditActs({ onSave, onCancel }: { onSave: () => void; onCancel: () => void }) {
-  return (
-    <div className="acts mt-s">
-      <button type="button" className="btn sm" onClick={onCancel}>
-        Cancel
-      </button>
-      <button type="button" className="btn sm primary" onClick={onSave}>
-        Save
-      </button>
-    </div>
-  );
-}
-
-/** Escape cancels; Enter saves unless something inside (a list, a tag field) used it. */
-const groupKeys = (save: () => void, cancel: () => void, enterSaves = true) => ({
-  onKeyDown: (e: React.KeyboardEvent) => {
-    if (e.defaultPrevented) return;
-    if (e.key === 'Escape') {
-      e.stopPropagation();
-      cancel();
-    } else if (
-      enterSaves &&
-      e.key === 'Enter' &&
-      (e.target as HTMLElement).tagName === 'INPUT' &&
-      !e.nativeEvent.isComposing
-    ) {
-      e.preventDefault();
-      save();
-    }
-  },
-});
 
 /**
  * One detail, edited where it's shown: tap the value (or "Add"), change it, and Enter or
@@ -757,6 +692,8 @@ function PasteSheet({ a, data, onClose }: { a: Application; data: Data; onClose:
 }
 
 function FilesSection({ a, data }: { a: Application; data: Data }) {
+  // The file waiting on "Are you sure?" before it's deleted.
+  const [doomed, setDoomed] = useState<FileRef | null>(null);
   const act = useActions();
   const toast = useToast();
   const [paste, setPaste] = useState(false);
@@ -838,7 +775,7 @@ function FilesSection({ a, data }: { a: Application; data: Data }) {
                 type="button"
                 className="xbtn"
                 aria-label={`Delete ${fileKindLabel(f.kind).toLowerCase()} ${f.filename}`}
-                onClick={() => act.del(`/files/${f.id}`, 'Deleted')}
+                onClick={() => setDoomed(f)}
               >
                 <Icon name="trash" size={16} />
               </button>
@@ -853,6 +790,17 @@ function FilesSection({ a, data }: { a: Application; data: Data }) {
         )}
       </div>
       {paste && <PasteSheet a={a} data={data} onClose={() => setPaste(false)} />}
+      {doomed && (
+        <ConfirmDialog
+          question={`Are you sure you want to delete ${doomed.filename}?`}
+          action="Delete file"
+          onCancel={() => setDoomed(null)}
+          onConfirm={() => {
+            setDoomed(null);
+            void act.del(`/files/${doomed.id}`, 'Deleted');
+          }}
+        />
+      )}
     </section>
   );
 }
@@ -957,9 +905,10 @@ export function ApplicationPage() {
                 />
               </div>
             </section>
-            <div className="acts">
+            <div className="del-row">
               <ConfirmButton
-                confirm="Delete it and its timeline?"
+                solid
+                confirm="Are you sure you want to delete this job?"
                 onConfirm={async () => {
                   if (await act.del(`/applications/${a.id}`, 'Deleted')) nav('/jobs');
                 }}

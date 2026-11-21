@@ -1,4 +1,5 @@
-// Logging a meeting, email or note by hand (or editing one, whoever logged it).
+// Logging a meeting, email or note by hand. An entry already logged opens in EventView, where
+// it's edited in place.
 import { useMemo, useState } from 'react';
 import {
   EMAIL_CATEGORIES,
@@ -11,15 +12,7 @@ import {
 import type { Attendee, EmailData, MeetingData, TimelineEvent } from '@shared/types';
 import { useActions, type Data } from '../lib/queries';
 import { fromLocalInput, toLocalInput, whenLabel } from '../lib/format';
-import {
-  AutoTextarea,
-  ConfirmButton,
-  Field,
-  Select,
-  Sheet,
-  SlideToggle,
-  TagInput,
-} from '../components/ui';
+import { AutoTextarea, Field, Select, Sheet, SlideToggle, TagInput } from '../components/ui';
 import { Icon, type IconName } from '../components/Icon';
 import { DateTimeField } from '../components/DateTimePicker';
 import { useSheets, type LogType } from './context';
@@ -28,7 +21,7 @@ export const EVENT_ICON: Record<string, IconName> = {
   meeting: 'video',
   email: 'mail',
   note: 'note',
-  status: 'arrowRight',
+  status: 'move',
   created: 'plus',
 };
 
@@ -43,46 +36,39 @@ export function EventSheet({
   data,
   appId,
   type: initialType,
-  eventId,
   parentId,
 }: {
   data: Data;
   appId: string;
   type?: LogType;
-  eventId?: string;
   parentId?: string;
 }) {
   const sheets = useSheets();
   const act = useActions();
   const app = data.appById.get(appId);
   const events = useMemo(() => data.eventsByApp.get(appId) ?? [], [data, appId]);
-  const ev = eventId ? events.find((e) => e.id === eventId) : undefined;
-  const [type, setType] = useState<LogType>(
-    (ev?.type as LogType | undefined) ?? initialType ?? (parentId ? 'note' : 'meeting'),
-  );
-  const m = (ev?.type === 'meeting' ? ev.data : null) as MeetingData | null;
-  const em = (ev?.type === 'email' ? ev.data : null) as EmailData | null;
+  const [type, setType] = useState<LogType>(initialType ?? (parentId ? 'note' : 'meeting'));
 
-  const [title, setTitle] = useState(ev?.title ?? '');
-  const [body, setBody] = useState(ev?.body ?? '');
-  const [when, setWhen] = useState(toLocalInput(ev?.occurred_at ?? new Date().toISOString()));
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const [when, setWhen] = useState(toLocalInput(new Date().toISOString()));
   // meeting
-  const [kind, setKind] = useState<MeetingKind>(m?.kind ?? 'recruiter_screen');
-  const [state, setState] = useState<MeetingState>(m?.state ?? 'scheduled');
-  const [ends, setEnds] = useState(toLocalInput(m?.ends_at));
-  const [joinUrl, setJoinUrl] = useState(m?.join_url ?? '');
-  const [location, setLocation] = useState(m?.location ?? '');
-  const [agenda, setAgenda] = useState(m?.agenda ?? '');
-  const [people, setPeople] = useState<Attendee[]>(m?.attendees ?? []);
+  const [kind, setKind] = useState<MeetingKind>('recruiter_screen');
+  const [state, setState] = useState<MeetingState>('scheduled');
+  const [ends, setEnds] = useState('');
+  const [joinUrl, setJoinUrl] = useState('');
+  const [location, setLocation] = useState('');
+  const [agenda, setAgenda] = useState('');
+  const [people, setPeople] = useState<Attendee[]>([]);
   // email
-  const [dir, setDir] = useState<'in' | 'out'>(em?.direction ?? 'in');
-  const [category, setCategory] = useState<EmailCategory>(em?.category ?? 'scheduling');
-  const [withName, setWithName] = useState(em?.counterpart_name ?? '');
-  const [withEmail, setWithEmail] = useState(em?.counterpart_email ?? '');
-  const [points, setPoints] = useState<string[]>(em?.key_points ?? []);
-  const [link, setLink] = useState(em?.link ?? '');
+  const [dir, setDir] = useState<'in' | 'out'>('in');
+  const [category, setCategory] = useState<EmailCategory>('scheduling');
+  const [withName, setWithName] = useState('');
+  const [withEmail, setWithEmail] = useState('');
+  const [points, setPoints] = useState<string[]>([]);
+  const [link, setLink] = useState('');
   // note
-  const [about, setAbout] = useState(ev?.parent_id ?? parentId ?? '');
+  const [about, setAbout] = useState(parentId ?? '');
   const [busy, setBusy] = useState(false);
 
   const at = fromLocalInput(when);
@@ -126,9 +112,7 @@ export function EventSheet({
       payload = { body, title, occurred_at: at, parent_id: about || null };
       path = 'notes';
     }
-    const ok = ev
-      ? await act.patch(`/events/${ev.id}`, payload, 'Saved')
-      : await act.post(`/applications/${appId}/${path}`, payload, 'Logged');
+    const ok = await act.post(`/applications/${appId}/${path}`, payload, 'Logged');
     setBusy(false);
     if (ok) sheets.close();
   }
@@ -137,29 +121,18 @@ export function EventSheet({
 
   return (
     <Sheet
-      title={ev ? 'Edit' : 'Log to timeline'}
+      title="Log to timeline"
       sub={`${app.company} · ${app.title}`}
       onClose={sheets.close}
       footer={
         <>
-          {ev && (
-            <ConfirmButton
-              className="left"
-              confirm="Delete it?"
-              onConfirm={async () =>
-                (await act.del(`/events/${ev.id}`, 'Deleted')) && sheets.close()
-              }
-            >
-              Delete
-            </ConfirmButton>
-          )}
           <button type="button" className="btn primary" disabled={!valid || busy} onClick={save}>
-            {ev ? 'Save' : `Log ${type}`}
+            Log {type}
           </button>
         </>
       }
     >
-      {!ev && (
+      {
         <div className="type-tiles" role="tablist" aria-label="What happened">
           {(['meeting', 'email', 'note'] as const).map((t) => (
             <button
@@ -175,10 +148,7 @@ export function EventSheet({
             </button>
           ))}
         </div>
-      )}
-      {ev?.source === 'agent' && (
-        <p className="hint">Logged by {ev.source_name ?? 'an assistant'}. Edits here are yours.</p>
-      )}
+      }
 
       {type === 'meeting' && (
         <>
@@ -240,59 +210,7 @@ export function EventSheet({
             </Field>
           </div>
           <Field label="Who (name, title, email)">
-            <div className="attendees">
-              {people.map((p, i) => (
-                <div key={i} className="three att">
-                  <input
-                    className="in"
-                    value={p.name}
-                    aria-label="Name"
-                    onChange={(e) =>
-                      setPeople((l) =>
-                        l.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)),
-                      )
-                    }
-                  />
-                  <input
-                    className="in"
-                    value={p.title ?? ''}
-                    aria-label="Title"
-                    onChange={(e) =>
-                      setPeople((l) =>
-                        l.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)),
-                      )
-                    }
-                  />
-                  <div className="att-last">
-                    <input
-                      className="in"
-                      value={p.email ?? ''}
-                      aria-label="Email"
-                      onChange={(e) =>
-                        setPeople((l) =>
-                          l.map((x, j) => (j === i ? { ...x, email: e.target.value } : x)),
-                        )
-                      }
-                    />
-                    <button
-                      type="button"
-                      className="xbtn"
-                      aria-label="Remove"
-                      onClick={() => setPeople((l) => l.filter((_, j) => j !== i))}
-                    >
-                      <Icon name="x" size={16} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-              <button
-                type="button"
-                className="btn sm"
-                onClick={() => setPeople((l) => [...l, { name: '' }])}
-              >
-                <Icon name="plus" size={14} /> Add someone
-              </button>
-            </div>
+            <AttendeesInput people={people} onChange={setPeople} />
           </Field>
           <Field label="Topics and format">
             <AutoTextarea
@@ -425,5 +343,59 @@ export function EventSheet({
         </>
       )}
     </Sheet>
+  );
+}
+
+/** Who's in a meeting: a row each (name, title, email), with remove and Add someone. */
+export function AttendeesInput({
+  people,
+  onChange,
+}: {
+  people: Attendee[];
+  onChange: (p: Attendee[]) => void;
+}) {
+  const set = (i: number, p: Partial<Attendee>) =>
+    onChange(people.map((x, j) => (j === i ? { ...x, ...p } : x)));
+  return (
+    <div className="attendees">
+      {people.map((p, i) => (
+        <div key={i} className="three att">
+          <input
+            className="in"
+            value={p.name}
+            aria-label="Name"
+            placeholder="Name"
+            onChange={(e) => set(i, { name: e.target.value })}
+          />
+          <input
+            className="in"
+            value={p.title ?? ''}
+            aria-label="Title"
+            placeholder="Title"
+            onChange={(e) => set(i, { title: e.target.value })}
+          />
+          <div className="att-last">
+            <input
+              className="in"
+              value={p.email ?? ''}
+              aria-label="Email"
+              placeholder="Email"
+              onChange={(e) => set(i, { email: e.target.value })}
+            />
+            <button
+              type="button"
+              className="xbtn"
+              aria-label="Remove"
+              onClick={() => onChange(people.filter((_, j) => j !== i))}
+            >
+              <Icon name="x" size={16} />
+            </button>
+          </div>
+        </div>
+      ))}
+      <button type="button" className="btn sm" onClick={() => onChange([...people, { name: '' }])}>
+        <Icon name="plus" size={14} /> Add someone
+      </button>
+    </div>
   );
 }

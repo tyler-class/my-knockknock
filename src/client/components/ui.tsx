@@ -297,18 +297,49 @@ export function ConfirmButton({
   confirm,
   onConfirm,
   className,
+  solid,
 }: {
   children: ReactNode;
+  /** The question asked before it goes ahead ("Delete it?"). */
   confirm: string;
   onConfirm: () => void;
   className?: string;
+  /**
+   * A boxed red delete button (at the end of a page or panel) that asks in a small popup, with
+   * Cancel and Delete. Without it: a ghost button that asks on the button itself (tap twice).
+   */
+  solid?: boolean;
 }) {
   const [armed, setArmed] = useState(false);
   useEffect(() => {
-    if (!armed) return;
+    if (!armed || solid) return;
     const t = setTimeout(() => setArmed(false), 4000);
     return () => clearTimeout(t);
-  }, [armed]);
+  }, [armed, solid]);
+  if (solid)
+    return (
+      <>
+        <button
+          type="button"
+          className={cx('btn danger destroy', className)}
+          onClick={() => setArmed(true)}
+        >
+          <Icon name="trash" size={16} />
+          {children}
+        </button>
+        {armed && (
+          <ConfirmDialog
+            question={confirm}
+            action={children}
+            onCancel={() => setArmed(false)}
+            onConfirm={() => {
+              setArmed(false);
+              onConfirm();
+            }}
+          />
+        )}
+      </>
+    );
   return (
     <button
       type="button"
@@ -318,6 +349,48 @@ export function ConfirmButton({
       <Icon name="trash" size={16} />
       {armed ? confirm : children}
     </button>
+  );
+}
+
+/** "Are you sure?" in a small popup over everything: Cancel, or the red action. */
+export function ConfirmDialog({
+  question,
+  action,
+  onCancel,
+  onConfirm,
+}: {
+  question: string;
+  action: ReactNode;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const id = useId();
+  useEffect(() => {
+    // Escape closes this popup only, not the sheet underneath.
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopImmediatePropagation();
+      onCancel();
+    };
+    document.addEventListener('keydown', onKey, true);
+    return () => document.removeEventListener('keydown', onKey, true);
+  }, [onCancel]);
+  return (
+    <div className="ov confirm-ov">
+      <div className="scrim" onClick={onCancel} />
+      <div role="alertdialog" aria-modal="true" aria-labelledby={id} className="confirm-box">
+        <h2 id={id}>{question}</h2>
+        <div className="acts">
+          <button type="button" className="btn" autoFocus onClick={onCancel}>
+            Cancel
+          </button>
+          <button type="button" className="btn danger destroy" onClick={onConfirm}>
+            <Icon name="trash" size={16} />
+            {action}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

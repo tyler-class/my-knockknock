@@ -6,6 +6,8 @@ The app only stores and shows. Your assistant does the reading and the judging o
 
 [![Deploy to Cloudflare](docs/deploy-to-cloudflare.svg)](https://deploy.workers.cloudflare.com/?url=https://github.com/tyler-class/knockknock)
 
+![Knock Knock on a laptop and a phone: the Jobs board with each job's logo, pay and what needs doing, and a job's timeline with the panel interview coming up](docs/screenshots/hero.png)
+
 One deployment is one person's job search (or many, one after another: searches keep each stretch separate). It runs on your own Cloudflare account, and the free plan is plenty.
 
 ## What it does
@@ -26,7 +28,7 @@ A board with a lane per stage on a computer, a list with stage tabs on a phone. 
 
 A header with the title, company, work mode, location, applied date and pay, and a stage bar: Saved → Applied → Screening → Interviewing → Offer → Closed (Accepted, Rejected, Declined or Ghosted). Tap a stage to move the job there. Tabs for Details, Timeline, Stories and Files. Every detail (title, pay, links, requirements, notes, the pasted posting) edits in place where it's shown: tap it, type, and it saves when you press Enter or click away.
 
-![A job's Details tab: The Job card with every field editable in place, the Company card with the company's logo, and the people on the job](docs/screenshots/job.png)
+![A job's Details tab: The Job card with every field editable in place, the Company card with the company's logo and its other jobs, and the people on the job](docs/screenshots/job.png)
 
 ### The timeline
 
@@ -34,7 +36,7 @@ Every job has one: status changes, meetings (kind, time, join link, attendees, t
 
 **Status is history, not a field.** Every change is an event on the timeline, and the status is whatever the timeline says. Backfilling "they rejected me on the 3rd" lands in the right place, closed jobs remember the stage they closed from, and the report counts everything correctly. Changing a status can be undone from the toast.
 
-![A job's timeline: the stage bar, an upcoming panel interview with Open Call Mode and Join, then a status change, emails and a held meeting with its call notes underneath](docs/screenshots/timeline.png)
+![A job's timeline: the stage bar, an upcoming panel interview with Open Call Mode and Join, then a status change with its comment on its own line, emails and a held meeting with its call notes underneath](docs/screenshots/timeline.png)
 
 ### Companies and people
 
@@ -42,13 +44,17 @@ A company is its own record with its website, LinkedIn, headquarters, size, indu
 
 ![Companies: each company with its logo, or its monogram in the color picked for it](docs/screenshots/companies.png)
 
-A company's page holds its details, the jobs you have there across every search, and its people. Its logo shows here, on the jobs there and in every list.
+A company's page holds its details, the jobs you have there across every search, and its people. Its logo shows here, on the jobs there and in every list. A company can be deleted from its page; the popup says how many jobs and people go with it.
 
-![A company's page: its logo, details, the jobs there and the people who work there](docs/screenshots/company.png)
+![A company's page: its logo, details, the jobs there across searches and the people who work there](docs/screenshots/company.png)
 
 A company without a logo gets a monogram: the first letter of its name (skipping a leading "The" or "A") on an ultramarine tile. Pick another of ten colors from the ⋯ menu on its page, or upload a logo there. Your assistant can also find a company's logo on the web and attach it, and match the monogram to the brand's color.
 
 ![A company without a logo: its monogram, and the logo menu with Upload logo and ten colors to choose from](docs/screenshots/company-monogram.png)
+
+**People** and **Files** list everyone and every file across your companies and jobs, beside Companies under one set of tabs. Tap someone to edit them, take them off a job, or delete them.
+
+![People: everyone at your companies, with their role, title, the jobs they're on and their company](docs/screenshots/people.png)
 
 ### Stories
 
@@ -68,7 +74,7 @@ A full-screen view to keep beside the video call: who's in the room, the topics,
 
 Where every application went (a Sankey built from status history), how many heard back and how many reached interviews and offers, response rate by where you found the job and by which resume you sent, median time to hear back, and how many you applied to each week.
 
-![The report: applied, heard back, interviews and offers, a Sankey of where applications went, response rate by where you found the job, time to hear back, and applications per week](docs/screenshots/report.png)
+![The report: applied, heard back, interviews and offers, a Sankey of where applications went, response rate by where you found the job and by resume, time to hear back, and applications per week](docs/screenshots/report.png)
 
 ### Built for phones
 
@@ -78,7 +84,7 @@ Install it to your home screen and it works like an app, with notifications for 
 
 ### And
 
-- **Files.** Resumes, cover letters, transcripts and offer letters in your own private R2 bucket, with a SHA-256 of exactly what you sent. Adding one puts it on the timeline. Transcripts and other text files stay readable for your assistant.
+- **Files.** Resumes, cover letters, transcripts and offer letters in your own private R2 bucket, with a SHA-256 of exactly what you sent. Adding one puts it on the timeline, and the Files page lists every file across your jobs. Transcripts and other text files stay readable for your assistant.
 - **Searches.** Each stretch of job hunting is its own search. Pick it from the menu at the top of the sidebar; everything but Stories and Companies follows it.
 - **Yours.** It runs on your own Cloudflare account, and your data stays in your own database and storage.
 
@@ -210,6 +216,8 @@ Once a day your copy tells Knock Knock's developer that it exists: a random id i
 ## Connect an AI assistant
 
 Knock Knock includes an [MCP](https://modelcontextprotocol.io) server at `https://<your-knock-knock>/mcp`. Open **Settings → Connect an AI assistant** to copy your URL and see steps for Claude, ChatGPT, Claude Code and others. When an assistant connects, Knock Knock shows a sign-in page; enter your password to approve it. **Settings → Connect an AI assistant** also lists what's connected and can sign them all out.
+
+![An AI assistant connected to Knock Knock: on a laptop it logs the day's emails, moves Lumen Health to Screening and adds a technical interview, then preps a Tessellate panel with the people in the room and two matching STAR stories; on a phone it says what's on today and which applications have gone quiet](docs/screenshots/ai-chat.png)
 
 ### How the agent flows work
 

@@ -1,6 +1,7 @@
 import type { Application } from '@shared/types';
 
-const short = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
+const short = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
+const oneDp = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
 
 function money(n: number, currency: string | null): string {
   const sym =
@@ -11,11 +12,14 @@ function money(n: number, currency: string | null): string {
         : currency === 'GBP'
           ? '£'
           : `${currency} `;
-  if (n >= 1000) return `${sym}${short.format(Math.round(n / 1000))}k`;
+  // Thousands to one decimal ("$198.8K", "$198K"), millions likewise ("$1.2M"); rounded half up.
+  const r1 = (x: number) => Math.round(x * 10) / 10;
+  if (n >= 999_950) return `${sym}${oneDp.format(r1(n / 1_000_000))}M`;
+  if (n >= 1000) return `${sym}${oneDp.format(r1(n / 1000))}K`;
   return `${sym}${short.format(n)}`;
 }
 
-/** "$215–250k", "$95/hr", or the posting's own words. Null when unknown. */
+/** "$215–250K", "$187.2–198.8K", "$95/hr", or the posting's own words. Null when unknown. */
 export function compLabel(
   a: Pick<
     Application,
@@ -32,8 +36,9 @@ export function compLabel(
   if (lo != null && hi != null && lo !== hi) {
     const a1 = money(lo, a.salary_currency);
     const b1 = money(hi, a.salary_currency);
-    // "$215k–$250k" → "$215–250k"
-    const same = a1.endsWith('k') && b1.endsWith('k') && a1[0] === b1[0];
+    // "$215K–$250K" → "$215–250K" (only when both share the unit)
+    const unit = a1.slice(-1);
+    const same = /[KM]/.test(unit) && b1.endsWith(unit) && a1[0] === b1[0];
     range = `${same ? a1.slice(0, -1) : a1}–${same ? b1.slice(1) : b1}${per}`;
   } else range = `${money((lo ?? hi)!, a.salary_currency)}${per}`;
   // A range and the pay as written can both be set: show both ("$150–180k · + 15% bonus").

@@ -8,28 +8,48 @@ export const STATUS_ICON: Record<Status, IconName> = {
   applied: 'send',
   screening: 'phone',
   interviewing: 'users',
-  offer: 'coin',
-  accepted: 'checkCircle',
-  rejected: 'xCircle',
-  declined: 'logout',
+  offer: 'gift',
+  accepted: 'check',
+  rejected: 'x',
+  declined: 'minus',
   ghosted: 'ghost',
 };
 
 /** The Closed stage before you've said how it ended. */
 export const CLOSED_ICON: IconName = 'archive';
 
+/** Each status's colour family: blue along the way, green for an offer, solid green once accepted, red when rejected, grey when it ended quietly. */
+const TONE: Record<Status | 'closed', string> = {
+  saved: 'open',
+  applied: 'open',
+  screening: 'open',
+  interviewing: 'open',
+  offer: 'offer',
+  accepted: 'accepted',
+  rejected: 'rejected',
+  declined: 'closed',
+  ghosted: 'closed',
+  closed: 'closed',
+};
+
 /**
- * A status's icon, filled inside: yellow along the way (Interviewing fills only the front
- * person), green for an offer, blue for accepted, red for rejected, light grey for ghosted and
- * nothing for declined. 'closed' is the Closed stage before it's said how it ended (no fill).
+ * A status's icon in a small round badge, tinted by what it means. 'closed' is the Closed stage
+ * before it's said how it ended.
  */
 export function StatusIcon({ status, size = 14 }: { status: Status | 'closed'; size?: number }) {
+  const box = Math.round(size * 1.6);
   return (
-    <Icon
-      name={status === 'closed' ? CLOSED_ICON : STATUS_ICON[status]}
-      size={size}
-      className={`sti sti-${status}`}
-    />
+    <span
+      className={`sti-badge sti-${TONE[status]}`}
+      style={{ width: box, height: box }}
+      title={status === 'closed' ? 'Closed' : statusLabel(status)}
+    >
+      <Icon
+        name={status === 'closed' ? CLOSED_ICON : STATUS_ICON[status]}
+        size={Math.round(size * 0.86)}
+        className={`sti sti-${status}`}
+      />
+    </span>
   );
 }
 

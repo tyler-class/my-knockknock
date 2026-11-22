@@ -34,6 +34,8 @@ export async function request<T>(method: string, path: string, body?: unknown): 
     res = await fetch(`/api${path}`, {
       method,
       credentials: 'same-origin',
+      // Never a stored copy: after a save, the next read must show it.
+      cache: 'no-store',
       headers: method === 'GET' ? {} : { 'Content-Type': 'application/json' },
       body: method === 'GET' ? undefined : JSON.stringify(body ?? {}),
     });

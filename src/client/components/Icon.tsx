@@ -14,7 +14,11 @@ const P = {
     '<path d="M5 20.5V10a7 7 0 0 1 14 0v10.5l-2.3-1.7-2.4 1.7-2.3-1.7-2.3 1.7-2.4-1.7z"/><path d="M9.5 10.5h.01M14.5 10.5h.01"/>',
   briefcase:
     '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 12.5h18"/>',
-  quote: '<path d="M5 6h14v10H9l-4 4z"/>',
+  /** Closing quotation marks, outlined: Stories. */
+  quote:
+    '<path d="M4 4.5h6a1 1 0 0 1 1 1V11c0 4.2-2.4 7.2-6 8.2v-2.7c2-.7 3-2.2 3.2-4.5H4a1 1 0 0 1-1-1V5.5a1 1 0 0 1 1-1zM14 4.5h6a1 1 0 0 1 1 1V11c0 4.2-2.4 7.2-6 8.2v-2.7c2-.7 3-2.2 3.2-4.5H14a1 1 0 0 1-1-1V5.5a1 1 0 0 1 1-1z"/>',
+  gift: '<path d="M4 11h16v10H4zM3 7h18v4H3zM12 7v14M12 7C10 3 6 4 7.5 7M12 7c2-4 6-3 4.5 0"/>',
+  minus: '<path d="M5 12h14"/>',
   external: '<path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/>',
   lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
   unlock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.5-2"/>',
@@ -54,7 +58,10 @@ const P = {
   back: '<path d="M15 6l-6 6 6 6"/>',
   tag: '<path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9-9-9z"/><circle cx="8" cy="8" r="1.5"/>',
   hash: '<path d="M5 9h14M5 15h14M10 4L8 20M16 4l-2 16"/>',
-  note: '<path d="M5 3h10l4 4v14H5zM15 3v4h4M9 12h6M9 16h4"/>',
+  paperclip:
+    '<path d="M20.5 11.5l-8.3 8.3a5.2 5.2 0 0 1-7.4-7.4l8.6-8.6a3.5 3.5 0 0 1 5 5l-8.6 8.6a1.8 1.8 0 0 1-2.6-2.6l7.9-7.9"/>',
+  /** A sticky note: square, with a big folded corner. */
+  note: '<path d="M4 4h16v10l-6 6H4z"/><path d="M20 14h-6v6"/>',
   trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
   tmpl: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/>',
   copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',

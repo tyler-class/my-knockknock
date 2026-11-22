@@ -1,6 +1,7 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import type { Status } from '@shared/lookups';
-import { useData } from '../lib/queries';
+import { keys, useData } from '../lib/queries';
 import { AboutSheet } from './AboutSheet';
 import { ApplicationSheet, PersonSheet, SearchSheet, StatusSheet } from './AppSheets';
 import { EventSheet } from './EventSheet';
@@ -38,6 +39,16 @@ type Open =
 export function SheetProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState<Open | null>(null);
   const data = useData();
+  const qc = useQueryClient();
+  // A person opened by id that isn't in the data yet (just added): fetch the state again.
+  const missingPerson =
+    open?.type === 'person' &&
+    !!open.id &&
+    !!data &&
+    !data.state.people.some((x) => x.id === open.id);
+  useEffect(() => {
+    if (missingPerson) void qc.invalidateQueries({ queryKey: keys.state });
+  }, [missingPerson, qc]);
   const api = useMemo<SheetApi>(() => {
     let n = 0;
     return {
@@ -87,8 +98,12 @@ export function SheetProvider({ children }: { children: ReactNode }) {
         />
       );
     }
-    if (open.type === 'person')
-      sheet = <PersonSheet key={k} data={data} appId={open.appId} id={open.id} />;
+    // Opening a person by id: wait until it's in the data (just added, still loading) rather
+    // than showing an empty form, and key on it so the fields fill when it arrives.
+    if (open.type === 'person') {
+      const found = !open.id || data.state.people.some((x) => x.id === open.id);
+      sheet = found ? <PersonSheet key={k} data={data} appId={open.appId} id={open.id} /> : null;
+    }
     if (open.type === 'search') sheet = <SearchSheet key={k} data={data} id={open.id} />;
     if (open.type === 'story')
       sheet = <StorySheet key={k} data={data} id={open.id} framework={open.framework} />;

@@ -3,7 +3,7 @@
 // Cancel, and Escape cancels. Used by a job's Details and by a timeline entry's panel.
 import { useState, type ReactNode } from 'react';
 import { withScheme } from '@shared/url';
-import { AutoTextarea, Select, TagInput, cx } from './ui';
+import { AutoTextarea, Select, cx } from './ui';
 import { Icon } from './Icon';
 
 /**
@@ -12,6 +12,7 @@ import { Icon } from './Icon';
  */
 export function EditBox({
   label,
+  href,
   full,
   shown,
   editing,
@@ -19,8 +20,10 @@ export function EditBox({
   children,
 }: {
   label: string;
+  /** A link the value points to: a small new-tab button beside the label opens it. */
+  href?: string;
   full?: boolean;
-  /** What it shows when not editing; empty shows "Add". */
+  /** What it shows when not editing; empty shows an em dash. */
   shown: ReactNode;
   editing: boolean;
   onEdit: () => void;
@@ -30,7 +33,21 @@ export function EditBox({
   const empty = shown == null || shown === '' || (Array.isArray(shown) && !shown.length);
   return (
     <div className={cx('kv ikv', full && 'kv-full')}>
-      <span className="kv-l">{label}</span>
+      <span className="kv-l">
+        {label}
+        {href && (
+          <a
+            className="kv-open"
+            href={withScheme(href)}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={`Open ${label} in a new tab`}
+            title="Open in a new tab"
+          >
+            <Icon name="external" size={12} />
+          </a>
+        )}
+      </span>
       {editing ? (
         children
       ) : (
@@ -40,7 +57,7 @@ export function EditBox({
           onClick={onEdit}
           aria-label={`${label}${empty ? ': not set' : ''}. Edit`}
         >
-          <span>{empty ? 'Add' : shown}</span>
+          <span>{empty ? '—' : shown}</span>
           <Icon name="edit" size={13} />
         </button>
       )}
@@ -48,22 +65,29 @@ export function EditBox({
   );
 }
 
-/** Save and Cancel under a group editor (Enter saves, Escape cancels, where Enter is free). */
-export function EditActs({ onSave, onCancel }: { onSave: () => void; onCancel: () => void }) {
-  return (
-    <div className="acts mt-s">
-      <button type="button" className="btn sm" onClick={onCancel}>
-        Cancel
-      </button>
-      <button type="button" className="btn sm primary" onClick={onSave}>
-        Save
-      </button>
-    </div>
-  );
+/**
+ * Formerly Save and Cancel under a group editor. Groups now save like single fields: on Enter,
+ * or when focus leaves the group (a click or Tab away); Escape cancels. Kept so callers needn't
+ * change; it draws nothing.
+ */
+export function EditActs(_props: { onSave: () => void; onCancel: () => void }) {
+  return null;
 }
 
 /** Escape cancels; Enter saves unless something inside (a list, a tag field) used it. */
 export const groupKeys = (save: () => void, cancel: () => void, enterSaves = true) => ({
+  // Leaving the group (a click elsewhere, or Tab past its last field) saves it. A date picker's
+  // pop-up sits outside the group, so its being open doesn't count as leaving.
+  onBlur: (e: React.FocusEvent<HTMLElement>) => {
+    const root = e.currentTarget;
+    const next = e.relatedTarget as Node | null;
+    if (next && root.contains(next)) return;
+    setTimeout(() => {
+      if (!root.isConnected || root.contains(document.activeElement)) return;
+      if (document.querySelector('.dt-pop')) return;
+      save();
+    }, 0);
+  },
   onKeyDown: (e: React.KeyboardEvent) => {
     if (e.defaultPrevented) return;
     if (e.key === 'Escape') {
@@ -81,11 +105,15 @@ export const groupKeys = (save: () => void, cancel: () => void, enterSaves = tru
   },
 });
 
-/** A link shown short: no scheme, no www, no trailing slash. */
+/** A link as it's shown and edited: no scheme, no www, no trailing slash. */
+export const shortUrl = (url: string) => url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
+
+/**
+ * A link shown short (no scheme, www or trailing slash), as text: tapping it edits it, and the
+ * new-tab button beside the label opens it.
+ */
 export const ShortLink = ({ url }: { url: string }) => (
-  <a href={withScheme(url)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
-    {url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}
-  </a>
+  <span className="link-v">{shortUrl(url)}</span>
 );
 
 /**
@@ -114,11 +142,13 @@ export function LineEdit({
   const [pending, setPending] = useState<string | null>(null);
   const raw = pending ?? value;
   const [editing, setEditing] = useState(false);
+  // A link is edited exactly as it's shown (short); unchanged, it keeps its stored form.
+  const asShown = (x: string) => (url ? shortUrl(x) : x);
   const [v, setV] = useState(raw);
   const save = async () => {
     setEditing(false);
     const next = v.trim();
-    if (next === raw || (required && !next)) return;
+    if (next === asShown(raw) || (required && !next)) return;
     setPending(next);
     await onSave(next);
     setPending(null);
@@ -127,10 +157,11 @@ export function LineEdit({
     <EditBox
       label={label}
       full={full}
+      href={url && raw ? raw : undefined}
       shown={raw && url ? <ShortLink url={raw} /> : raw}
       editing={editing}
       onEdit={() => {
-        setV(raw);
+        setV(asShown(raw));
         setEditing(true);
       }}
     >
@@ -209,7 +240,7 @@ export function TextEdit({
   label,
   value,
   onSave,
-  rows = 3,
+  rows: _rows,
   required,
 }: {
   label: string;
@@ -238,7 +269,7 @@ export function TextEdit({
       <div {...groupKeys(save, () => setEditing(false), false)}>
         <AutoTextarea
           className="in"
-          rows={rows}
+          rows={1}
           autoFocus
           value={v}
           onChange={(e) => setV(e.target.value)}
@@ -261,8 +292,15 @@ export function TagsEdit({
 }) {
   const [editing, setEditing] = useState(false);
   const [v, setV] = useState<string[]>([]);
+  const [draft, setDraft] = useState('');
+  // Whatever is still typed counts too (clicking away before pressing Enter keeps it).
+  const withDraft = (list: string[]) => {
+    const t = draft.trim();
+    return t && !list.some((x) => x.toLowerCase() === t.toLowerCase()) ? [...list, t] : list;
+  };
   const save = async () => {
-    if (v.join('\n') === value.join('\n') || (await onSave(v))) setEditing(false);
+    const next = withDraft(v);
+    if (next.join('\n') === value.join('\n') || (await onSave(next))) setEditing(false);
   };
   return (
     <EditBox
@@ -282,12 +320,56 @@ export function TagsEdit({
       editing={editing}
       onEdit={() => {
         setV(value);
+        setDraft('');
         setEditing(true);
       }}
     >
-      <div {...groupKeys(save, () => setEditing(false), false)}>
-        <TagInput value={v} onChange={setV} suggestions={[]} placeholder="Add one, press Enter" />
-        <EditActs onSave={() => void save()} onCancel={() => setEditing(false)} />
+      {/* Editing keeps the pills exactly as they were (same box, place, size and style); each
+          gets a small ✕ laid over its corner, and the box to add one opens underneath. */}
+      <div className="tags-edit" {...groupKeys(save, () => setEditing(false), false)}>
+        {v.length > 0 && (
+          <div className="kv-v tags-edit-v">
+            <span className="tags">
+              {v.map((m) => (
+                <span key={m} className="tag tag-x">
+                  {m}
+                  <button
+                    type="button"
+                    className="tag-del"
+                    aria-label={`Remove ${m}`}
+                    onClick={() => setV(v.filter((x) => x !== m))}
+                  >
+                    <Icon name="x" size={10} />
+                  </button>
+                </span>
+              ))}
+            </span>
+            <Icon name="edit" size={13} className="ghost-pencil" />
+          </div>
+        )}
+        <input
+          autoFocus
+          className="in"
+          value={draft}
+          placeholder="Add one, press Enter"
+          aria-label={`Add to ${label}`}
+          onChange={(e) => {
+            const t = e.target.value;
+            if (t.endsWith(',')) {
+              setV(withDraft(v));
+              setDraft('');
+            } else setDraft(t);
+          }}
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter' || e.nativeEvent.isComposing) return;
+            e.preventDefault();
+            // Enter adds what's typed; Enter on an empty box saves and closes.
+            if (draft.trim()) {
+              setV(withDraft(v));
+              setDraft('');
+            } else void save();
+          }}
+        />
       </div>
     </EditBox>
   );

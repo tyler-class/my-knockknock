@@ -27,9 +27,10 @@ import {
 } from '../lib/filters';
 import { useViewState } from '../lib/viewState';
 import { useSheets } from '../sheets/context';
-import { CompanyMark, StatusChip, StatusIcon } from '../components/StatusChip';
+import { StatusChip, StatusIcon } from '../components/StatusChip';
 import { Icon } from '../components/Icon';
 import { PageHeader, SlideToggle } from '../components/ui';
+import { SearchLine } from '../components/SearchLine';
 
 type View = 'board' | 'list';
 
@@ -76,7 +77,6 @@ function Card({
       tabIndex={lifted ? -1 : undefined}
     >
       <span className="kcard-head">
-        <CompanyMark name={a.company} size={32} />
         <span className="row-text">
           <strong>{a.company}</strong>
           <span className="kcard-title">{a.title}</span>
@@ -206,6 +206,7 @@ export function Pipeline() {
           </button>
         }
       />
+      <SearchLine />
       <div className="toolbar">
         <label className="search-in">
           <Icon name="search" size={16} />
@@ -246,13 +247,14 @@ export function Pipeline() {
             } else sheets.status(app.id, to as Status);
           }}
         >
-          <div className="board-scroll">
+          <div className="card board-scroll">
             <div className="board">
               {OPEN_STATUSES.map((s) => (
                 <Lane key={s} id={s} label={statusLabel(s)} dragging={dragged}>
                   <div className="col-h">
-                    <StatusChip status={s} />
-                    <span className="mono sub">{by(s).length}</span>
+                    <StatusIcon status={s} size={15} />
+                    <strong>{statusLabel(s)}</strong>
+                    <span className="count">{by(s).length}</span>
                   </div>
                   {by(s).map((a) => (
                     <DragCard key={a.id} a={a}>
@@ -263,8 +265,9 @@ export function Pipeline() {
               ))}
               <Lane id="closed" label="Closed" dragging={dragged} className="closed-col">
                 <div className="col-h">
-                  <span className="lbl">Closed</span>
-                  <span className="mono sub">{counts.count('closed')}</span>
+                  <StatusIcon status="closed" size={15} />
+                  <strong>Closed</strong>
+                  <span className="count">{counts.count('closed')}</span>
                 </div>
                 <div className="closed-box">
                   {CLOSED_STAGES.map((s) => (
@@ -275,7 +278,7 @@ export function Pipeline() {
                       onClick={() => choose({ view: 'list', stage: s })}
                     >
                       <StatusChip status={s} small />
-                      <span className="mono">{by(s).length}</span>
+                      <span className="count">{by(s).length}</span>
                     </button>
                   ))}
                   <p className="sub">Closing asks which stage it died at, for the report.</p>
@@ -307,25 +310,25 @@ export function Pipeline() {
               >
                 <StatusIcon status={s === 'active' ? 'interviewing' : s} size={15} />
                 {stageName(s)}
-                <span className="mono sub">{counts.count(s)}</span>
+                <span className="count">{counts.count(s)}</span>
               </button>
             ))}
           </div>
-          <div className="plist">
+          <div className="card plist">
             {stageStatuses(stage).map((s) => {
               const rows = by(s);
               if (!rows.length) return null;
               return (
                 <section key={s}>
                   <div className="plist-h">
-                    <StatusChip status={s} small />
-                    <span className="mono sub">{rows.length}</span>
+                    <StatusIcon status={s} size={15} />
+                    <strong>{statusLabel(s)}</strong>
+                    <span className="count">{rows.length}</span>
                   </div>
                   {rows.map((a) => {
                     const next = nextStep(a, data, now);
                     return (
                       <Link key={a.id} to={`/a/${a.id}`} className="prow">
-                        <CompanyMark name={a.company} size={38} />
                         <span className="row-text">
                           <strong>{a.company}</strong>
                           <span className="sub ell">{a.title}</span>

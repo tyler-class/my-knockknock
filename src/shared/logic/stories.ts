@@ -72,10 +72,10 @@ export const SYNC_LABEL: Record<SyncState, string> = {
 export const COPY_LABEL: Record<SyncState, string> = {
   job_only: '',
   source_gone: '',
-  in_sync: 'Same',
-  edited: 'Changed for this job',
-  bank_newer: 'Older version',
-  both: 'Changed, older version',
+  in_sync: 'Same as here',
+  edited: 'Tailored for this job',
+  bank_newer: 'Yours here is newer',
+  both: 'Tailored; yours here is newer',
 };
 
 /** Built-ins first, then custom ones. (`questions` is an unused column, kept for old data.) */

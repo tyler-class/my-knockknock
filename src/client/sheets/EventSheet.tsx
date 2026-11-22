@@ -121,8 +121,8 @@ export function EventSheet({
 
   return (
     <Sheet
-      title="Log to timeline"
-      sub={`${app.company} · ${app.title}`}
+      title="Log to Timeline"
+      icon="clock"
       onClose={sheets.close}
       footer={
         <>
@@ -153,11 +153,11 @@ export function EventSheet({
       {type === 'meeting' && (
         <>
           <Field label="Kind">
-            <SlideToggle
-              label="Kind"
+            {/* Six kinds: a dropdown, not a toggle. */}
+            <Select
               value={kind}
-              onChange={setKind}
-              options={MEETING_KINDS.map((k) => [k.key, k.label] as const)}
+              onChange={(v) => setKind(v as typeof kind)}
+              groups={[{ options: MEETING_KINDS.map((k) => ({ value: k.key, label: k.label })) }]}
             />
           </Field>
           <Field label="Name">
@@ -305,6 +305,10 @@ export function EventSheet({
 
       {type === 'note' && (
         <>
+          {/* Title (full width), then the note, then when (on its own, at the left). */}
+          <Field label="Title (optional)">
+            <input className="in" value={title} onChange={(e) => setTitle(e.target.value)} />
+          </Field>
           <Field label="Note">
             <AutoTextarea
               className="in"
@@ -314,14 +318,11 @@ export function EventSheet({
               onChange={(e) => setBody(e.target.value)}
             />
           </Field>
-          <div className="two">
-            <Field label="Title (optional)">
-              <input className="in" value={title} onChange={(e) => setTitle(e.target.value)} />
-            </Field>
-            <Field label="When">
+          <Field label="When">
+            <div className="when-left">
               <DateTimeField label="When" value={when} onChange={setWhen} />
-            </Field>
-          </div>
+            </div>
+          </Field>
           {parents.length > 0 && (
             <Field label="About">
               <Select

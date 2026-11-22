@@ -4,7 +4,7 @@
 // job's copies come first, then the whole bank. The notepad saves itself into one note on
 // the job's timeline (on the meeting, if there is one) and stays on screen; ending the call
 // asks how it went and saves that as its own note.
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { meetingKindLabel } from '@shared/lookups';
 import { frameworkOf, searchStories } from '@shared/logic/stories';
@@ -13,9 +13,15 @@ import { sectionLetter, type FrameworkSection } from '@shared/frameworks';
 import type { JobStory, MeetingData, Story, TimelineEvent } from '@shared/types';
 import { useActions, useData } from '../lib/queries';
 import { whenLabel } from '../lib/format';
-import { Asterisk } from '../components/Brand';
 import { Icon } from '../components/Icon';
 import { AutoTextarea, Field, Sheet, cx } from '../components/ui';
+import './callmode.css';
+
+// The notes editor (CodeMirror) is big: it loads on its own, after the page.
+const NotesEditor = lazy(() => import('../components/notes/NotesEditor'));
+
+const MOD =
+  typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl+';
 
 type Item = (JobStory | Story) & { kind: 'job' | 'bank'; defs: FrameworkSection[] };
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
@@ -76,10 +82,12 @@ export function CallMode() {
   }, []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const el = document.activeElement as HTMLElement | null;
       if (
         e.key === '/' &&
-        document.activeElement?.tagName !== 'INPUT' &&
-        document.activeElement?.tagName !== 'TEXTAREA'
+        el?.tagName !== 'INPUT' &&
+        el?.tagName !== 'TEXTAREA' &&
+        !el?.isContentEditable
       ) {
         e.preventDefault();
         searchRef.current?.focus();
@@ -222,40 +230,51 @@ export function CallMode() {
     <button
       key={i.id}
       type="button"
-      className={cx('srow', current?.id === i.id && 'on', i.kind === 'bank' && 'bank')}
+      className={cx('cmv-row', current?.id === i.id && 'on')}
+      aria-pressed={current?.id === i.id}
       onClick={() => setSel(i.id)}
     >
-      <span className="srow-top">
-        <strong>{i.title}</strong>
-      </span>
-      <span className="srow-hook">
-        {frameworkOf(i.framework_key, data.state.frameworks)?.name ?? i.framework_key}
-      </span>
+      <strong>{i.title}</strong>
+      <span>{frameworkOf(i.framework_key, data.state.frameworks)?.name ?? i.framework_key}</span>
     </button>
   );
   const jobHits = hits.filter((h) => h.item.kind === 'job').map((h) => h.item);
   const bankHits = hits.filter((h) => h.item.kind === 'bank').map((h) => h.item);
 
+  const notesStatus =
+    saveState === 'saving'
+      ? 'Saving…'
+      : saveState === 'error'
+        ? 'Couldn’t save yet; kept on this device.'
+        : saveState === 'saved'
+          ? `Saved to the timeline${meeting ? ', on the meeting' : ''}.`
+          : 'Saves as you type.';
+
   return (
-    <div className="call">
-      <header className="call-bar">
-        <Asterisk size={22} />
-        <span className="call-tag">CALL MODE</span>
-        <strong className="call-name">
-          {meeting ? meeting.title || meetingKindLabel(md!.kind) : 'Interview'} · {a.company}
-        </strong>
-        <span className="call-sub">
-          {a.title}
-          {meeting ? ` · ${whenLabel(meeting.occurred_at)}` : ''}
+    <div className="cmv">
+      <header className="cmv-bar">
+        <Link className="btn sm cmv-back" to={`/a/${a.id}`}>
+          <Icon name="back" size={16} /> Back
+        </Link>
+        <span className={cx('cmv-badge', live && 'live')}>
+          <i aria-hidden="true" />
+          CALL MODE
         </span>
-        <span className="call-clock mono">
-          {live ? (
-            <>
-              <i className="live" /> LIVE {clock(now - start!)}
-            </>
-          ) : start && start > now ? (
-            `Starts in ${clock(start - now)}`
-          ) : null}
+        <div className="cmv-title">
+          <strong>
+            {meeting ? meeting.title || meetingKindLabel(md!.kind) : 'Interview'} · {a.company}
+          </strong>
+          <span>
+            {a.title}
+            {meeting ? ` · ${whenLabel(meeting.occurred_at)}` : ''}
+          </span>
+        </div>
+        <span className="cmv-clock">
+          {live
+            ? clock(now - start!)
+            : start && start > now
+              ? `Starts in ${clock(start - now)}`
+              : null}
         </span>
         {md?.join_url && (
           <a className="btn sm" href={md.join_url} target="_blank" rel="noreferrer">
@@ -264,7 +283,7 @@ export function CallMode() {
         )}
         <button
           type="button"
-          className="btn sm primary"
+          className="btn sm cmv-end"
           onClick={() => {
             void save();
             setEnding(true);
@@ -274,79 +293,70 @@ export function CallMode() {
         </button>
       </header>
 
-      <div className="call-cols">
-        <aside className="call-left">
-          {meeting && attendees.length > 0 && (
-            <section className="card">
-              <span className="lbl">In the room</span>
-              {md!.attendees.map((p) => (
-                <div key={p.name} className="room-p">
-                  <strong>{p.name}</strong>
-                  {p.title && <span className="sub"> · {p.title}</span>}
-                </div>
-              ))}
-            </section>
-          )}
-          {md?.agenda && (
-            <section className="card">
-              <span className="lbl">Topics</span>
-              <p className="pre">{md.agenda}</p>
-            </section>
-          )}
-          <section className="card">
-            <span className="lbl">Call notes</span>
-            <p className="sub" aria-live="polite">
-              {saveState === 'saving'
-                ? 'Saving…'
-                : saveState === 'error'
-                  ? 'Couldn’t save yet; kept on this device.'
-                  : `${saveState === 'saved' ? 'Saved' : 'Saves as you type'} to this job’s timeline${meeting ? ', on the meeting' : ''}.`}
-            </p>
-            <AutoTextarea
-              className="in"
-              rows={5}
-              value={notes}
-              onChange={(e) => typeNotes(e.target.value)}
-              onBlur={() => void save()}
-            />
-          </section>
-        </aside>
-
-        <article className="call-reader card">
-          {current ? (
-            <>
-              <div className="reader-meta">
-                <span className="lbl">
-                  {frameworkOf(current.framework_key, data.state.frameworks)?.name ??
-                    current.framework_key}{' '}
-                  · {current.kind === 'job' ? 'linked to this job' : 'from Stories'}
-                </span>
-              </div>
-              <h2 className="reader-title">{current.title}</h2>
-              {'angle' in current && current.angle && (
-                <div className="angle-line big">{current.angle}</div>
-              )}
-              {current.defs.map((d) =>
-                current.sections[d.key]?.trim() ? (
-                  <div key={d.key} className="reader-sec">
-                    <b aria-hidden="true">{sectionLetter(d.label)}</b>
-                    <div>
-                      <span className="lbl">{d.label}</span>
-                      <p className="pre">{current.sections[d.key]}</p>
+      <div className="cmv-grid">
+        <div className="cmv-left">
+          {((meeting && attendees.length > 0) || md?.agenda) && (
+            <div className="cmv-info">
+              {meeting && attendees.length > 0 && (
+                <section className="cmv-card">
+                  <h2 className="cmv-h">In the Room</h2>
+                  {md!.attendees.map((p) => (
+                    <div key={p.name} className="cmv-person">
+                      <strong>{p.name}</strong>
+                      {p.title && <span> · {p.title}</span>}
                     </div>
-                  </div>
-                ) : null,
+                  ))}
+                </section>
               )}
-            </>
-          ) : (
-            <p className="empty">
-              No stories yet. Add some in <Link to="/stories">Stories</Link>.
-            </p>
+              {md?.agenda && (
+                <section className="cmv-card">
+                  <h2 className="cmv-h">Topics</h2>
+                  <p className="cmv-pre">{md.agenda}</p>
+                </section>
+              )}
+            </div>
           )}
-        </article>
+          <section className="cmv-card cmv-notes">
+            <div className="cmv-notes-head">
+              <h2 className="cmv-h">Call Notes</h2>
+              <span className={cx('cmv-save', saveState === 'error' && 'bad')} aria-live="polite">
+                {notesStatus}
+              </span>
+            </div>
+            <Suspense fallback={<div className="notes-editor cmv-notes-wait" />}>
+              <NotesEditor
+                value={notes}
+                onChange={typeNotes}
+                onBlur={() => void save()}
+                label="Call notes"
+                placeholder="Jot it down as you go…"
+              />
+            </Suspense>
+            <p className="cmv-hints" aria-hidden="true">
+              <span>
+                <kbd>{MOD}B</kbd> bold
+              </span>
+              <span>
+                <kbd>{MOD}I</kbd> italic
+              </span>
+              <span>
+                <kbd>{MOD}U</kbd> underline
+              </span>
+              <span>
+                <kbd>-</kbd> list
+              </span>
+              <span>
+                <kbd>1.</kbd> numbered
+              </span>
+              <span>
+                <kbd>[ ]</kbd> task
+              </span>
+            </p>
+          </section>
+        </div>
 
-        <aside className="call-right">
-          <label className="call-search">
+        <section className="cmv-card cmv-stories">
+          <label className="cmv-search">
             <Icon name="search" size={18} />
             <input
               ref={searchRef}
@@ -361,17 +371,62 @@ export function CallMode() {
             />
             <kbd>/</kbd>
           </label>
-          <span className="lbl">This job · {jobHits.length}</span>
-          {jobHits.map(row)}
-          <span className="lbl">Full bank · {bankHits.length}</span>
-          {bankHits.map(row)}
-          {!hits.length && <p className="sub">Nothing matches. Try fewer words.</p>}
-        </aside>
+          <div className="cmv-stories-body">
+            <div className="cmv-list">
+              {jobHits.length > 0 && (
+                <>
+                  <span className="cmv-group">This job · {jobHits.length}</span>
+                  {jobHits.map(row)}
+                </>
+              )}
+              {bankHits.length > 0 && (
+                <>
+                  <span className="cmv-group">Story Bank · {bankHits.length}</span>
+                  {bankHits.map(row)}
+                </>
+              )}
+              {!hits.length && items.length > 0 && (
+                <p className="cmv-empty">Nothing matches. Try fewer words.</p>
+              )}
+            </div>
+            <article className="cmv-reader">
+              {current ? (
+                <>
+                  <span className="cmv-meta">
+                    {frameworkOf(current.framework_key, data.state.frameworks)?.name ??
+                      current.framework_key}{' '}
+                    · {current.kind === 'job' ? 'linked to this job' : 'from Stories'}
+                  </span>
+                  <h2 className="cmv-reader-title">{current.title}</h2>
+                  {'angle' in current && current.angle && (
+                    <div className="cmv-angle">{current.angle}</div>
+                  )}
+                  {current.defs.map((d) =>
+                    current.sections[d.key]?.trim() ? (
+                      <div key={d.key} className="cmv-sec">
+                        <b aria-hidden="true">{sectionLetter(d.label)}</b>
+                        <div>
+                          <span className="cmv-sec-label">{d.label}</span>
+                          <p className="cmv-pre">{current.sections[d.key]}</p>
+                        </div>
+                      </div>
+                    ) : null,
+                  )}
+                </>
+              ) : (
+                <p className="cmv-empty">
+                  No stories yet. Add some in <Link to="/stories">Stories</Link>.
+                </p>
+              )}
+            </article>
+          </div>
+        </section>
       </div>
 
       {ending && (
         <Sheet
-          title="How did it go?"
+          title="How Did It Go?"
+          icon="smile"
           sub="Your call notes are already saved."
           onClose={() => void leave(false)}
           footer={

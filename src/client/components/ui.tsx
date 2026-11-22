@@ -74,6 +74,25 @@ export function Select({
     document.addEventListener('pointerdown', away);
     return () => document.removeEventListener('pointerdown', away);
   });
+  // Where the list opens: below, unless the scrolling area it's in (a sheet's body, above its
+  // footer) or the window has too little room there and more above, then above. Opening below,
+  // it scrolls that area just enough to show the whole list, so nothing sits under the footer.
+  const [up, setUp] = useState(false);
+  useLayoutEffect(() => {
+    if (!open || !btn.current || !list.current) return;
+    const b = btn.current.getBoundingClientRect();
+    let area: HTMLElement | null = btn.current.parentElement;
+    while (area && !/(auto|scroll|hidden)/.test(getComputedStyle(area).overflowY))
+      area = area.parentElement;
+    const box = area ? area.getBoundingClientRect() : { top: 0, bottom: innerHeight };
+    const top = Math.max(box.top, 0);
+    const bottom = Math.min(box.bottom, innerHeight);
+    const need = Math.min(list.current.scrollHeight, 280) + 8;
+    const flip = bottom - b.bottom < need && b.top - top > bottom - b.bottom;
+    setUp(flip);
+    if (!flip && bottom - b.bottom < need && area)
+      area.scrollBy({ top: need - (bottom - b.bottom) + 8 });
+  }, [open]);
   useEffect(() => {
     if (!open || hi < 0) return;
     list.current?.querySelector(`[data-i="${hi}"]`)?.scrollIntoView({ block: 'nearest' });
@@ -129,7 +148,7 @@ export function Select({
         <Icon name="chevDown" size={16} />
       </button>
       {open && (
-        <div className="sel-list" role="listbox" id={listId} ref={list}>
+        <div className={cx('sel-list', up && 'up')} role="listbox" id={listId} ref={list}>
           {groups.map((g, gi) =>
             g.options.length ? (
               <div key={g.label ?? gi} role="group" aria-label={g.label}>
@@ -167,12 +186,15 @@ export function TagInput({
   suggestions,
   decorate,
   placeholder,
+  autoFocus,
 }: {
   value: string[];
   onChange: (v: string[]) => void;
   suggestions: string[];
   decorate?: (s: string) => string;
   placeholder?: string;
+  /** Put the cursor in the field straight away (editing in place), so clicking away closes it. */
+  autoFocus?: boolean;
 }) {
   const [draft, setDraft] = useState('');
   const has = (s: string) => value.some((v) => v.toLowerCase() === s.toLowerCase());
@@ -205,6 +227,7 @@ export function TagInput({
         </div>
       )}
       <input
+        autoFocus={autoFocus}
         className="in"
         value={draft}
         placeholder={placeholder ?? 'Type to add'}
@@ -400,12 +423,15 @@ export function ConfirmDialog({
  */
 export function Sheet({
   title,
+  icon,
   sub,
   onClose,
   children,
   footer,
 }: {
   title: ReactNode;
+  /** An icon on the tilted tile before the title, as on page headings. */
+  icon?: IconName;
   sub?: ReactNode;
   onClose: () => void;
   children: ReactNode;
@@ -484,7 +510,14 @@ export function Sheet({
           <div className="handle" />
           <div className="sh-head">
             <div style={{ minWidth: 0 }}>
-              <h2 id={titleId}>{title}</h2>
+              <h2 id={titleId} className={icon ? 'sh-title-ic' : undefined}>
+                {icon && (
+                  <span className="h-icon" aria-hidden="true">
+                    <Icon name={icon} size={20} />
+                  </span>
+                )}
+                {title}
+              </h2>
               {sub ? <div className="sub">{sub}</div> : null}
             </div>
             <button type="button" className="xbtn" onClick={onClose} aria-label="Close">
@@ -720,6 +753,7 @@ export function FilterSheet({
   return (
     <Sheet
       title="Filters"
+      icon="filter"
       onClose={onClose}
       footer={
         <>

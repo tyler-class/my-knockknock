@@ -2153,57 +2153,67 @@ textarea.in {
 }
 
 /* =============================================================================================
-   Knock Knock layer: black, white, one hi-vis yellow. Hard 1.5px ink borders; anything you can
-   press rises off the page on a solid extrusion when hovered and sinks flat when pressed.
+   Knock Knock layer. Its tokens (below) set the 1.0 Ultramarine look; the 1.0 layer at the end of
+   the file finishes it (rounded cards, pill buttons, tabs, stage bar, status icons).
    ============================================================================================= */
 
 :root {
-  /* The page is a very light grey so white cards stand off it. */
-  --bg: #f3f3f0;
+  /* Knock Knock 1.0, Ultramarine: a light grey page, white rounded cards with soft shadows, one
+     deep ultramarine accent. Bold type (Bricolage Grotesque headings, an all-caps narrow Archivo
+     wordmark), no hard ink borders or extrusions. */
+  --bg: #ebedf1;
   --surface: #ffffff;
-  --surface2: #f1f1ec;
-  --ink: #0b0b0b;
-  --ink2: #4a4a46;
-  --line: #0b0b0b;
-  --rule: #e2e2dd;
-  --accent: #ffe14d;
-  --accent-ink: #0b0b0b;
-  --accent-soft: #fff6c7;
-  /* The selected / current state (active nav item, chosen option, picked segment): a light tint
-     of the yellow with ink text, so the black extrusion still reads on hover. Never solid black. */
-  --sel: #fff09a;
-  --good: #0e6a2c;
-  --good-soft: #cff3d8;
-  --warn: #6b4e00;
-  --warn-soft: #ffe14d;
-  --bad: #a3141a;
-  --bad-soft: #ffe1de;
-  --blue: #1d3db8;
-  --blue-soft: #dce5ff;
-  --good-ink: #0e6a2c;
-  --warn-ink: #0b0b0b;
-  --bad-ink: #a3141a;
-  --blue-ink: #1d3db8;
-  --scrim: rgb(11 11 11 / 0.55);
-  --sh: none;
-  --ext: #0b0b0b;
-  --ext2: 1px 1px 0 var(--ext), 2px 2px 0 var(--ext);
-  --ext4: 1px 1px 0 var(--ext), 2px 2px 0 var(--ext), 3px 3px 0 var(--ext), 4px 4px 0 var(--ext);
-  --ext6: var(--ext4), 5px 5px 0 var(--ext), 6px 6px 0 var(--ext);
-  --flow-open: #a9a9a2;
+  --surface2: #f3f4f7;
+  --ink: #1a1d24;
+  --ink2: #5c6370;
+  /* Quiet text that still reads: 4.5:1 or better on white and on the page grey. */
+  --ink3: #646b78;
+  --line: #e1e4ea;
+  --line2: #d9dce3;
+  --edge: #d9dce3;
+  --rule: #e1e4ea;
+  --accent: #2b3fd0;
+  --accent-deep: #2131a6;
+  --accent-ink: #ffffff;
+  --accent-soft: #e4e8fd;
+  --accent-mid: #aeb9f2;
+  --accent-glow: rgb(43 63 208 / 0.28);
+  --sel: #e4e8fd;
+  --good: #137a4f;
+  --good-soft: #d8f2e5;
+  --warn: #8a5a00;
+  --warn-soft: #fff1c9;
+  --bad: #b4231c;
+  --bad-soft: #ffe3e0;
+  --blue: #2131a6;
+  --blue-soft: #e4e8fd;
+  --good-ink: #137a4f;
+  --warn-ink: #6b4500;
+  --bad-ink: #b4231c;
+  --blue-ink: #2131a6;
+  --scrim: rgb(20 24 36 / 0.42);
+  --sh: 0 10px 30px rgb(20 30 50 / 0.06);
+  --sh-lift: 0 14px 34px rgb(20 30 50 / 0.12);
+  --ext: transparent;
+  --ext2: var(--sh-lift);
+  --ext4: var(--sh-lift);
+  --ext6: var(--sh-lift);
+  --flow-open: #aeb9f2;
   --flow-rejected: #e5544c;
-  --flow-ghosted: #cfcfc8;
-  --flow-declined: #5e5e59;
-  --display: 'Archivo Variable', 'Archivo', system-ui, sans-serif;
+  --flow-ghosted: #c9ccd3;
+  --flow-declined: #8a909c;
+  --brand: 'Archivo Variable', 'Archivo', system-ui, sans-serif;
+  --display: 'Bricolage Grotesque Variable', 'Bricolage Grotesque', system-ui, sans-serif;
   --serif: var(--display);
-  --sans: 'Geist Variable', 'Geist', system-ui, -apple-system, sans-serif;
+  --sans: 'Manrope Variable', 'Manrope', system-ui, -apple-system, sans-serif;
   --mono: 'Geist Mono Variable', 'Geist Mono', ui-monospace, monospace;
-  --glass-fill: rgb(255 255 255 / 0.72);
+  --radius: 22px;
+  --glass-fill: rgb(255 255 255 / 0.78);
   --glass-solid: rgb(255 255 255 / 0.97);
-  --glass-edge: rgb(11 11 11 / 0.9);
-  --glass-shadow: 0 10px 30px rgb(0 0 0 / 0.14);
-  --glass-lens: rgb(255 225 77 / 0.55);
-  --glass-label: #2a2a27;
+  --glass-edge: rgb(20 30 50 / 0.08);
+  --glass-shadow: 0 10px 30px rgb(20 30 50 / 0.16);
+  --glass-lens: #e4e8fd;
+  --glass-label: #4c5260;
 }
 body {
   font-family: var(--sans);
@@ -2339,7 +2349,7 @@ time {
   .ev-card.open:hover,
   .status-opt:hover:not([disabled]),
   .search-switch:hover {
-    transform: translate(-4px, -4px);
+    transform: none;
     box-shadow: var(--ext4);
   }
   /* A ghost button gets its outline back when it lifts, so it never floats borderless. */
@@ -2348,13 +2358,13 @@ time {
     background: var(--surface);
   }
   .fab:hover {
-    transform: translate(-4px, -4px);
+    transform: none;
     box-shadow: var(--ext4);
   }
   .side nav a:hover {
     background: var(--surface);
     border-color: var(--ink);
-    transform: translate(-3px, -3px);
+    transform: none;
     box-shadow:
       var(--ext2),
       3px 3px 0 var(--ext);
@@ -2374,7 +2384,7 @@ time {
   box-shadow: none;
 }
 .btn {
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--edge);
   border-radius: 6px;
   background: var(--surface);
   color: var(--ink);
@@ -2384,7 +2394,7 @@ time {
   background: var(--accent);
   border-color: var(--ink);
   color: var(--accent-ink);
-  transform: translate(-2px, -2px);
+  transform: none;
   box-shadow: var(--ext2);
 }
 .btn.ghost {
@@ -2424,12 +2434,12 @@ time {
 /* ---------- surfaces ---------- */
 
 .card {
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--edge);
   border-radius: 8px;
   box-shadow: none;
 }
 .in {
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--edge);
   border-radius: 6px;
 }
 .in:focus {
@@ -2456,7 +2466,7 @@ time {
   flex: none;
   width: 44px;
   height: 44px;
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--edge);
   border-radius: 12px;
   background: var(--accent);
   color: var(--ink);
@@ -2490,7 +2500,7 @@ time {
 }
 .tag.key {
   background: var(--accent-soft);
-  border: 1px solid var(--ink);
+  border: 1px solid var(--edge);
   font-family: var(--mono);
 }
 .tag.hit {
@@ -2499,7 +2509,7 @@ time {
   font-weight: 700;
 }
 .chip {
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--edge);
   border-radius: 999px;
   color: var(--ink);
 }
@@ -2510,7 +2520,7 @@ time {
 }
 .callout {
   background: var(--accent-soft);
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--edge);
   border-radius: 8px;
   padding: 12px 14px;
   margin-top: 14px;
@@ -2572,7 +2582,7 @@ time {
 /* Statuses carry an icon, not a colour: every chip is the same plain chip. */
 .st {
   gap: 5px;
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--edge);
   background: var(--surface);
 }
 .st svg {
@@ -2593,7 +2603,7 @@ time {
 /* ---------- shell ---------- */
 
 .appbar {
-  border-bottom: 1.5px solid var(--ink);
+  border-bottom: 1.5px solid var(--edge);
 }
 .appbar .brand {
   font-size: 16px;
@@ -2603,14 +2613,14 @@ time {
   height: 58px;
   background: var(--accent);
   color: var(--accent-ink);
-  border: 1.5px solid var(--ink);
-  transform: translate(-2px, -2px);
+  border: 1.5px solid var(--edge);
+  transform: none;
   box-shadow: var(--ext2);
 }
 @media (min-width: 768px) {
   .side {
     background: var(--bg);
-    border-right: 1.5px solid var(--ink);
+    border-right: 1.5px solid var(--edge);
     gap: 10px;
   }
   .side-brand {
@@ -2652,7 +2662,7 @@ time {
   gap: 2px;
   margin: 0 4px;
   padding: 10px 12px;
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--edge);
   border-radius: 6px;
   background: var(--surface);
   color: var(--ink);
@@ -2707,7 +2717,7 @@ time {
   max-height: min(70vh, 460px);
   overflow-y: auto;
   padding: 6px;
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--edge);
   border-radius: 8px;
   background: var(--surface);
   box-shadow: var(--ext4);
@@ -2773,7 +2783,7 @@ time {
   cursor: default;
 }
 .kpi-btn:focus-visible {
-  outline: 2px solid var(--ink);
+  outline: 2px solid var(--edge);
   outline-offset: -4px;
 }
 .home-kpis .kpi-l {
@@ -2795,7 +2805,7 @@ time {
   gap: 8px;
   height: 42px;
   padding: 0 12px;
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--edge);
   border-radius: 6px;
   background: var(--surface);
   flex: 1 1 220px;
@@ -2809,7 +2819,7 @@ time {
   width: 100%;
 }
 .slide {
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--edge);
   background: var(--surface2);
   width: fit-content;
   max-width: 100%;
@@ -2864,7 +2874,7 @@ time {
 .bar {
   flex: 0 1 260px;
   height: 12px;
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--edge);
   border-radius: 3px;
   background: var(--surface);
   overflow: hidden;
@@ -2875,7 +2885,7 @@ time {
   background: var(--ink);
 }
 .next-card {
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--edge);
   border-radius: 8px;
   background: var(--accent);
   color: var(--accent-ink);
@@ -2898,7 +2908,7 @@ time {
   text-decoration: none;
 }
 .row-card {
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--edge);
   border-radius: 8px;
   background: var(--surface);
   padding: 10px 12px;
@@ -2969,7 +2979,7 @@ time {
   justify-content: center;
   width: 30px;
   height: 30px;
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--edge);
   border-radius: 6px;
   background: var(--surface);
   color: var(--ink);
@@ -3042,7 +3052,7 @@ time {
   flex-direction: column;
   gap: 9px;
   padding: 12px;
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--edge);
   border-radius: 6px;
   background: var(--surface);
   color: inherit;
@@ -3073,7 +3083,7 @@ time {
   height: 8px;
   border-radius: 2px;
   background: var(--accent);
-  outline: 1.5px solid var(--ink);
+  outline: 1.5px solid var(--edge);
   flex: none;
 }
 .closed-col {
@@ -3375,7 +3385,7 @@ h1.title {
   left: 19px;
   top: 10px;
   bottom: 10px;
-  border-left: 2px solid var(--ink);
+  border-left: 2px solid var(--edge);
 }
 .tl-label {
   padding-left: 54px;
@@ -3393,14 +3403,14 @@ h1.title {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--edge);
   background: var(--surface);
   color: var(--ink);
   display: grid;
   place-items: center;
 }
 .ev-card {
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--edge);
   border-radius: 8px;
   background: var(--surface);
   padding: 12px 14px;
@@ -3456,7 +3466,7 @@ h1.title {
 @keyframes ev-flash {
   0%,
   45% {
-    outline: 2.5px solid var(--ink);
+    outline: 2.5px solid var(--edge);
     outline-offset: 3px;
   }
   100% {
@@ -3468,7 +3478,7 @@ h1.title {
   .ev.flash > .ev-card,
   .nested-note.flash {
     animation: none;
-    outline: 2.5px solid var(--ink);
+    outline: 2.5px solid var(--edge);
     outline-offset: 3px;
   }
 }
@@ -3557,7 +3567,7 @@ h1.title {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--edge);
   display: grid;
   place-items: center;
   font-size: 12px;
@@ -3616,7 +3626,7 @@ h1.title {
   font-weight: 700;
   padding: 3px 7px;
   border-radius: 4px;
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--edge);
   white-space: nowrap;
 }
 .sync-edited,
@@ -3644,7 +3654,7 @@ h1.title {
   padding: 8px 12px;
   background: var(--accent);
   color: var(--accent-ink);
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--edge);
   border-radius: 6px;
 }
 .angle-line.big {
@@ -3705,7 +3715,7 @@ h1.title {
   align-items: center;
   gap: 6px;
   padding: 12px 6px;
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--edge);
   border-radius: 8px;
   background: var(--surface);
   color: var(--ink);
@@ -3750,7 +3760,7 @@ h1.title {
   flex-direction: column;
   gap: 8px;
   padding: 14px;
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--edge);
   border-radius: 8px;
   background: var(--surface);
   color: var(--ink);
@@ -3811,7 +3821,7 @@ h1.title {
 .compare {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--edge);
   border-radius: 6px;
   overflow: hidden;
   background: var(--surface);
@@ -3825,7 +3835,7 @@ h1.title {
   font-size: 13px;
 }
 .compare-col + .compare-col {
-  border-left: 1.5px solid var(--ink);
+  border-left: 1.5px solid var(--edge);
   background: var(--surface2);
 }
 .compare p {
@@ -3868,7 +3878,7 @@ textarea.in.angle {
   flex-direction: column;
   gap: 8px;
   padding: 14px;
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--edge);
   border-radius: 8px;
   background: var(--surface);
   color: var(--ink);
@@ -3885,7 +3895,7 @@ textarea.in.angle {
 .kpis {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--edge);
   border-radius: 8px;
   overflow: hidden;
   background: var(--surface);
@@ -3993,7 +4003,7 @@ textarea.in.angle {
   align-items: flex-end;
   gap: 6px;
   height: 150px;
-  border-bottom: 1.5px solid var(--ink);
+  border-bottom: 1.5px solid var(--edge);
   margin-top: 10px;
 }
 .wk {
@@ -4011,7 +4021,7 @@ textarea.in.angle {
   width: 100%;
   min-height: 2px;
   background: var(--surface);
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--edge);
   border-bottom: 0;
 }
 
@@ -4178,7 +4188,7 @@ textarea.in.angle {
   gap: 8px;
   height: 48px;
   padding: 0 12px;
-  border: 2px solid var(--ink);
+  border: 2px solid var(--edge);
   border-radius: 8px;
   background: var(--surface);
   box-shadow:
@@ -4196,7 +4206,7 @@ textarea.in.angle {
 .call-search kbd {
   font-family: var(--mono);
   font-size: 11px;
-  border: 1px solid var(--ink);
+  border: 1px solid var(--edge);
   border-radius: 3px;
   padding: 1px 5px;
 }
@@ -4209,7 +4219,7 @@ textarea.in.angle {
   flex-direction: column;
   gap: 4px;
   padding: 10px 12px;
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--edge);
   border-radius: 6px;
   background: var(--surface);
   color: var(--ink);
@@ -4378,7 +4388,7 @@ textarea.in.angle {
   display: flex;
   gap: 4px;
   margin: 8px 0 18px;
-  border-bottom: 1.5px solid var(--ink);
+  border-bottom: 1.5px solid var(--edge);
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior: contain;
@@ -4491,7 +4501,7 @@ textarea.in.angle {
    a small white tile with an ink outline, raised on a hard shadow (like the app's other tiles). */
 .slide {
   background: var(--surface);
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--edge);
 }
 .slide-thumb {
   background: var(--surface);
@@ -4541,7 +4551,7 @@ textarea.in.angle {
   color: var(--ink);
   font-weight: 750;
   box-shadow: var(--ext2);
-  transform: translate(-2px, -2px);
+  transform: none;
 }
 
 /* The asterisk sits close to the wordmark (about a third less room than before). */
@@ -4737,7 +4747,7 @@ textarea.in.angle {
   z-index: 90;
   width: min(296px, calc(100vw - 16px));
   padding: 10px;
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--edge);
   border-radius: 6px;
   background: var(--surface);
   color: var(--ink);
@@ -4746,7 +4756,7 @@ textarea.in.angle {
 }
 /* Keyboard focus inside the pop-up is an ink ring: no yellow outlines on white. */
 .dt-pop :focus-visible {
-  outline: 2px solid var(--ink);
+  outline: 2px solid var(--edge);
   outline-offset: 1px;
 }
 .cal-head {
@@ -4768,7 +4778,7 @@ textarea.in.angle {
   width: 34px;
   height: 34px;
   padding: 0;
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--edge);
   border-radius: 6px;
   background: var(--surface);
   color: var(--ink);
@@ -4881,7 +4891,7 @@ textarea.in.angle {
   .time-opt:hover {
     border-color: var(--ink);
     background-color: var(--surface);
-    transform: translate(-2px, -2px);
+    transform: none;
     box-shadow: var(--ext2);
   }
   .cal-day.on:hover,
@@ -5012,7 +5022,7 @@ textarea.in.angle {
   cursor: pointer;
 }
 .ev-card.open:focus-visible {
-  outline: 2.5px solid var(--ink);
+  outline: 2.5px solid var(--edge);
   outline-offset: 3px;
 }
 
@@ -5072,7 +5082,7 @@ textarea.in.angle {
   width: 100%;
   max-width: 380px;
   background: var(--surface);
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--edge);
   border-radius: 8px;
   box-shadow: var(--ext6);
   padding: 20px;
@@ -5130,4 +5140,2156 @@ textarea.in.angle {
 }
 .nested-note .more {
   align-self: flex-start;
+}
+
+/* =============================================================================================
+   Knock Knock 1.0: Ultramarine. A light grey page, white rounded cards with soft shadows, pill
+   buttons, one deep ultramarine accent, Bricolage Grotesque headings over Manrope, and the
+   narrow all-caps Archivo wordmark beside the asterisk on its tilted tile. Nothing lifts on an
+   extrusion: hovers shade softly. Comes last so it settles the look over the layers above.
+   ============================================================================================= */
+
+body {
+  background: var(--bg);
+  font-family: var(--sans);
+  color: var(--ink);
+}
+h1,
+h2,
+h3,
+.sec-title,
+.page-h h1 {
+  font-family: var(--display);
+  font-stretch: 100%;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+h2 {
+  font-weight: 800;
+}
+
+/* ---- the marks ---- */
+.wordmark {
+  padding: 0;
+  font-family: var(--brand);
+  font-stretch: 70%;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.wordmark.pop {
+  font-size: 44px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 24px;
+  cursor: pointer;
+}
+.mark {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: var(--accent);
+  color: #fff;
+  transform: rotate(-8deg);
+}
+.mark .asterisk {
+  color: #fff;
+}
+.appbar .brand {
+  font-size: 20px;
+}
+.appbar .mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+}
+.joke {
+  margin: 0;
+  padding: 0 12px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  font-weight: 600;
+  color: var(--ink3);
+}
+
+/* ---- shell ---- */
+.appbar {
+  background: var(--bg);
+  border-bottom: 0;
+}
+@media (min-width: 768px) {
+  .shell {
+    padding-left: 268px;
+  }
+  .side {
+    inset: calc(16px + var(--safe-top)) auto 16px 16px;
+    width: 236px;
+    padding: 22px 14px;
+    gap: 14px;
+    border: 0;
+    border-radius: 26px;
+    background: var(--surface);
+    box-shadow: var(--sh);
+  }
+  .side .brand {
+    padding: 0 6px 4px;
+  }
+  .side .btn.primary {
+    margin: 0;
+    width: 100%;
+  }
+  .side nav {
+    gap: 4px;
+  }
+  .side nav a {
+    gap: 12px;
+    padding: 10px 12px;
+    border: 0;
+    border-radius: 999px;
+    color: var(--ink2);
+    font-weight: 650;
+  }
+  .side nav a[aria-current='page'] {
+    background: var(--accent-soft);
+    color: var(--accent-deep);
+    font-weight: 800;
+    border: 0;
+  }
+  .side-about {
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 999px;
+    color: var(--ink2);
+    font-weight: 650;
+  }
+  .main {
+    padding: 28px 28px 48px 12px;
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  .side nav a:hover:not([aria-current='page']),
+  .side-about:hover {
+    background: var(--bg);
+    transform: none;
+    box-shadow: none;
+    border-color: transparent;
+  }
+}
+.search-switch {
+  border: 0;
+  border-radius: 16px;
+  background: var(--bg);
+}
+.search-pick .search-switch {
+  background: var(--bg);
+}
+
+/* ---- pressables: no lift, soft shading ---- */
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover:not([disabled]),
+  .kcard:hover,
+  .story-card:hover,
+  .fw-card:hover,
+  .srow:hover,
+  .type-tile:hover,
+  .ev-card.open:hover,
+  .status-opt:hover:not([disabled]),
+  .search-switch:hover,
+  .fab:hover {
+    transform: none;
+    box-shadow: var(--sh-lift);
+  }
+  .btn:hover:not([disabled]) {
+    box-shadow: none;
+    filter: brightness(0.97);
+  }
+  .btn.ghost:hover:not([disabled]) {
+    border-color: transparent;
+    background: var(--bg);
+  }
+}
+
+/* ---- buttons: pills ---- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 18px;
+  border: 1.5px solid var(--line2);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 800;
+  box-shadow: none;
+  transform: none;
+  text-decoration: none;
+}
+.btn.sm {
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 13px;
+}
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  transform: none;
+  box-shadow: 0 8px 20px var(--accent-glow);
+}
+.btn.ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--accent-deep);
+}
+.btn.danger {
+  background: var(--bad-soft);
+  border-color: transparent;
+  color: var(--bad);
+}
+.btn.linked {
+  background: var(--accent-soft);
+  border-color: transparent;
+  color: var(--accent-deep);
+}
+.linkish,
+.more {
+  color: var(--accent-deep);
+  font-weight: 800;
+  text-decoration: none;
+}
+.xbtn {
+  border-radius: 50%;
+}
+
+/* ---- surfaces ---- */
+.card {
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--sh);
+}
+.in,
+.dt-field {
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.in:focus,
+.in:focus-visible {
+  outline: 0;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.lbl {
+  font-family: var(--sans);
+  font-size: 12.5px;
+  font-weight: 750;
+  letter-spacing: 0;
+  color: var(--ink2);
+}
+.page-h h1 {
+  font-size: 30px;
+  gap: 14px;
+}
+.h-icon {
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--accent);
+  transform: rotate(-6deg);
+}
+.page-h h1 .h-icon svg {
+  color: #fff;
+}
+.tag {
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  font-weight: 750;
+}
+.tag.mono {
+  background: var(--bg);
+  color: var(--ink2);
+}
+.tag.key {
+  border: 0;
+  background: var(--accent-soft);
+}
+.tag.hit {
+  background: var(--accent);
+  color: #fff;
+}
+.chip {
+  border: 1.5px solid var(--line2);
+  border-radius: 999px;
+}
+.chip[aria-pressed='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-deep);
+}
+.callout {
+  border: 0;
+  border-radius: 18px;
+  background: var(--accent-soft);
+}
+.callout.warn {
+  background: var(--warn-soft);
+  color: var(--warn-ink);
+}
+.cmark {
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  font-family: var(--display);
+  font-stretch: 100%;
+}
+.card-h h2,
+.sec-title {
+  font-size: 17px;
+}
+
+/* ---- status: icon in a tinted round badge ---- */
+.st {
+  height: 26px;
+  padding: 0 11px 0 3px;
+  gap: 6px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--bg);
+  font-weight: 800;
+}
+.st.sm {
+  height: 22px;
+  padding: 0 9px 0 2px;
+}
+.sti-badge {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  border-radius: 50%;
+}
+.sti-badge .sti {
+  fill: none !important;
+  stroke-width: 2.6;
+}
+.sti-open {
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+}
+.sti-offer {
+  background: var(--good-soft);
+  color: var(--good);
+}
+.sti-accepted {
+  background: #1f9d6b;
+  color: #fff;
+}
+.sti-rejected {
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+.sti-closed {
+  background: #e6e8ec;
+  color: var(--ink2);
+}
+
+/* ---- tabs: underline and bold, the count in a circle ---- */
+.tabs {
+  gap: 6px;
+  border-bottom: 1px solid var(--line2);
+}
+.tab {
+  gap: 8px;
+  padding: 9px 14px;
+  border: 0;
+  border-bottom: 2.5px solid transparent;
+  border-radius: 0;
+  margin-bottom: -1px;
+  background: none;
+  color: var(--ink2);
+  font-weight: 600;
+}
+.tab[aria-selected='true'] {
+  background: none;
+  color: var(--ink);
+  font-weight: 800;
+  border-bottom-color: var(--ink);
+}
+.tab[aria-selected='true'] svg {
+  color: var(--ink);
+}
+.count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #dfe2e8;
+  color: var(--ink2);
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 800;
+}
+.tab[aria-selected='true'] .count,
+.count.on {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* ---- sliding toggles ---- */
+.slide {
+  border: 0;
+  border-radius: 999px;
+  background: #dfe2e8;
+}
+.slide-thumb {
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: 0 2px 8px rgb(20 30 50 / 0.1);
+}
+
+/* ---- the job: header card with the stage bar ---- */
+.app-head {
+  gap: 0;
+  padding: 20px 22px 16px;
+  margin-bottom: 16px;
+}
+.app-head-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.app-head-text {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+h1.title {
+  font-size: 30px;
+  letter-spacing: -0.035em;
+}
+.app-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin: 8px 0 0;
+  color: var(--ink2);
+  font-size: 13.5px;
+  font-weight: 650;
+}
+.app-meta > * + *::before {
+  content: '·';
+  margin-right: 10px;
+  color: var(--ink3);
+}
+.app-meta .app-co {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--ink);
+}
+.app-acts {
+  flex-wrap: wrap;
+}
+
+/* Stage bar: a row of segments, done ones in light ultramarine, the current one full. */
+.stepper {
+  margin: 16px 0 0;
+  padding: 14px 0 0;
+  gap: 8px;
+  border-top: 1px solid var(--line);
+}
+.stepper li {
+  margin-left: 0;
+  flex: 1 1 0;
+  min-width: 76px;
+}
+.stepper .chev {
+  display: none;
+}
+.stepper li button {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 7px;
+  min-height: 0;
+  padding: 0 2px !important;
+  color: var(--ink2);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.stepper li button::before {
+  content: '';
+  display: block;
+  width: 100%;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--line);
+}
+.stepper li button .sti-badge {
+  display: none;
+}
+.stepper li.done button {
+  color: var(--ink);
+}
+.stepper li.done button::before {
+  background: var(--accent-mid);
+}
+.stepper li.here button {
+  color: var(--accent-deep);
+  font-weight: 850;
+}
+.stepper li.here button::before {
+  background: var(--accent);
+}
+.stepper li.closed.here button {
+  color: var(--bad);
+}
+.stepper li.closed.here button::before {
+  background: var(--rejected, #e5544c);
+}
+@media (hover: hover) and (pointer: fine) {
+  .stepper li:not(.here):hover button {
+    color: var(--ink);
+  }
+  .stepper li:not(.here):hover button::before {
+    background: var(--accent-soft);
+  }
+}
+
+/* Fields edited in place: the value, and its editor in exactly the same spot, size and type. */
+.kv-v {
+  margin: 0 -10px;
+  width: calc(100% + 20px);
+  padding: 7px 10px;
+  border: 1.5px solid transparent;
+  border-radius: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+.ikv > .in {
+  width: calc(100% + 20px);
+  margin: 0 -10px;
+  min-height: 0;
+  padding: 7px 10px;
+  border: 1.5px solid var(--accent);
+  border-radius: 12px;
+  font: inherit;
+  font-weight: 800;
+  line-height: 1.35;
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+@media (hover: hover) and (pointer: fine) {
+  .kv-v:hover {
+    border-color: var(--line2);
+    background: var(--surface);
+  }
+}
+
+/* ---- jobs: search, board, rows ---- */
+.search-in {
+  height: 42px;
+  border: 1.5px solid var(--line2);
+  border-radius: 999px;
+  background: var(--surface);
+}
+.filter-btn {
+  border: 1.5px solid var(--line2);
+  border-radius: 50%;
+  background: var(--surface);
+}
+.filter-btn.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+}
+.col {
+  border: 0;
+  border-radius: 22px;
+  background: #e3e6ec;
+}
+.kcard {
+  border: 0;
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 2px 8px rgb(20 30 50 / 0.05);
+}
+.row-main,
+.prow,
+.srow,
+.recent,
+.person,
+.closed-line {
+  border-color: var(--line);
+}
+
+/* ---- timeline ---- */
+.ev-card {
+  border: 0;
+  border-radius: 22px;
+  background: var(--surface);
+  box-shadow: var(--sh);
+}
+.nested-note {
+  border: 1.5px solid var(--line);
+  border-radius: 16px;
+  background: transparent;
+}
+.ev-icon,
+.act-icon {
+  border: 0;
+  border-radius: 14px;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+/* ---- files: the add bar sits first ---- */
+.file-drop {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  padding: 12px 14px 12px 18px;
+  border: 2px dashed #c7ccd6;
+  border-radius: 18px;
+  color: var(--ink2);
+}
+.file-drop.over {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.file-drop-t {
+  display: flex;
+  flex-direction: column;
+}
+.file-drop-t strong {
+  color: var(--ink);
+}
+.file-drop .acts {
+  margin-left: auto;
+}
+
+/* ---- filter drawer choices ---- */
+.check-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.check-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.check-opt:hover {
+  background: var(--bg);
+}
+.check-opt .count {
+  margin-left: auto;
+}
+.check-box {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--line2);
+  border-radius: 6px;
+  color: #fff;
+}
+.check-opt.on .check-box {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ---- sheets, dialogs, glass bar ---- */
+.sheet {
+  border: 0;
+  border-radius: 26px 26px 0 0;
+  box-shadow: 0 -10px 40px rgb(10 15 40 / 0.2);
+}
+@media (min-width: 768px) {
+  .sheet {
+    border-radius: 26px;
+  }
+}
+.type-tile,
+.status-opt {
+  border: 2px solid transparent;
+  border-radius: 18px;
+  background: var(--bg);
+}
+.type-tile[aria-pressed='true'],
+.type-tile.on,
+.status-opt[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+}
+.confirm-box {
+  border: 0;
+  border-radius: 24px;
+}
+.glass-bar {
+  box-shadow: var(--glass-shadow);
+}
+.glass-lens {
+  background: var(--accent-soft);
+}
+.glass-tab[aria-current='page'],
+.glass-tab[data-lit] {
+  color: var(--accent-deep);
+}
+
+/* Icons are outlines in grey or ink, never filled with the accent (timeline, activity, page
+   titles, the phone tab bar); the job-added asterisk is plain ink. */
+.node svg,
+.act-icon svg,
+.h-icon svg,
+.glass-tab[data-lit] svg {
+  fill: none !important;
+}
+.h-icon[data-icon='chart'] svg,
+.glass-tab[data-lit][data-icon='chart'] svg {
+  background: none;
+  box-shadow: none;
+}
+.h-icon {
+  background: var(--accent);
+}
+.node .asterisk,
+.act-icon .asterisk {
+  color: var(--ink2);
+  filter: none;
+}
+.node,
+.act-icon {
+  border: 0;
+  background: var(--bg);
+  color: var(--ink);
+}
+/* What's next on Home, quiet-for-a-while and edited-copy markers: soft tints, not solid fills. */
+.next-card {
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+.quiet {
+  border-radius: 999px;
+  background: var(--warn-soft);
+  color: var(--warn-ink);
+}
+.hot {
+  border-radius: 50%;
+  outline: 0;
+}
+.sync-edited,
+.sync-both,
+.angle-line,
+.reader-sec > b {
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+}
+.bar {
+  border-radius: 999px;
+  overflow: hidden;
+}
+.bar > i,
+.bar i {
+  border-radius: 999px;
+  opacity: 0.75;
+}
+
+/* A long note under its meeting: about four lines, then Show more (the note can hold lists). */
+.nested-note .note-body.clamp {
+  display: block;
+  max-height: 6.4em;
+  overflow: hidden;
+  -webkit-line-clamp: unset;
+  line-clamp: none;
+  -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent);
+  mask-image: linear-gradient(180deg, #000 70%, transparent);
+}
+
+/* ---- number tiles (Home, Report): each its own white card, label over a big number ---- */
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
+  background: none;
+}
+.kpi,
+.kpi-btn {
+  gap: 4px;
+  padding: 16px 18px;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--sh);
+}
+.kpi-l {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink2);
+}
+.home-kpis .kpi-l {
+  min-height: 0;
+}
+.kpi-v {
+  font-family: var(--display);
+  font-stretch: 100%;
+  font-weight: 800;
+  font-size: 34px;
+  letter-spacing: -0.04em;
+}
+.home-kpis {
+  margin-bottom: 16px;
+}
+.page-sub strong {
+  color: var(--ink);
+  font-weight: 800;
+}
+
+/* The current page in the sidebar stays flat: no shadow or movement on hover. */
+.side nav a,
+.side nav a:hover,
+.side nav a:active {
+  box-shadow: none !important;
+  transform: none !important;
+}
+.side nav a[aria-current='page']:hover {
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+}
+/* Phones: the current tab's lens is outlined in the theme blue, never ink. */
+.glass-lens,
+.glass-lens[data-motion='follow'],
+.glass-lens[data-motion='spring'] {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+/* Switches: a grey track, ultramarine when on, a white knob. */
+.switch {
+  background: #d3d6de;
+  box-shadow: none;
+}
+.switch span {
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
+}
+.switch.on {
+  background: var(--accent);
+}
+.slide-thumb {
+  top: 4px;
+  bottom: 4px;
+}
+
+/* ---- Jobs: the whole board or list sits in one white card; lanes split by hairlines; each job
+   is an outlined tile; lane and group headings are the status icon, bold name and a count. ---- */
+.card.board-scroll {
+  margin: 0;
+  padding: 16px 0;
+}
+.board {
+  gap: 0;
+  align-items: stretch;
+}
+.col {
+  gap: 10px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  border-left: 1px solid var(--line);
+}
+.col:first-child {
+  border-left: 0;
+}
+.col-h {
+  gap: 8px;
+  min-height: 0;
+  padding: 2px 2px 12px;
+  margin-bottom: 2px;
+  border-bottom: 1.5px solid var(--line2);
+  background: none;
+  font-size: 14px;
+}
+.col-h strong,
+.plist-h strong {
+  color: var(--ink);
+  font-weight: 800;
+}
+.col-h .count,
+.plist-h .count {
+  margin-left: auto;
+}
+.kcard {
+  gap: 8px;
+  padding: 12px 13px;
+  border: 1.5px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: none;
+}
+.kcard .row-text strong {
+  font-weight: 800;
+}
+@media (hover: hover) and (pointer: fine) {
+  .kcard:hover {
+    border-color: var(--accent-mid);
+    box-shadow: 0 6px 16px rgb(20 30 50 / 0.08);
+  }
+}
+.kcard-foot {
+  border-top-color: var(--line);
+}
+.closed-box {
+  border: 1.5px dashed var(--line2);
+  border-radius: 16px;
+  background: var(--bg);
+}
+.card.plist {
+  margin-top: 14px;
+  padding: 4px 18px 10px;
+}
+.plist-h {
+  gap: 8px;
+  padding: 16px 2px 10px;
+  border-bottom: 1.5px solid var(--line2);
+  font-size: 14px;
+}
+.prow {
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: 1.5px solid var(--line);
+  border-radius: 16px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .prow:hover {
+    border-color: var(--accent-mid);
+    background: var(--surface);
+  }
+}
+.prow:last-child {
+  margin-bottom: 6px;
+}
+
+/* Status badges a touch deeper, so the icon reads crisply. */
+.sti-open {
+  background: #d9dffb;
+  color: #1c2a9a;
+}
+.sti-badge .sti {
+  stroke-width: 2.6;
+}
+/* The job header: the company in bold, then work mode, place, applied date and pay as grey pills. */
+.app-meta {
+  align-items: center;
+  gap: 8px;
+}
+.app-meta > * + *::before {
+  content: none;
+}
+.app-meta > span {
+  padding: 3px 11px;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--ink2);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.app-meta .app-co {
+  margin-right: 4px;
+}
+/* Stage bar text: the current stage dark and bold; the rest regular weight, done ones grey-ink,
+   ones to come lighter grey. */
+.stepper li button {
+  font-weight: 600;
+  color: var(--ink3);
+}
+.stepper li.done button {
+  color: var(--ink2);
+  font-weight: 600;
+}
+.stepper li.here button {
+  color: var(--ink);
+  font-weight: 850;
+}
+
+/* ---- timeline: each entry's icon on a white disc; dates in the app's own type ---- */
+.node {
+  border: 0;
+  background: var(--surface);
+  box-shadow: var(--sh);
+  color: var(--ink);
+}
+.mono,
+.tag.mono,
+time,
+.ev-meta,
+.when {
+  font-family: var(--sans);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+.slide button .count {
+  margin-left: 8px;
+}
+/* Pencils turn the theme blue while hovered. */
+@media (hover: hover) and (pointer: fine) {
+  .kv-v:hover svg,
+  .pen:hover,
+  .pen:hover svg,
+  button:hover > svg[data-icon='edit'] {
+    color: var(--accent) !important;
+    opacity: 1 !important;
+  }
+}
+/* A pick-list or date detail being edited keeps the value's own place, size and type. */
+.ikv > .sel,
+.ikv > .dt-pair,
+.ikv > .dt-field {
+  width: calc(100% + 20px);
+  margin: 0 -10px;
+}
+.ikv > .sel .sel-btn,
+.ikv > .dt-field,
+.ikv > .dt-pair .dt-field {
+  min-height: 0;
+  padding: 7px 10px;
+  border: 1.5px solid var(--accent);
+  border-radius: 12px;
+  font: inherit;
+  font-weight: 800;
+  line-height: 1.35;
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+/* Pay's own editor: three fields side by side with room between. */
+.pay-range {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) minmax(0, 0.9fr);
+  gap: 10px;
+}
+.pay-range .in,
+.pay-range .sel {
+  width: 100%;
+  margin: 0;
+}
+.mini-l {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink2);
+}
+
+/* ---- deleting: the same pill as every button ---- */
+.btn.danger.destroy,
+.confirm-box .btn {
+  border-radius: 999px;
+  border-color: transparent;
+}
+.btn.danger.destroy {
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+.confirm-box .btn.danger,
+.confirm-box .btn.danger.destroy {
+  background: var(--bad);
+  color: #fff;
+}
+
+/* ---- story tiles: cards like every other ---- */
+.story-card,
+.fw-card {
+  padding: 18px 20px;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--sh);
+}
+.fw-tag,
+.story-f {
+  color: var(--accent-deep);
+  font-family: var(--sans);
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+/* A story's parts: each one's letter in a soft round badge, large enough to read. */
+.fw-part {
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 12px;
+}
+.fw-part > b,
+.reader-sec > b {
+  width: 30px;
+  height: 30px;
+  margin-top: 0;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  box-shadow: none;
+  font-family: var(--display);
+  font-stretch: 100%;
+  font-weight: 800;
+  font-size: 14px;
+}
+
+/* ---- tags being edited look exactly as they do at rest ---- */
+.tag-rm {
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 750;
+  line-height: inherit;
+}
+.tags .tag,
+.seg .tag {
+  padding: 4px 12px;
+  font-size: 12.5px;
+}
+.tag-rm .x {
+  margin-left: 2px;
+  color: var(--accent-deep);
+  opacity: 0.6;
+}
+
+/* ---- sheets: white, readable; labels in sentence case ---- */
+.sheet {
+  background: var(--surface);
+}
+.lbl {
+  text-transform: none;
+  letter-spacing: 0;
+}
+.sheet .in,
+.sheet .sel-btn {
+  border-color: var(--line2);
+}
+.sheet .slide {
+  background: #e6e8ee;
+}
+.sh-title-ic {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sh-title-ic .h-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 13px;
+  color: #fff;
+}
+.sh-title-ic .h-icon svg {
+  color: #fff;
+}
+
+/* ---- the job's links: a small new-tab button beside the label ---- */
+.kv-l {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.kv-open {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--ink2);
+}
+.kv-open:hover {
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+}
+/* Phones: values and their editors at 16px both, so editing never changes the size (or zooms). */
+@media (max-width: 767px) {
+  .kv-v,
+  .ikv > .in,
+  .ikv > .sel .sel-btn {
+    font-size: 16px;
+  }
+}
+
+/* ---- where a story is used: a plain list of jobs ---- */
+.used-in {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.used-in h3 {
+  margin: 0;
+  font-size: 16px;
+}
+.used-in .sub {
+  margin: 4px 0 10px;
+}
+.copy-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  margin-top: 8px;
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+}
+.copy-row .sub {
+  margin: 0;
+}
+.sync {
+  padding: 3px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--ink2);
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 750;
+}
+.sync-edited,
+.sync-both {
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+}
+.sync-bank_newer {
+  background: var(--warn-soft);
+  color: var(--warn-ink);
+}
+
+/* ---- Applied per week: rounded bars, count above, week under ---- */
+.weeks {
+  gap: 8px;
+  height: 190px;
+  margin-top: 14px;
+  padding-bottom: 0;
+  border-bottom: 0;
+  background: repeating-linear-gradient(180deg, transparent 0 37px, var(--line) 37px 38px);
+  background-size: 100% calc(100% - 22px);
+  background-repeat: no-repeat;
+}
+.wk {
+  gap: 6px;
+  font-size: 11.5px;
+}
+.wk i {
+  width: 100%;
+  max-width: 34px;
+  min-height: 0;
+  border: 0;
+  border-radius: 9px 9px 4px 4px;
+  background: var(--accent-mid);
+}
+.wk.now i {
+  background: var(--accent);
+}
+.wk-n {
+  min-height: 1.2em;
+  font-weight: 800;
+  color: var(--ink);
+}
+.wk-d {
+  height: 16px;
+  color: var(--ink3);
+  font-weight: 650;
+  white-space: nowrap;
+}
+.wchart {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  grid-template-rows: 200px auto;
+  column-gap: 8px;
+  margin-top: 18px;
+}
+.wchart-y {
+  position: relative;
+}
+.wchart-y span {
+  position: absolute;
+  right: 0;
+  transform: translateY(50%);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink3);
+}
+.wchart-plot {
+  position: relative;
+  border-bottom: 1.5px solid var(--line2);
+}
+.wchart-grid {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 1px dashed var(--line);
+}
+.wchart-plot .weeks {
+  position: absolute;
+  inset: 0;
+  height: auto;
+  margin: 0;
+  gap: 10px;
+  background: none;
+  padding: 0 6px;
+}
+.wchart-plot .wk {
+  justify-content: flex-end;
+}
+.wk-bar {
+  position: relative;
+  display: block;
+  width: 100%;
+  max-width: 38px;
+  border-radius: 10px 10px 3px 3px;
+  background: var(--accent-mid);
+}
+.wk.now .wk-bar {
+  background: var(--accent);
+}
+.wk-bar .wk-n {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--ink);
+}
+.wchart-x {
+  grid-column: 2;
+  display: flex;
+  gap: 10px;
+  padding: 8px 6px 0;
+}
+.wchart-x span {
+  flex: 1 1 0;
+  min-width: 0;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--ink3);
+  white-space: nowrap;
+}
+@media (max-width: 600px) {
+  .wchart-x span:nth-child(even):not(:last-child) {
+    visibility: hidden;
+  }
+}
+
+/* Status badges: solid, white icon, so they stand clear of any grey or white behind them. */
+.sti-open,
+.node .sti-open {
+  background: var(--accent);
+  color: #fff;
+}
+.sti-offer {
+  background: #1f9d6b;
+  color: #fff;
+}
+.sti-accepted {
+  background: #137a4f;
+  color: #fff;
+}
+.sti-rejected {
+  background: #d8453c;
+  color: #fff;
+}
+.sti-closed {
+  background: #8a909c;
+  color: #fff;
+}
+.sec-cols {
+  margin-bottom: -2px;
+}
+.sec-cols .lbl {
+  margin: 0;
+}
+/* Each timeline icon sits in a grey disc inside its white one. */
+.node-in {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--ink);
+}
+.status-arrow {
+  color: var(--ink);
+}
+/* One line weight for every timeline icon: the line icons drawn heavier, the asterisk and the
+   status arrow (solid bars) drawn small enough that their bars match (about 2.4px). */
+.node-in svg {
+  stroke-width: 2.6;
+}
+.node-in .asterisk,
+.node-in .status-arrow {
+  stroke-width: 0;
+}
+/* Card headings stand clearly above the fields under them. */
+.card-h h2,
+.card-h .sec-title,
+.sec-title,
+.used-in h3 {
+  font-size: 20px;
+  letter-spacing: -0.03em;
+}
+.card-h h2 svg,
+.sec-title svg {
+  width: 20px;
+  height: 20px;
+}
+/* Timeline icons all in the asterisk's grey. */
+.node-in,
+.node-in svg,
+.node-in .status-arrow,
+.node-in .asterisk {
+  color: var(--ink2);
+}
+
+/* ---- contrast sweep: small icon buttons are ink on a visible grey disc, blue on hover; a
+   disabled one is plainly faded but still legible; placeholders and quiet text read. ---- */
+.xbtn {
+  background: #e3e6ec;
+  color: var(--ink);
+}
+.xbtn svg {
+  color: var(--ink);
+}
+@media (hover: hover) and (pointer: fine) {
+  .xbtn:hover:not([disabled]) {
+    background: var(--accent-soft);
+    color: var(--accent-deep);
+  }
+  .xbtn:hover:not([disabled]) svg {
+    color: var(--accent-deep);
+  }
+}
+.xbtn[disabled],
+.btn[disabled] {
+  opacity: 0.45;
+  cursor: default;
+}
+.flip {
+  transform: rotate(180deg);
+}
+.in::placeholder,
+.sel-btn.ph .sel-val {
+  color: var(--ink3);
+  opacity: 1;
+}
+.part-hint,
+.hint {
+  color: var(--ink2);
+}
+.kv-v svg {
+  color: var(--ink2);
+  opacity: 0.85;
+}
+.status-opt[aria-checked='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* A job's copy of a story: a slim outlined line saying how it compares with Stories, its actions
+   at the right. */
+.story-sync {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin-bottom: 18px;
+  padding: 10px 12px 10px 14px;
+  border: 1.5px solid var(--line2);
+  border-radius: 16px;
+}
+.story-sync.warn {
+  border-color: #f0d48a;
+  background: var(--warn-soft);
+}
+.story-sync .sync-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  flex: 1 1 220px;
+  font-weight: 650;
+  color: var(--ink);
+}
+.story-sync .sync-line svg {
+  flex: none;
+  color: var(--ink2);
+}
+.story-sync .acts {
+  margin: 0;
+}
+textarea.in.angle {
+  background: var(--surface);
+}
+
+/* Timeline: each entry's kind is its heading, above the entry's own text in size. */
+.ev-head .lbl {
+  font-family: var(--display);
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-transform: none;
+}
+.file-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+/* The rail runs from each entry down to the next, and stops at the oldest (the asterisk, where
+   the job began): nothing below or behind it. */
+.timeline::before {
+  display: none;
+}
+.timeline .ev {
+  position: relative;
+}
+.timeline .ev:not(:last-of-type)::before {
+  content: '';
+  position: absolute;
+  left: 19px;
+  top: 20px;
+  bottom: -12px;
+  border-left: 2px solid var(--edge);
+}
+
+/* Groups inside a sheet sit straight on the sheet (it's already the white frame): no second
+   card around them, just a thin rule between groups. */
+.sheet .card.ev-group {
+  background: none;
+  box-shadow: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+}
+.sheet .card.ev-group + .card.ev-group {
+  margin-top: 22px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+}
+/* Desktop: the edit pencils sit back a little until hovered. */
+@media (hover: hover) and (pointer: fine) {
+  .kv-v svg {
+    opacity: 0.6;
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  .kv-v:hover svg,
+  .kv-v:focus-visible svg {
+    opacity: 1;
+  }
+}
+
+/* Danger buttons everywhere (delete a job, an entry, a story; the confirm popup): white with a
+   red outline and red text, filled red on hover. Never soft red on grey. */
+.btn.danger,
+.btn.danger.destroy {
+  background: var(--surface);
+  color: var(--bad);
+  border: 1.5px solid var(--bad);
+  box-shadow: none;
+}
+.btn.danger svg {
+  color: currentColor;
+}
+@media (hover: hover) and (pointer: fine) {
+  .btn.danger:hover:not([disabled]),
+  .btn.danger.destroy:hover:not([disabled]) {
+    background: var(--bad);
+    border-color: var(--bad);
+    color: #fff;
+  }
+}
+.tag.bad {
+  background: var(--surface);
+  color: var(--bad);
+  box-shadow: inset 0 0 0 1.5px var(--bad);
+}
+/* The popup's final Delete stays solid red: white on red reads clearly. */
+.confirm-box .btn.danger,
+.confirm-box .btn.danger.destroy {
+  background: var(--bad);
+  border-color: var(--bad);
+  color: #fff;
+}
+
+/* Primary buttons: a short, tight shadow, not a blue glow spilling onto what's near them. */
+.btn.primary {
+  box-shadow: 0 2px 5px rgb(43 63 208 / 0.18);
+}
+/* Solid blue buttons rise a touch on hover (and settle when pressed). */
+@media (hover: hover) and (pointer: fine) {
+  .btn.primary:hover:not([disabled]) {
+    background: var(--accent-deep);
+    border-color: var(--accent-deep);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgb(43 63 208 / 0.24);
+  }
+  .btn.primary:active:not([disabled]) {
+    transform: none;
+    box-shadow: 0 1px 3px rgb(43 63 208 / 0.2);
+  }
+}
+.btn.primary {
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease,
+    background-color 0.12s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn.primary:hover:not([disabled]) {
+    transform: none;
+  }
+}
+
+/* Framework picker: ink text, the group as a grey pill in the normal font, and each section's
+   letter in a clear round badge (white on ultramarine, no black edge). */
+.fw-card .sub {
+  color: var(--ink2);
+}
+.fw-sec {
+  color: var(--ink);
+}
+.fw-group {
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--ink2);
+  background: var(--bg);
+  border-radius: 999px;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+.fw-sec b {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 800;
+  box-shadow: none;
+}
+/* Story part letters and people's initials: white on solid ultramarine, the same everywhere. */
+.fw-part > b,
+.reader-sec > b,
+.avatar {
+  background: var(--accent);
+  color: #fff;
+  border: 0;
+}
+
+/* The job posting inside The Job: clamped to about eight lines until Show full posting. */
+.posting {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.posting > * {
+  width: 100%;
+}
+.posting > .more {
+  width: auto;
+}
+.posting.clamped .kv-v {
+  max-height: 13em;
+  overflow: hidden;
+  mask-image: linear-gradient(#000 65%, transparent);
+}
+
+/* Home's recent activity: the timeline's icons in their grey disc, and the kind as a heading. */
+.activity .act-icon.node-in {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  background: var(--bg);
+  color: var(--ink2);
+  box-shadow: none;
+  border: 0;
+}
+.activity .act-top .lbl {
+  font-family: var(--display);
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-transform: none;
+  color: var(--ink);
+}
+/* A status badge's icon stays white wherever it sits, selected tab or not. */
+.sti-badge svg,
+.tab[aria-selected='true'] .sti-badge svg,
+[aria-current] .sti-badge svg {
+  color: #fff;
+  stroke: #fff;
+}
+/* The job header's Call Mode and Log to timeline: compact pills. */
+.app-acts .btn {
+  height: 38px;
+  padding: 0 16px;
+  font-size: 14px;
+  gap: 7px;
+}
+.app-acts .btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Tags being edited: the same box and chips as at rest, nothing moves. The ✕ sits over each
+   chip's corner (so no chip grows), and the add box opens underneath. */
+.tags-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.tags-edit-v {
+  cursor: default;
+}
+.tags-edit-v:hover {
+  background: none;
+}
+.ghost-pencil {
+  visibility: hidden;
+}
+.tag.tag-x {
+  position: relative;
+}
+.tag-del {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--ink);
+  color: #fff;
+  cursor: pointer;
+}
+.tag-del svg {
+  stroke-width: 3;
+}
+@media (hover: hover) and (pointer: fine) {
+  .tag-del:hover {
+    background: var(--bad);
+  }
+}
+@media (pointer: coarse) {
+  .tag-del::after {
+    content: '';
+    position: absolute;
+    inset: -8px;
+  }
+}
+/* Links shown as values (job link, website, LinkedIn): no underline. */
+.kv-v a,
+.kv a {
+  text-decoration: none;
+}
+.link-v {
+  color: var(--accent-deep);
+}
+
+/* ---- Editing in place changes nothing but editability ----
+   Every editor in a detail (one-line input, long text, pick list, date) is the shown value's box
+   exactly: same width, offset, padding, radius, border width, font, size, weight, line height and
+   colour. The right padding leaves the room the pencil took, so text wraps at the same place.
+   Only the border colour and focus ring say it's being edited. */
+.ikv .kv-v,
+.ikv .in,
+.ikv textarea.in,
+.ikv .sel-btn,
+.ikv .dt-field {
+  box-sizing: border-box;
+  width: calc(100% + 20px);
+  min-height: 0;
+  margin: 0 -10px;
+  padding: 7px 10px;
+  border-width: 1.5px;
+  border-radius: 12px;
+  font-family: var(--sans);
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.35;
+  letter-spacing: normal;
+  color: var(--ink);
+}
+.ikv .in,
+.ikv textarea.in {
+  padding-right: 35px;
+}
+.ikv textarea.in {
+  display: block;
+  resize: none;
+  overflow: hidden;
+}
+/* Long text (notes, the job description) reads at normal weight, shown and editing alike. */
+.ikv .kv-v:has(.pre),
+.ikv textarea.in {
+  font-weight: 500;
+}
+.ikv .kv-v .pre {
+  font: inherit;
+}
+.ikv .kv-v:has(.jd),
+.ikv textarea.in.jd {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.ikv textarea.in.jd {
+  max-height: 480px;
+  overflow: auto;
+}
+.ikv .kv-v .jd {
+  font: inherit;
+}
+/* Multi-line values: the pencil sits at the top right, level with the first line. */
+.kv-v:has(.pre),
+.kv-v:has(.tags),
+.kv-v:has(.note-text) {
+  align-items: flex-start;
+}
+.kv-v:has(.pre) > svg,
+.kv-v:has(.tags) > svg,
+.kv-v:has(.note-text) > svg {
+  margin-top: 4px;
+}
+.search-line strong {
+  font-weight: 800;
+  color: var(--ink);
+}
+
+/* Inside a shown value, nested text keeps the value's own type: the old label rules
+   (.kv span:first-child, 12px grey) must never reach it. Chips, notes and badges keep theirs. */
+.kv .kv-v span:not(.tag):not(.sub):not(.x):not(.sti-badge):not(.count) {
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  color: inherit;
+}
+.kv .kv-v .link-v {
+  color: var(--accent-deep);
+}
+
+/* The search menu: the same dropdown as every pick list (white, soft shadow, rounded rows; the
+   chosen one shaded with a check, no black outline), its actions as plain rows below a rule. */
+.search-menu {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--sh-lift, var(--sh));
+  padding: 6px;
+}
+.search-opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  box-shadow: none;
+  text-align: left;
+  font: inherit;
+  color: var(--ink);
+  cursor: pointer;
+}
+.search-opt strong {
+  font-size: 15px;
+  font-weight: 800;
+}
+.search-opt .sub {
+  font-size: 13px;
+}
+.search-opt[aria-checked='true'] {
+  background: var(--accent-soft);
+  border: 0;
+  outline: 0;
+}
+.search-opt[aria-checked='true'] svg {
+  color: var(--accent-deep);
+}
+@media (hover: hover) and (pointer: fine) {
+  .search-opt:hover:not([aria-checked='true']),
+  .search-act:hover {
+    background: var(--surface2, #f2f3f6);
+  }
+}
+.search-menu-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+}
+.search-act {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.search-act svg {
+  color: var(--ink2);
+}
+
+/* A pick list being edited: the .sel wrapper already takes the value's place (wider by the same
+   20px and shifted the same 10px), so the button inside it just fills it, never widening twice. */
+.ikv > .sel .sel-btn {
+  width: 100%;
+  margin: 0;
+}
+/* Its value keeps the value's type: the old label rule (12px grey) must not reach it. */
+.kv .sel-btn span,
+.kv .dt-field span {
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  color: inherit;
+}
+/* Its options read at the same size as the value. */
+.ikv .sel-list .sel-opt {
+  font-size: 16px;
+  font-weight: 650;
+}
+/* Same for fields inside a wrapper that already takes the value's place: a date pair, and Pay's
+   three fields side by side (each fills its own column, no overlap). */
+.ikv > .dt-pair .dt-field,
+.pay-range .in,
+.pay-range .sel-btn,
+.pay-range .sel {
+  width: 100%;
+  margin: 0;
+}
+.pay-range .in {
+  padding-right: 10px;
+}
+
+/* ---- Fields: the label is bold, the value isn't, shown and editing alike. ---- */
+.kv .kv-l,
+.ikv .kv-l {
+  font-size: 13px;
+  font-weight: 750;
+  color: var(--ink);
+}
+.kv .kv-v,
+.ikv .kv-v,
+.ikv .kv-v:has(.pre),
+.ikv .in,
+.ikv textarea.in,
+.ikv .sel-btn,
+.ikv > .sel .sel-btn,
+.ikv .dt-field,
+.ikv > .dt-field,
+.ikv > .dt-pair .dt-field,
+.kv .ev-file,
+.kv > span:last-child {
+  font-weight: 500;
+}
+.ikv .sel-list .sel-opt {
+  font-weight: 500;
+}
+.kv .kv-l,
+.ikv .kv-l {
+  font-size: 14px;
+  font-weight: 850;
+}
+/* The remove ✕ on a chip: a bold white cross on its dark disc. */
+.tag .tag-del svg,
+.kv .tag .tag-del svg {
+  color: #fff;
+  stroke: #fff;
+  stroke-width: 3.4;
+  opacity: 1;
+}
+/* Side-by-side fields: each value's box reaches 10px past its column on both sides, so the gap
+   between columns is wider than both reaches together; boxes never touch or overlap. */
+.kvs {
+  column-gap: 32px;
+}
+
+/* Every field value, whatever its kind (text, link, long text, the job description, pick list,
+   date, pay, chips), reads at one size, shown and editing alike. */
+.kv .kv-v,
+.ikv .kv-v,
+.ikv .kv-v:has(.jd),
+.ikv .kv-v:has(.pre),
+.ikv .in,
+.ikv textarea.in,
+.ikv textarea.in.jd,
+.ikv .sel-btn,
+.ikv > .sel .sel-btn,
+.ikv .dt-field,
+.ikv > .dt-pair .dt-field,
+.ikv .sel-list .sel-opt,
+.kv .ev-file,
+.kv .tags .tag,
+.kv .tag.tag-x {
+  font-size: 16px;
+}
+.ikv .kv-v:has(.jd),
+.ikv textarea.in.jd {
+  line-height: 1.5;
+}
+/* The chosen search: dark text on its light blue, its details in deep ultramarine. */
+.search-opt[aria-checked='true'] strong {
+  color: var(--ink);
+}
+.search-opt[aria-checked='true'] .sub {
+  color: var(--accent-deep);
+  font-weight: 650;
+}
+.search-opt .sub {
+  color: var(--ink2);
+}
+.search-act svg {
+  color: var(--ink);
+}
+.search-lbl {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.app-head .app-acts .btn {
+  height: 34px;
+  min-height: 0;
+  padding: 0 14px;
+  font-size: 13.5px;
+  gap: 6px;
+}
+.app-head .app-acts .btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* One-line values and their editors are exactly the same height (40px), so starting an edit
+   never nudges what's below. (A value long enough to wrap still grows.) */
+.ikv .kv-v:not(:has(.pre)):not(:has(.tags)):not(:has(.note-text)),
+.ikv input.in,
+.ikv .sel-btn,
+.ikv > .sel .sel-btn,
+.ikv .dt-field,
+.ikv > .dt-pair .dt-field {
+  box-sizing: border-box;
+  min-height: 40px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.ikv input.in,
+.ikv .sel-btn,
+.ikv > .sel .sel-btn,
+.ikv .dt-field,
+.ikv > .dt-pair .dt-field {
+  height: 40px;
+}
+.ikv .kv-v:not(:has(.pre)):not(:has(.tags)):not(:has(.note-text)) {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  align-items: center;
+}
+/* Long text: the editor starts exactly as tall as the text was (same padding, line height and
+   border), with no extra row added. */
+.ikv .kv-v:has(.pre),
+.ikv textarea.in {
+  box-sizing: border-box;
+  padding-top: 7px;
+  padding-bottom: 7px;
+  border-width: 1.5px;
+}
+/* A date and time on its own: sized to its contents at the left, not stretched across. */
+.when-left {
+  display: flex;
+  justify-content: flex-start;
+}
+.when-left > * {
+  width: auto;
+  max-width: 100%;
+}
+/* A list that opens upward (no room below in its sheet or the window). */
+.sel-list.up {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+.sel {
+  position: relative;
+}
+
+/* Timeline icons: the grey disc with just a thin white outline around it, not a thick ring. */
+.timeline .node {
+  width: 40px;
+  height: 40px;
+  background: var(--surface);
+  box-shadow: var(--sh);
+}
+.timeline .node .node-in {
+  width: 36px;
+  height: 36px;
 }

@@ -137,8 +137,8 @@ export function ApplicationSheet() {
 
   return (
     <Sheet
-      title="Add a job"
-      sub="Faster: paste the link to your assistant and it fills all of this in."
+      title="Add a Job"
+      icon="briefcase"
       onClose={sheets.close}
       footer={
         <>
@@ -239,7 +239,7 @@ export function ApplicationSheet() {
           ]}
         />
       </Field>
-      <Field label="Must-haves">
+      <Field label="Required">
         <TagInput
           value={must}
           onChange={setMust}
@@ -247,7 +247,7 @@ export function ApplicationSheet() {
           placeholder="Add one, press Enter"
         />
       </Field>
-      <Field label="Nice-to-haves">
+      <Field label="Preferred">
         <TagInput
           value={nice}
           onChange={setNice}
@@ -370,6 +370,7 @@ export function StatusSheet({
     return (
       <Sheet
         title="Congratulations!"
+        icon="gift"
         onClose={sheets.close}
         footer={
           <>
@@ -406,7 +407,8 @@ export function StatusSheet({
 
   return (
     <Sheet
-      title="Change status"
+      title="Change Status"
+      icon="move"
       onClose={sheets.close}
       footer={
         <button type="button" className="btn primary" disabled={!next || busy} onClick={save}>
@@ -460,7 +462,7 @@ export function StatusSheet({
       />
       {closing && (
         <>
-          <span className="lbl close-q">How did it end?</span>
+          <span className="lbl close-q">How Did It End?</span>
           <div className="status-pick" role="radiogroup" aria-label="How it ended">
             {CLOSE_TYPES.map((s) => (
               <button
@@ -543,7 +545,8 @@ export function PersonSheet({ data, appId, id }: { data: Data; appId: string; id
   }
   return (
     <Sheet
-      title={p ? 'Edit person' : 'Add a person'}
+      title={p ? 'Edit Person' : 'Add a Person'}
+      icon="user"
       onClose={sheets.close}
       footer={
         <>
@@ -571,11 +574,10 @@ export function PersonSheet({ data, appId, id }: { data: Data; appId: string; id
         </Field>
       </div>
       <Field label="Role">
-        <SlideToggle
-          label="Role"
+        <Select
           value={role}
-          onChange={setRole}
-          options={PERSON_ROLES.map((r) => [r.key, r.label] as const)}
+          onChange={(v) => setRole(v as PersonRole)}
+          groups={[{ options: PERSON_ROLES.map((r) => ({ value: r.key, label: r.label })) }]}
         />
       </Field>
       {role === 'other' && (
@@ -634,10 +636,8 @@ export function SearchSheet({ data, id }: { data: Data; id?: string }) {
   }
   return (
     <Sheet
-      title={s ? 'Edit search' : 'Start a search'}
-      sub={
-        s ? `${count} applications` : 'A stretch of looking for work. New applications go into it.'
-      }
+      title={s ? 'Edit Search' : 'Start a Search'}
+      icon="search"
       onClose={sheets.close}
       footer={
         <>

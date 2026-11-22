@@ -11,16 +11,17 @@ import { useData } from '../lib/queries';
 import { ellipsis, relDays, whenLabel } from '../lib/format';
 import { useSheets } from '../sheets/context';
 import { EVENT_ICON } from '../sheets/EventSheet';
-import { Asterisk } from '../components/Brand';
+import { Asterisk, StatusArrow } from '../components/Brand';
 import { Icon, type IconName } from '../components/Icon';
 import { PageHeader } from '../components/ui';
+import { SearchLine } from '../components/SearchLine';
 
 /** A job's Timeline tab, scrolled to one entry (which flashes briefly). */
 const eventHref = (e: Pick<TimelineEvent, 'application_id' | 'id'>) =>
   `/a/${e.application_id}?tab=timeline&event=${e.id}`;
 
 const ACTIVITY_ICON = (icon: ReturnType<typeof activityLabel>['icon']): IconName =>
-  icon === 'file' ? 'file' : EVENT_ICON[icon]!;
+  icon === 'file' ? 'paperclip' : EVENT_ICON[icon]!;
 
 export function Home() {
   const data = useData();
@@ -42,7 +43,7 @@ export function Home() {
           <h2>No applications yet. Go bother someone.</h2>
           <p className="sub">
             Paste a job link to your assistant (Settings → Connect an AI assistant) and it lands
-            here as Saved, with the pay, level and must-haves filled in. Or add one by hand.
+            here as Saved, with the pay, level and requirements filled in. Or add one by hand.
           </p>
           <button type="button" className="btn primary" onClick={sheets.addJob}>
             <Icon name="plus" size={18} /> Add a job
@@ -78,7 +79,7 @@ export function Home() {
   return (
     <>
       {header}
-      <p className="page-sub sub">{data.search?.name}</p>
+      <SearchLine />
       <div className="kpis home-kpis">
         {tiles.map(([l, v]) => (
           <div key={l} className="kpi">
@@ -102,7 +103,7 @@ export function Home() {
       {upcoming.length > 0 && (
         <section className="sec">
           <div className="sec-h">
-            <h2>Coming up</h2>
+            <h2>Coming Up</h2>
           </div>
           <div className="card list">
             {upcoming.map((e) => {
@@ -125,7 +126,7 @@ export function Home() {
 
       <section className="sec">
         <div className="sec-h">
-          <h2>Recent activity</h2>
+          <h2>Recent Activity</h2>
         </div>
         <div className="card list">
           {recent.map((e) => {
@@ -133,11 +134,14 @@ export function Home() {
             const l = activityLabel(e);
             return (
               <Link key={e.id} to={eventHref(e)} className="recent activity">
-                <span className="act-icon" aria-hidden="true">
+                {/* The same icons, grey disc and line weight as the job's timeline. */}
+                <span className="act-icon node-in" aria-hidden="true">
                   {l.icon === 'created' ? (
-                    <Asterisk size={16} />
+                    <Asterisk size={14} bar={17} />
+                  ) : l.icon === 'status' ? (
+                    <StatusArrow size={16} />
                   ) : (
-                    <Icon name={ACTIVITY_ICON(l.icon)} size={16} />
+                    <Icon name={ACTIVITY_ICON(l.icon)} size={18} />
                   )}
                 </span>
                 <span className="act-text">

@@ -18,6 +18,7 @@ import type { Attendee, EmailData, MeetingData, TimelineEvent } from '@shared/ty
 import { useActions, type Data } from '../lib/queries';
 import { fileUrl } from '../lib/api';
 import { bytes, fromLocalInput, rangeLabel, toLocalInput, whenLabel } from '../lib/format';
+import { NoteText } from '../components/notes/NoteText';
 import { ConfirmButton, Sheet } from '../components/ui';
 import { Icon, type IconName } from '../components/Icon';
 import { DateTimeField } from '../components/DateTimePicker';
@@ -30,7 +31,8 @@ import {
   TextEdit,
   groupKeys,
 } from '../components/edit';
-import { AttendeesInput, eventLabel } from './EventSheet';
+import { AttendeesInput, EVENT_ICON, eventLabel } from './EventSheet';
+import { fileComment } from '../lib/fileComment';
 import { useSheets } from './context';
 
 const STATES = [
@@ -196,7 +198,7 @@ function NotesOn({
         >
           <span className="lbl">{whenLabel(n.occurred_at)}</span>
           {n.title && <strong>{n.title}</strong>}
-          <span className="pre">{n.body}</span>
+          <NoteText text={n.body ?? ''} />
         </button>
       ))}
       {!notes.length && <p className="sub">None yet.</p>}
@@ -239,7 +241,7 @@ export function EventView({ data, appId, ev }: { data: Data; appId: string; ev: 
             )}
           </div>
         )}
-        <Group icon="video" title="The meeting">
+        <Group icon="video" title="The Meeting">
           <LineEdit
             label="Name"
             full
@@ -293,7 +295,7 @@ export function EventView({ data, appId, ev }: { data: Data; appId: string; ev: 
     title = 'Email';
     groups = (
       <>
-        <Group icon="mail" title="The email">
+        <Group icon="mail" title="The Email">
           <LineEdit
             label="Subject"
             full
@@ -334,7 +336,7 @@ export function EventView({ data, appId, ev }: { data: Data; appId: string; ev: 
             onSave={(v) => save({ counterpart_email: v })}
           />
         </Group>
-        <Group icon="list" title="What happened">
+        <Group icon="list" title="What Happened">
           <TextEdit label="Summary" value={ev.body ?? ''} onSave={(v) => save({ body: v })} />
           <TagsEdit
             label="Key points"
@@ -351,17 +353,23 @@ export function EventView({ data, appId, ev }: { data: Data; appId: string; ev: 
     title = 'File';
     groups = (
       <>
-        <div className="acts ev-acts">
-          <a className="btn sm" href={fileUrl(fileId, true)} target="_blank" rel="noreferrer">
-            Open file <Icon name="external" size={14} />
-          </a>
-        </div>
-        <Group icon="file" title="The file">
+        {/* One group: the file (opens in a new tab), its kind, when it was added, and a comment. */}
+        <Group icon="paperclip" title="The File">
           {f && (
             <div className="kv kv-full">
               <span className="kv-l">File</span>
-              <span className="ev-file">
+              <span className="ev-file file-title">
                 {f.filename} <span className="sub">· {bytes(f.size)}</span>
+                <a
+                  className="kv-open"
+                  href={fileUrl(fileId, true)}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={`Open ${f.filename} in a new tab`}
+                  title="Open in a new tab"
+                >
+                  <Icon name="external" size={14} />
+                </a>
               </span>
             </div>
           )}
@@ -374,14 +382,7 @@ export function EventView({ data, appId, ev }: { data: Data; appId: string; ev: 
             />
           )}
           <WhenEdit label="Added" start={ev.occurred_at} onSave={(s) => save({ occurred_at: s })} />
-        </Group>
-        <Group icon="note" title="On the timeline">
-          <LineEdit label="Title" full value={ev.title ?? ''} onSave={(v) => save({ title: v })} />
-          <TextEdit
-            label="Notes about it"
-            value={ev.body ?? ''}
-            onSave={(v) => save({ body: v })}
-          />
+          <TextEdit label="Comment" value={fileComment(ev, f)} onSave={(v) => save({ body: v })} />
         </Group>
       </>
     );
@@ -389,7 +390,7 @@ export function EventView({ data, appId, ev }: { data: Data; appId: string; ev: 
     const parents = events.filter((e) => e.type === 'meeting' || e.type === 'email');
     title = 'Note';
     groups = (
-      <Group icon="note" title="The note">
+      <Group icon="note" title="The Note">
         <TextEdit
           label="Note"
           rows={5}
@@ -418,7 +419,11 @@ export function EventView({ data, appId, ev }: { data: Data; appId: string; ev: 
   }
 
   return (
-    <Sheet title={title} sub={`${app.company} · ${app.title}`} onClose={sheets.close}>
+    <Sheet
+      title={title}
+      icon={fileId ? 'paperclip' : (EVENT_ICON[ev.type] ?? 'note')}
+      onClose={sheets.close}
+    >
       <div className="ev-view">
         {groups}
         <div className="del-row">

@@ -127,12 +127,8 @@ export function StorySheet({
 
   return (
     <Sheet
-      title={s ? 'Edit story' : 'New story'}
-      sub={
-        s
-          ? `${fw?.name ?? s.framework_key} · used in ${copies.length} ${copies.length === 1 ? 'job' : 'jobs'}`
-          : undefined
-      }
+      title={s ? 'Edit Story' : 'New Story'}
+      icon="quote"
       onClose={sheets.close}
       footer={
         <>
@@ -181,14 +177,9 @@ export function StorySheet({
     >
       <StoryForm data={data} v={v} set={set} defs={fw?.sections ?? []} />
       {copies.length > 0 && (
-        <div className="callout">
-          <span className="lbl">
-            Used in {copies.length === 1 ? '1 job' : `${copies.length} jobs`}
-          </span>
-          <p className="sub">
-            Each job keeps its own copy. Saving here doesn’t change them; a job with an older
-            version offers to use this one.
-          </p>
+        <section className="used-in">
+          <h3>Jobs Using This Story</h3>
+          <p className="sub">Each job has its own copy, so saving here doesn’t change them.</p>
           {copies.map((c) => {
             const a = data.appById.get(c.application_id);
             const st = syncState(c, s);
@@ -198,11 +189,13 @@ export function StorySheet({
                   <strong>{a?.company ?? 'Deleted application'}</strong>{' '}
                   <span className="sub">{a?.title}</span>
                 </span>
-                <span className={cx('sync', `sync-${st}`)}>{COPY_LABEL[st]}</span>
+                {COPY_LABEL[st] && (
+                  <span className={cx('sync', `sync-${st}`)}>{COPY_LABEL[st]}</span>
+                )}
               </div>
             );
           })}
-        </div>
+        </section>
       )}
     </Sheet>
   );
@@ -211,11 +204,7 @@ export function StorySheet({
 export function FrameworkPicker({ data, onPick }: { data: Data; onPick: (key: string) => void }) {
   const sheets = useSheets();
   return (
-    <Sheet
-      title="Pick a framework"
-      sub="Every framework is just named sections. Same bank, same copies, same Call Mode."
-      onClose={sheets.close}
-    >
+    <Sheet title="Pick a Framework" icon="layers" onClose={sheets.close}>
       <div className="fw-grid">
         {data.state.frameworks.map((f) => (
           <button key={f.key} type="button" className="fw-card" onClick={() => onPick(f.key)}>
@@ -291,10 +280,8 @@ export function JobStorySheet({
 
   return (
     <Sheet
-      title={js ? js.title : 'New story'}
-      sub={
-        js ? company : `${company} · only on this job (add it to Stories later if it’s a keeper)`
-      }
+      title={js ? js.title : 'New Story'}
+      icon="quote"
       onClose={sheets.close}
       footer={
         <>
@@ -319,8 +306,12 @@ export function JobStorySheet({
       }
     >
       {js && (
-        <div className={cx('callout', (st === 'bank_newer' || st === 'both') && 'warn')}>
-          <p className="sync-line">{status[st]}</p>
+        // How this copy compares with Stories: one slim line, with what you can do about it.
+        <div className={cx('story-sync', (st === 'bank_newer' || st === 'both') && 'warn')}>
+          <p className="sync-line">
+            <Icon name="info" size={16} />
+            {status[st]}
+          </p>
           <div className="acts">
             {(st === 'job_only' || st === 'source_gone') && (
               <button
@@ -378,15 +369,19 @@ export function JobStorySheet({
           )}
         </div>
       )}
-      <Field label={`Angle for ${company}: how to frame it here (doesn’t change the story)`}>
+      <StoryForm data={data} v={v} set={set} defs={defs} />
+      {/* An optional note on framing it for this company; the story itself stays as written. */}
+      <Field label={`How to Angle It for ${company}`}>
+        <span className="part-hint">
+          Optional. A note on what to stress for this job; the story above stays as written.
+        </span>
         <AutoTextarea
-          className="in angle"
+          className="in"
           rows={2}
           value={angle}
           onChange={(e) => setAngle(e.target.value)}
         />
       </Field>
-      <StoryForm data={data} v={v} set={set} defs={defs} />
     </Sheet>
   );
 }
@@ -446,11 +441,7 @@ export function LinkStorySheet({ data, appId }: { data: Data; appId: string }) {
   );
   if (!app) return null;
   return (
-    <Sheet
-      title="Link from Stories"
-      sub={`To ${app.company}. Linking makes a copy for this job; edit it freely.`}
-      onClose={sheets.close}
-    >
+    <Sheet title="Link from Stories" icon="link" onClose={sheets.close}>
       <input
         className="in"
         autoFocus
@@ -527,8 +518,8 @@ export function FrameworkSheet({ data, fwKey }: { data: Data; fwKey?: string }) 
   }
   return (
     <Sheet
-      title={f ? 'Edit framework' : 'Custom framework'}
-      sub="Named sections, in order. Stories in it get one box per section."
+      title={f ? 'Edit Framework' : 'Custom Framework'}
+      icon="layers"
       onClose={sheets.close}
       footer={
         <>
@@ -560,12 +551,19 @@ export function FrameworkSheet({ data, fwKey }: { data: Data; fwKey?: string }) 
           <input className="in" value={blurb} onChange={(e) => setBlurb(e.target.value)} />
         </Field>
       </div>
-      <Field label="Sections: a name, and an optional nudge">
+      {/* Each section: its name (the box's heading in a story) and an optional hint, the grey
+          line under that heading that reminds you what to write there. */}
+      <Field label="Sections">
+        <div className="two sec-row sec-cols" aria-hidden="true">
+          <span className="lbl">Section name</span>
+          <span className="lbl">Hint under it (optional)</span>
+        </div>
         {secs.map((s, i) => (
           <div key={i} className="two sec-row">
             <input
               className="in"
               value={s.label}
+              placeholder="e.g. Situation"
               aria-label="Section name"
               onChange={(e) =>
                 setSecs((l) => l.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))
@@ -575,7 +573,8 @@ export function FrameworkSheet({ data, fwKey }: { data: Data; fwKey?: string }) 
               <input
                 className="in"
                 value={s.prompt}
-                aria-label="Prompt"
+                placeholder="e.g. Where were you, and what was at stake?"
+                aria-label="Hint under the section (optional)"
                 onChange={(e) =>
                   setSecs((l) => l.map((x, j) => (j === i ? { ...x, prompt: e.target.value } : x)))
                 }

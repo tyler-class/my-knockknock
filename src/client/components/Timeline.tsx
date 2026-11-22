@@ -2,19 +2,19 @@
 // a card with its own icon; notes about an event sit under it.
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { emailCategoryLabel, meetingKindLabel, type EventType } from '@shared/lookups';
+import { emailCategoryLabel, meetingKindLabel } from '@shared/lookups';
 import { timelineView } from '@shared/logic/timeline';
 import type { EmailData, MeetingData, StatusData, TimelineEvent } from '@shared/types';
 import { relDays, whenLabel } from '../lib/format';
 import { fileUrl } from '../lib/api';
 import { EVENT_ICON } from '../sheets/EventSheet';
 import { useSheets } from '../sheets/context';
+import { fileComment } from '../lib/fileComment';
 import { Icon } from './Icon';
 import { StatusChip } from './StatusChip';
-import { Asterisk } from './Brand';
-import { SlideToggle, cx } from './ui';
-
-type Filter = 'all' | 'meeting' | 'email' | 'note' | 'status';
+import { Asterisk, StatusArrow } from './Brand';
+import { NoteText } from './notes/NoteText';
+import { cx } from './ui';
 
 /**
  * A note under its meeting or email: a few lines of it, with Show more to open it to full size
@@ -41,7 +41,9 @@ function NoteBlock({ n, appId }: { n: TimelineEvent; appId: string }) {
     >
       <span className="lbl">Note · {whenLabel(n.occurred_at)}</span>
       {n.title && <strong>{n.title}</strong>}
-      <span className={cx('pre', long && !full && 'clamp')}>{n.body}</span>
+      <div className={cx('note-body', long && !full && 'clamp')}>
+        <NoteText text={n.body ?? ''} />
+      </div>
       {long && (
         <button
           type="button"
@@ -146,7 +148,7 @@ export function EventCard({
       ) : (
         <div className="status-move">
           {d.from && <StatusChip status={d.from} small />}
-          <Icon name="arrowRight" size={16} />
+          <Icon name="chevRight" size={15} />
           <StatusChip status={d.to} small />
           {d.reason && <span className="sub">{d.reason}</span>}
         </div>
@@ -156,13 +158,21 @@ export function EventCard({
     label = 'File';
     body = (
       <>
-        <div className="ev-title">{e.title}</div>
-        {e.body && <p className="sub">{e.body}</p>}
-        <div className="acts">
-          <a className="btn sm" href={fileUrl(fileId, true)} target="_blank" rel="noreferrer">
-            Open <Icon name="external" size={14} />
+        {/* The file's name, with a small round button right after it to open it in a new tab. */}
+        <div className="ev-title file-title">
+          {e.title}
+          <a
+            className="kv-open"
+            href={fileUrl(fileId, true)}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={`Open ${e.title} in a new tab`}
+            title="Open in a new tab"
+          >
+            <Icon name="external" size={14} />
           </a>
         </div>
+        {fileComment(e) && <p className="pre">{fileComment(e)}</p>}
       </>
     );
   } else {
@@ -170,18 +180,22 @@ export function EventCard({
     body = (
       <>
         {e.title && <div className="ev-title">{e.title}</div>}
-        <p className="pre">{e.body}</p>
+        <NoteText text={e.body ?? ''} />
       </>
     );
   }
   return (
     <div id={`ev-${e.id}`} className={cx('ev', `ev-${e.type}`, upcoming && 'upcoming')}>
       <div className="node" aria-hidden="true">
-        {e.type === 'created' ? (
-          <Asterisk size={16} />
-        ) : (
-          <Icon name={fileId ? 'file' : EVENT_ICON[e.type]!} size={18} />
-        )}
+        <span className="node-in">
+          {e.type === 'created' ? (
+            <Asterisk size={14} bar={17} />
+          ) : e.type === 'status' ? (
+            <StatusArrow size={16} />
+          ) : (
+            <Icon name={fileId ? 'paperclip' : EVENT_ICON[e.type]!} size={18} />
+          )}
+        </span>
       </div>
       {/* Meetings, emails, notes and files open on a tap anywhere on the card (their own buttons
           and links still work as they are). Status changes are the app's record: they don't. */}
@@ -232,7 +246,6 @@ export function EventCard({
 }
 
 export function Timeline({ events, appId }: { events: TimelineEvent[]; appId: string }) {
-  const [filter, setFilter] = useState<Filter>('all');
   // ?event=<id> (from Home's recent activity): scroll to that entry, flash it once, and take the
   // id back out of the address so it doesn't happen again.
   const [params, setParams] = useSearchParams();
@@ -257,31 +270,10 @@ export function Timeline({ events, appId }: { events: TimelineEvent[]; appId: st
     );
   }, [target, setParams]);
   const view = useMemo(() => timelineView(events, new Date()), [events]);
-  const count = (t: EventType | 'status') =>
-    events.filter(
-      (e) =>
-        !e.parent_id &&
-        (t === 'status' ? e.type === 'status' || e.type === 'created' : e.type === t),
-    ).length;
-  const show = (e: TimelineEvent) =>
-    filter === 'all' ||
-    (filter === 'status' ? e.type === 'status' || e.type === 'created' : e.type === filter);
-  const past = view.past.filter(show);
-  const upcoming = view.upcoming.filter(show);
+  // Everything, in order: no filter.
+  const { past, upcoming } = view;
   return (
     <section aria-label="Timeline" className="timeline-wrap">
-      <SlideToggle
-        label="Show"
-        value={filter}
-        onChange={setFilter}
-        options={[
-          ['all', `All ${events.filter((e) => !e.parent_id).length}`],
-          ['meeting', `Meetings ${count('meeting')}`],
-          ['email', `Emails ${count('email')}`],
-          ['note', `Notes ${count('note')}`],
-          ['status', `Status ${count('status')}`],
-        ]}
-      />
       <div className="timeline">
         {upcoming.length > 0 && <span className="lbl tl-label">Upcoming</span>}
         {upcoming.map((e) => (

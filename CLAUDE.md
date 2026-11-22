@@ -2,31 +2,50 @@
 
 Conventions for working on Knock Knock, shared with the owner's other self-hosted Cloudflare apps.
 
-Knock Knock has its **own visual language** (black, white and hi-vis yellow; Archivo, Geist and
-Geist Mono; hard 1.5px ink borders; stepped extrusion shadows; the glass tab bar). Don't bring in
-styling from the sibling apps (soft pills, circle icon buttons, tinted icon circles, hover shades,
-focus rings, grain): the rules below are about workflow, behaviour, wording and data only. Match
-this app's existing look for anything new.
+Knock Knock has its **own visual language** (1.0, "Ultramarine"): a light grey page (`--bg`),
+white rounded cards with soft shadows and no borders, one deep ultramarine accent (`--accent`),
+Bricolage Grotesque headings over Manrope text, and the asterisk on a tilted ultramarine tile
+beside the narrow all-caps Archivo wordmark. The 1.0 layer at the end of `styles.css` sets it.
+Don't bring in styling from the sibling apps; match this app's look for anything new.
 
 ## Look
 
 - Light mode only: no dark theme, no theme setting, no `prefers-color-scheme: dark` rules.
-- No solid black buttons. Anything you can press is white (or yellow for the primary action)
-  with the ink border, and lifts on a black extrusion when hovered. The selected or current
-  state (active nav item, chosen segment or option, picked chip, current search) is `--sel`, a
-  light tint of the yellow, with ink text and an ink border, so the black extrusion still reads.
-- Exception: the job page's tabs (Details, Timeline, Stories, Files), also used for the Jobs
-  list's stages (a toggle under the Board/List toggle was too much). Tabs don't lift, so the
-  "no black buttons" rule (lifted buttons losing their shadow) doesn't apply: the open tab is a
-  solid ink folder tab with white text and icon on the line under the row; the others are plain
-  `--ink2` text with no box. The row scrolls sideways only on phones, with hard stops.
-- The round yellow "+" (`.fab`, "Log to timeline") appears on job pages only: it opens the log
-  sheet for that job. No other page (Call Mode included) has it.
-- Yellow is a fill, never thin text, icon strokes or outlines on white: icons and text on light
-  backgrounds are ink (or `--ink2` grey). A ghost button gets its ink outline back when it lifts.
-- Sliding toggles (`SlideToggle`) don't lift on hover; the stage stepper doesn't either.
-- Page headings carry the page's icon in a yellow squircle (`PageHeader` with `icon`; `.h-icon`),
-  with no highlighter band behind the text.
+- Buttons are pills: the primary action solid ultramarine with white text; every other button
+  white with a grey outline (never white on white with no edge), ghost buttons in ultramarine
+  text. Nothing lifts on an extrusion: hovers shade softly.
+- Cards: white, `--radius` corners, the soft `--sh` shadow, no border.
+- Section and card headings are in Title Case ("Job Description", "Log to Timeline", "The
+  Meeting"); buttons and body text stay in sentence case.
+- Tabs (a job's Details, Timeline, Stories, Files; the Jobs list's stages): plain text, the open
+  one bold with an ink underline; counts sit in small circles, the open tab's in ultramarine.
+- The stage bar is a row of rounded segments with the stage name under each: done stages light
+  ultramarine, the current one solid, the rest grey.
+- Statuses show their icon (`STATUS_ICON`) in white on a small solid round badge (`StatusIcon`):
+  ultramarine along the way, green for Offer, dark green for Accepted, red for Rejected, grey for
+  Declined and Ghosted. No coloured dots, no pale badges on grey.
+- Contrast: nothing low-contrast. Quiet text uses `--ink3` (readable on white and grey); small
+  icon buttons are ink on a visible grey disc; letter badges (story parts, initials) are white on
+  solid ultramarine; danger buttons are white with a red outline, filled red on hover (only the
+  confirm popup's final Delete is solid red). No soft red on grey.
+- Every sheet carries an icon left of its title (`Sheet icon=`) and no subtitle under it (About's
+  version line is the one exception). Files use the paperclip
+  everywhere.
+- Pay shows as "$187.2–198.8K" (thousands and millions to one decimal); amounts being typed get
+  thousands commas.
+- Icons on cards, timelines and lists are grey or ink outlines, never filled with the accent.
+  Page headings carry the page's icon in white on the tilted ultramarine tile (`.h-icon`).
+- A job's header card: the title, then the company in bold with work mode and the applied date,
+  Call Mode and Log to timeline at the right, and the stage bar. No status pill (the stage bar
+  says it), and no floating "+" button anywhere.
+- Each detail edits in place in exactly the spot, size, type and content it's shown in: nothing
+  but the border changes when editing starts. A link is shown and edited in its short form
+  ("example.com", no https://), opens only from the new-tab button beside its label, and a
+  click on it edits it. Nested text in a value never picks up the label rules. A blank field
+  shows an em dash (—), never "Add".
+- Field labels are bold ink; values are regular weight, shown and editing alike.
+- Filters open from a filter icon button into a drawer, offering only choices that exist.
+- Many-valued choices (six meeting kinds) are a dropdown (`Select`), not a sliding toggle.
 
 ## Workflow
 
@@ -52,12 +71,20 @@ this app's existing look for anything new.
   (`lib/currentSearch.ts`) and also saved as the server's `current_search_id`, which is what new
   applications and assistants use.
 - Every detail of an application (title, company, pay, links, dates, company facts,
-  must-haves, notes, the job description) is edited in place on its page: each field, or small
+  requirements (Required / Preferred), notes, the job posting) is edited in place on its page: each field, or small
   group that edits together (pay), sits in an edit container with its pencil right-aligned. Tap
-  it to edit; single fields save on Enter or blur, groups and long text have Save and Cancel,
-  and Escape cancels. There's no edit sheet for an existing job (the sheet only adds a new one);
+  it to edit; fields and groups (pay) save on Enter, Tab or clicking away, with no Save or Cancel
+  buttons, and Escape cancels. A field keeps its size, font and place while being edited. There's no edit sheet for an existing job (the sheet only adds a new one);
   deleting sits at the bottom of the page. Tapping a stage on the stepper opens the status sheet
   for that stage.
+- The Job card holds everything about the role: its fields, Required and Preferred, and the
+  pasted job posting at the end (clamped, with Show full posting). Notes sits under it in the
+  left column; Company and People on the right.
+- The timeline is one plain list with no filter. Every entry's icon sits in a grey disc in a white
+  circle, all in the same grey and line weight; status changes use the bar-built arrow
+  (`StatusArrow`), the job being added the asterisk, files the paperclip. The rail starts at the
+  asterisk (the oldest entry) and nothing runs below it. A file entry's open button sits right
+  after its name, and its sheet is one group: the file, kind, date added and a comment.
 - Timeline entries work the same way: tapping a meeting, email, note or file card opens it in a
   sheet (a drawer on phones, a panel on wider screens) where every value edits in place, with
   no Edit button or separate form. Each kind has its own fields, grouped into cards like a job's
@@ -80,7 +107,7 @@ this app's existing look for anything new.
   `tags` and `questions` columns (and frameworks' `questions`) stay in D1 and in exports, unused,
   rather than dropping them with a migration; they also stay in the copy hash so existing job
   copies keep their sync state. The UI and MCP tools don't show or take them.
-- A new story's sheet is titled "New story" whatever the framework; Cancel goes back to the
+- A new story's sheet is titled "New Story" whatever the framework; Cancel goes back to the
   framework picker.
 - Report numbers come from `src/shared/logic/report.ts`. "Heard back" means the application
   moved past Applied (Screening or later) or was rejected; time to hear back is from applying to
@@ -129,10 +156,9 @@ this app's existing look for anything new.
 
 ## Statuses and stories
 
-- Statuses show an icon (`STATUS_ICON`, drawn with `StatusIcon` in `components/StatusChip.tsx`),
-  filled inside: yellow for Saved, Applied, Screening and Interviewing (only the front person),
-  green for Offer, blue for Accepted, red for Rejected, light grey for Ghosted, none for
-  Declined. Every status chip is otherwise the same plain chip.
+- Statuses show an icon (`STATUS_ICON`, drawn with `StatusIcon` in `components/StatusChip.tsx`)
+  in its tinted round badge (see Look): bookmark Saved, paper plane Applied, phone Screening,
+  people Interviewing, gift Offer, check Accepted, X Rejected, minus Declined, ghost Ghosted.
 - The stage bar (`components/StageBar.tsx`) is Saved → Applied → Screening → Interviewing → Offer →
   Closed. Closed covers Accepted, Rejected, Declined and Ghosted; picking it asks how it ended.
 - Call Mode's notepad ("Call notes") saves itself (about a second after typing stops, and on

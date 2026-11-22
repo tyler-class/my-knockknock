@@ -5,12 +5,13 @@ import { storyCounts } from '../lib/filters';
 import { useViewState } from '../lib/viewState';
 import { useSheets } from '../sheets/context';
 import { Icon } from '../components/Icon';
-import { PageHeader, SlideToggle, cx } from '../components/ui';
+import { FilterButton, FilterGroup, FilterSheet, PageHeader, cx } from '../components/ui';
 
 export function Stories() {
   const data = useData();
   const sheets = useSheets();
   const [q, setQ] = useState('');
+  const [filters, setFilters] = useState(false);
   // Remembered on this device and kept in the address (?fw=star&archived=1).
   const [choice, choose] = useViewState('kk:stories', { fw: 'all', archived: '' });
   const archived = choice.archived === '1';
@@ -45,7 +46,28 @@ export function Stories() {
         Linking a story to a job gives that job its own copy to tailor. Changing it there doesn’t
         change it here unless you choose to.
       </p>
-      <div className="toolbar">
+      {/* Current stories, and the archive beside them: two tabs, each with its count. */}
+      <div className="tabs" role="tablist" aria-label="Which stories">
+        {(
+          [
+            ['', 'Current', stories.filter((x) => !x.archived).length],
+            ['1', 'Archived', stories.filter((x) => x.archived).length],
+          ] as const
+        ).map(([v, l, n]) => (
+          <button
+            key={l}
+            type="button"
+            role="tab"
+            aria-selected={choice.archived === v || (!v && !archived)}
+            className="tab"
+            onClick={() => choose({ archived: v })}
+          >
+            {l}
+            <span className="count">{n}</span>
+          </button>
+        ))}
+      </div>
+      <div className="toolbar" style={{ marginTop: 14 }}>
         <label className="search-in">
           <Icon name="search" size={16} />
           <input
@@ -55,17 +77,38 @@ export function Stories() {
             aria-label="Search stories"
           />
         </label>
+        {/* Only the frameworks that have stories, so every choice finds something. */}
+        {used.length > 1 && (
+          <FilterButton count={fw === 'all' ? 0 : 1} onClick={() => setFilters(true)} />
+        )}
       </div>
-      {used.length > 1 && (
-        <SlideToggle
-          label="Framework"
-          value={fw}
-          onChange={(v) => choose({ fw: v })}
-          options={[
-            ['all', `All ${counts.all}`],
-            ...used.map((f) => [f.key, `${f.name} ${f.n}`] as const),
-          ]}
-        />
+      {filters && (
+        <FilterSheet
+          count={fw === 'all' ? 0 : 1}
+          onClose={() => setFilters(false)}
+          onClear={() => choose({ fw: 'all' })}
+        >
+          <FilterGroup title="Framework">
+            <div className="check-list" role="radiogroup" aria-label="Framework">
+              {[{ key: 'all', name: 'All', n: counts.all }, ...used].map((f) => (
+                <button
+                  key={f.key}
+                  type="button"
+                  role="radio"
+                  aria-checked={fw === f.key}
+                  className={cx('check-opt', fw === f.key && 'on')}
+                  onClick={() => choose({ fw: f.key })}
+                >
+                  <span className="check-box" aria-hidden="true">
+                    {fw === f.key && <Icon name="check" size={13} />}
+                  </span>
+                  {f.name}
+                  <span className="count">{f.n}</span>
+                </button>
+              ))}
+            </div>
+          </FilterGroup>
+        </FilterSheet>
       )}
       <div className="story-grid">
         {hits.map(({ item: s }) => {
@@ -102,19 +145,9 @@ export function Stories() {
         </div>
       )}
       {stories.length > 0 && !hits.length && <p className="empty">Nothing matches.</p>}
-      <div className="acts" style={{ marginTop: 18 }}>
-        <button
-          type="button"
-          className={cx('btn sm', archived && 'primary')}
-          onClick={() => choose({ archived: archived ? '' : '1' })}
-        >
-          {archived ? 'Show current' : 'Show archived'}
-        </button>
-      </div>
-
       <section className="sec">
         <div className="sec-h">
-          <h2>Custom frameworks</h2>
+          <h2>Custom Frameworks</h2>
           <button type="button" className="more" onClick={() => sheets.framework()}>
             + New framework
           </button>

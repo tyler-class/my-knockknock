@@ -3,7 +3,7 @@
 // text files (transcripts) so assistants can read them over MCP.
 import { Hono } from 'hono';
 import { filePatch } from '@shared/schemas';
-import { fileKindLabel, type FileKind } from '@shared/lookups';
+import type { FileKind } from '@shared/lookups';
 import type { FileRef } from '@shared/types';
 import { agentName, isInternal } from '../auth';
 import { first, insertStmt, loadFile, newId, nowIso, refreshApplication } from '../db';
@@ -141,7 +141,8 @@ export async function storeFile(env: Cloudflare.Env, a: StoreFile): Promise<File
       type: 'note',
       occurred_at: now,
       title: fileEventTitle(a.label ?? filename),
-      body: `${fileKindLabel(a.kind)} · ${filename}`,
+      // The body is the owner's comment on the file; it starts empty.
+      body: null,
       source: a.source?.source ?? 'manual',
       source_name: a.source?.source_name ?? null,
       data: JSON.stringify({ file_id: id }),

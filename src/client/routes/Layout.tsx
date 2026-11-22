@@ -73,14 +73,19 @@ function SearchSwitch({ data, compact }: { data: Data | null; compact?: boolean 
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
       >
-        {!compact && <span className="lbl">Search</span>}
+        {!compact && (
+          <span className="lbl search-lbl">
+            <Icon name="search" size={14} />
+            Search
+          </span>
+        )}
         <span className="search-switch-name">
           <strong>{search?.name ?? 'No search yet'}</strong>
           <Icon name="chevDown" size={16} />
         </span>
         {search && !compact && (
           <span className="sub">
-            {searchStatus(search)} · {count(search.id)} applications
+            {searchStatus(search)} · {jobsLabel(count(search.id))}
           </span>
         )}
       </button>
@@ -98,24 +103,31 @@ function SearchSwitch({ data, compact }: { data: Data | null; compact?: boolean 
               <span className="row-text">
                 <strong>{s.name}</strong>
                 <span className="sub">
-                  {searchStatus(s)} · {count(s.id)} applications
+                  {searchStatus(s)} · {jobsLabel(count(s.id))}
                 </span>
               </span>
               {s.id === search?.id && <Icon name="check" size={16} />}
             </button>
           ))}
+          {/* The menu's own actions: plain rows like its options, after a rule. */}
           <div className="search-menu-foot">
             {search && (
               <button
                 type="button"
-                className="btn sm"
+                role="menuitem"
+                className="search-act"
                 onClick={() => go(() => sheets.search(search.id))}
               >
-                <Icon name="edit" size={14} /> Edit this search
+                <Icon name="edit" size={16} /> Edit this search
               </button>
             )}
-            <button type="button" className="btn sm" onClick={() => go(() => sheets.search())}>
-              <Icon name="plus" size={14} /> New search
+            <button
+              type="button"
+              role="menuitem"
+              className="search-act"
+              onClick={() => go(() => sheets.search())}
+            >
+              <Icon name="plus" size={16} /> New search
             </button>
           </div>
         </div>
@@ -124,6 +136,9 @@ function SearchSwitch({ data, compact }: { data: Data | null; compact?: boolean 
   );
 }
 
+/** "1 job", "3 jobs". */
+const jobsLabel = (n: number) => `${n} ${n === 1 ? 'job' : 'jobs'}`;
+
 export function Brand() {
   // The asterisk turns while anything is loading or saving (after a beat, so quick ones don't
   // flicker), and once round each time the logo is tapped.
@@ -131,12 +146,14 @@ export function Brand() {
   const [twirl, setTwirl] = useState(0);
   return (
     <div className="brand" onClick={() => setTwirl((n) => n + 1)}>
-      <Asterisk
-        // A new key restarts the turn on every tap, even mid-turn.
-        key={twirl}
-        size={26}
-        className={busy ? 'spinning delayed' : twirl ? 'twirl' : undefined}
-      />
+      <span className="mark" aria-hidden="true">
+        <Asterisk
+          // A new key restarts the turn on every tap, even mid-turn.
+          key={twirl}
+          size={19}
+          className={busy ? 'spinning delayed' : twirl ? 'twirl' : undefined}
+        />
+      </span>
       <Wordmark />
     </div>
   );

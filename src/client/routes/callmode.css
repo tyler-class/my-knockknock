@@ -1,0 +1,436 @@
+/* Call Mode: the bar across the top, then two halves: the room, topics and call notes on the
+   left, the Stories panel (search, list, the story) on the right. One column on phones. */
+
+.cmv {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  background: var(--bg, #ebedf1);
+  color: var(--ink, #1a1d24);
+  font-family: 'Manrope Variable', system-ui, sans-serif;
+}
+
+/* ---------- the bar ---------- */
+
+.cmv-bar {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) 20px 12px;
+  background: var(--surface, #fff);
+  box-shadow: 0 1px 0 var(--line, #e1e4ea);
+}
+.cmv-bar .btn {
+  border-radius: 999px;
+}
+.cmv-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.cmv-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px 4px;
+  border-radius: 999px;
+  background: var(--accent-soft, #e4e8fd);
+  color: var(--accent-deep, #2131a6);
+  font-family: 'Archivo Variable', system-ui, sans-serif;
+  font-stretch: 70%;
+  font-weight: 900;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  line-height: 1;
+}
+.cmv-badge.live {
+  background: var(--bad-soft, #ffe3e0);
+  color: var(--bad, #b4231c);
+}
+.cmv-badge i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: cmv-pulse 1.6s ease-in-out infinite;
+}
+@keyframes cmv-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cmv-badge i {
+    animation: none;
+  }
+}
+.cmv-title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 240px;
+}
+.cmv-title strong {
+  font-family: 'Bricolage Grotesque Variable', system-ui, sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.cmv-title span {
+  font-size: 13px;
+  color: var(--ink2, #5c6370);
+}
+.cmv-clock {
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink2, #5c6370);
+}
+.cmv-clock:empty {
+  display: none;
+}
+
+/* ---------- the two halves ---------- */
+
+.cmv-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  padding: 16px;
+}
+.cmv-left {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+}
+.cmv-info {
+  flex: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  max-height: 34vh;
+}
+.cmv-info .cmv-card {
+  overflow-y: auto;
+}
+.cmv-card {
+  background: var(--surface, #fff);
+  border-radius: 22px;
+  box-shadow: 0 10px 30px rgba(20, 30, 50, 0.06);
+  padding: 18px 20px;
+  min-width: 0;
+}
+.cmv-h {
+  margin: 0 0 8px;
+  font-family: 'Bricolage Grotesque Variable', system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+.cmv-person {
+  padding: 5px 0;
+  font-size: 14px;
+}
+.cmv-person + .cmv-person {
+  border-top: 1px solid var(--line, #e1e4ea);
+}
+.cmv-person span {
+  color: var(--ink2, #5c6370);
+}
+.cmv-pre {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+/* ---------- call notes ---------- */
+
+.cmv-notes {
+  flex: 1;
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+}
+.cmv-notes-head {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.cmv-notes-head .cmv-h {
+  margin: 0;
+}
+.cmv-save {
+  font-size: 12.5px;
+  color: var(--ink3, #8a909c);
+  text-align: right;
+}
+.cmv-save.bad {
+  color: var(--bad, #b4231c);
+}
+.cmv-notes .notes-editor {
+  flex: 1;
+  min-height: 0;
+  cursor: text;
+}
+.cmv-hints {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 8px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--line, #e1e4ea);
+  font-size: 12px;
+  color: var(--ink3, #8a909c);
+}
+.cmv-hints kbd,
+.cmv-search kbd {
+  display: inline-block;
+  min-width: 18px;
+  margin-right: 3px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--bg, #ebedf1);
+  color: var(--ink2, #5c6370);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* ---------- stories ---------- */
+
+.cmv-stories {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+}
+.cmv-search {
+  flex: none;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 10px 0 14px;
+  border-radius: 999px;
+  background: var(--bg, #ebedf1);
+  color: var(--ink2, #5c6370);
+}
+.cmv-search:focus-within {
+  box-shadow: 0 0 0 2px var(--accent, #2b3fd0);
+}
+.cmv-search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--ink, #1a1d24);
+  font: inherit;
+  font-size: 15px;
+}
+.cmv-search input::placeholder {
+  color: #b8c2ce;
+}
+.cmv-search kbd {
+  margin: 0;
+}
+.cmv-stories-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(170px, 2fr) minmax(0, 3fr);
+  gap: 16px;
+}
+.cmv-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0 -6px;
+  padding: 0 6px;
+}
+.cmv-group {
+  margin: 8px 0 2px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink3, #8a909c);
+}
+.cmv-group:first-child {
+  margin-top: 0;
+}
+.cmv-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 14px;
+  background: none;
+  color: var(--ink, #1a1d24);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.cmv-row strong {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.cmv-row span {
+  font-size: 12.5px;
+  color: var(--ink2, #5c6370);
+}
+.cmv-row:hover {
+  background: var(--bg, #ebedf1);
+}
+.cmv-row.on {
+  background: var(--accent-soft, #e4e8fd);
+}
+.cmv-row.on strong {
+  color: var(--accent-deep, #2131a6);
+}
+.cmv-reader {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.cmv-meta {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink3, #8a909c);
+}
+.cmv-reader-title {
+  margin: -8px 0 0;
+  font-family: 'Bricolage Grotesque Variable', system-ui, sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+.cmv-angle {
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--accent-soft, #e4e8fd);
+  color: var(--accent-deep, #2131a6);
+  font-size: 14.5px;
+  font-weight: 600;
+}
+.cmv-sec {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+.cmv-sec > b {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: var(--accent, #2b3fd0);
+  color: #fff;
+  font-family: 'Bricolage Grotesque Variable', system-ui, sans-serif;
+  font-size: 15px;
+}
+.cmv-sec-label {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink3, #8a909c);
+}
+.cmv-sec .cmv-pre {
+  font-size: 15.5px;
+}
+.cmv-empty {
+  margin: 0;
+  font-size: 14px;
+  color: var(--ink2, #5c6370);
+}
+
+/* A narrower window: the story list over the story. */
+@media (max-width: 1180px) {
+  .cmv-stories-body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 2fr) minmax(0, 3fr);
+  }
+}
+
+/* Phones: one column, the page scrolls. */
+@media (max-width: 760px) {
+  .cmv {
+    height: auto;
+    min-height: 100vh;
+  }
+  .cmv-bar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .cmv-grid {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 12px;
+    gap: 12px;
+  }
+  /* The search first, as before: the question you just heard matters most. */
+  .cmv-stories {
+    order: -1;
+  }
+  .cmv-info {
+    max-height: none;
+  }
+  .cmv-notes {
+    min-height: 320px;
+  }
+  .cmv-stories-body {
+    grid-template-rows: none;
+  }
+  .cmv-list {
+    max-height: 40vh;
+  }
+  .cmv-reader {
+    overflow: visible;
+  }
+}
+
+/* End call: a red outline on white, filled red on hover. */
+.btn.cmv-end {
+  background: var(--surface, #fff);
+  color: var(--bad, #b4231c);
+  border: 1.5px solid currentColor;
+  box-shadow: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .btn.cmv-end:hover {
+    background: var(--bad, #b4231c);
+    border-color: var(--bad, #b4231c);
+    color: #fff;
+  }
+}
+.btn.cmv-end:focus-visible {
+  outline: 2px solid var(--bad, #b4231c);
+  outline-offset: 2px;
+}

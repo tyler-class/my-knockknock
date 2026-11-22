@@ -150,7 +150,7 @@ export function Settings() {
       <ConnectAI />
       {/* Already installed: nothing to do here, so no section. */}
       {!isStandalone() && (
-        <Section title="Install on your phone" id="install">
+        <Section title="Install on Your Phone" id="install">
           <InstallHint />
         </Section>
       )}
@@ -389,7 +389,7 @@ function ConnectAI() {
   });
   const list = q.data?.connections ?? [];
   return (
-    <Section title="Connect an AI assistant">
+    <Section title="Connect an AI Assistant">
       <p style={{ marginTop: 0 }}>{ASSISTANT_INTRO('job search')}</p>
       <label className="lbl">{CONNECTED_TEXT.urlLabel('Knock Knock')}</label>
       <div className="flexrow" style={{ flexWrap: 'nowrap' }}>

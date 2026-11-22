@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
   buildReport,
   MIN_REPLIES,
@@ -8,7 +8,8 @@ import {
 } from '@shared/logic/report';
 import { useData } from '../lib/queries';
 import { pct } from '../lib/format';
-import { PageHeader, Select } from '../components/ui';
+import { PageHeader } from '../components/ui';
+import { SearchLine } from '../components/SearchLine';
 
 const COLORS: Record<string, string> = {
   stage: 'var(--ink)',
@@ -125,24 +126,22 @@ function Bars({ rows }: { rows: Breakdown[] }) {
 
 export function Reports() {
   const data = useData();
-  const [scope, setScope] = useState<string>('current');
+  // The search picked in the sidebar is the one reported on (change it there).
   const report = useMemo(() => {
     if (!data) return null;
-    const apps =
-      scope === 'all'
-        ? data.state.applications
-        : data.state.applications.filter(
-            (a) => a.search_id === (scope === 'current' ? data.search?.id : scope),
-          );
+    const apps = data.apps;
     const ids = new Set(apps.map((a) => a.id));
     return buildReport(
       apps,
       data.state.events.filter((e) => ids.has(e.application_id)),
       data.state.files,
     );
-  }, [data, scope]);
+  }, [data]);
   if (!data || !report) return null;
   const maxWeek = Math.max(...report.perWeek.map((w) => w.n), 1);
+  // The y axis: a round top just above the busiest week, with 0, the middle and the top marked.
+  const yTop = maxWeek <= 4 ? 4 : Math.ceil(maxWeek / 4) * 4;
+  const yTicks = [0, yTop / 2, yTop];
   const ofSent = (n: number) => (report.sent ? `${pct(n / report.sent)} of applied` : '');
   const tiles: [string, number, string][] = [
     ['Applied', report.sent, report.saved ? `${report.saved} saved, not sent` : ''],
@@ -155,26 +154,7 @@ export function Reports() {
   return (
     <>
       <PageHeader title="Report" icon="chart" />
-      <div className="toolbar">
-        <Select
-          value={scope}
-          onChange={setScope}
-          groups={[
-            {
-              options: [
-                { value: 'current', label: `This search (${data.search?.name ?? 'none'})` },
-                { value: 'all', label: 'All searches' },
-              ],
-            },
-            {
-              label: 'Past searches',
-              options: data.state.searches
-                .filter((s) => s.id !== data.search?.id)
-                .map((s) => ({ value: s.id, label: s.name })),
-            },
-          ]}
-        />
-      </div>
+      <SearchLine />
       <div className="kpis home-kpis">
         {tiles.map(([l, v, d]) => (
           <div key={l} className="kpi">
@@ -186,7 +166,7 @@ export function Reports() {
       </div>
 
       <section className="card sec">
-        <h2 className="sec-title">Where your applications went</h2>
+        <h2 className="sec-title">Where Your Applications Went</h2>
         <p className="sub">Each application counts in every stage it reached.</p>
         {report.nodes.length ? (
           <div className="sankey-wrap">
@@ -221,7 +201,7 @@ export function Reports() {
 
       <div className="report-grid">
         <section className="card">
-          <h2 className="sec-title">Response rate</h2>
+          <h2 className="sec-title">Response Rate</h2>
           <p className="sub">
             Heard back: moved past Applied (Screening or later) or got a rejection, rather than
             silence.
@@ -234,7 +214,7 @@ export function Reports() {
                   {report.heardBack} of {report.sent} heard back
                 </span>
               </div>
-              <h3 className="sub-h">By where you found the job</h3>
+              <h3 className="sub-h">By Where You Found the Job</h3>
               <Bars rows={report.bySource} />
             </>
           ) : (
@@ -243,13 +223,13 @@ export function Reports() {
         </section>
         {report.byResume.length > 0 && (
           <section className="card">
-            <h2 className="sec-title">Which resume got replies</h2>
+            <h2 className="sec-title">Which Resume Got Replies</h2>
             <p className="sub">The resume attached to each application you sent.</p>
             <Bars rows={report.byResume} />
           </section>
         )}
         <section className="card">
-          <h2 className="sec-title">Time to hear back</h2>
+          <h2 className="sec-title">Time to Hear Back</h2>
           <p className="sub">
             Median days from applying to the first status change past Applied, or a rejection.
           </p>
@@ -268,15 +248,48 @@ export function Reports() {
           )}
         </section>
         <section className="card">
-          <h2 className="sec-title">Applied per week</h2>
+          <h2 className="sec-title">Applied per Week</h2>
           <p className="sub">The last 12 weeks, Monday to Sunday.</p>
-          <div className="weeks">
-            {report.perWeek.map((w) => (
-              <div key={w.week} className="wk" title={`Week of ${w.week}: ${w.n}`}>
-                <span className="mono">{w.n || ''}</span>
-                <i style={{ height: `${(w.n / maxWeek) * 100}%` }} />
+          {/* A y axis of counts with gridlines, one rounded bar per week with its count above,
+              and each week's Monday under it; this week in full ultramarine. */}
+          <div className="wchart">
+            <div className="wchart-y" aria-hidden="true">
+              {yTicks.map((t) => (
+                <span key={t} style={{ bottom: `${(t / yTop) * 100}%` }}>
+                  {t}
+                </span>
+              ))}
+            </div>
+            <div className="wchart-plot">
+              {yTicks.map((t) => (
+                <i key={t} className="wchart-grid" style={{ bottom: `${(t / yTop) * 100}%` }} />
+              ))}
+              <div className="weeks" role="img" aria-label="Applications per week, last 12 weeks">
+                {report.perWeek.map((w, i) => (
+                  <div
+                    key={w.week}
+                    className={i === report.perWeek.length - 1 ? 'wk now' : 'wk'}
+                    title={`Week of ${w.week}: ${w.n}`}
+                  >
+                    <span className="wk-bar" style={{ height: `${(w.n / yTop) * 100}%` }}>
+                      {w.n > 0 && <span className="wk-n">{w.n}</span>}
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+            <div className="wchart-x" aria-hidden="true">
+              {report.perWeek.map((w, i) => (
+                <span key={w.week}>
+                  {i === report.perWeek.length - 1
+                    ? 'This week'
+                    : new Date(`${w.week}T12:00:00`).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                </span>
+              ))}
+            </div>
           </div>
         </section>
       </div>

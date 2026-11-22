@@ -33,7 +33,12 @@ function LinkIcon({ kind, className }: { kind: AboutLinkKind; className?: string
 export function AboutSheet() {
   const sheets = useSheets();
   return (
-    <Sheet title="About Knock Knock" sub={`Version ${__APP_VERSION__}`} onClose={sheets.close}>
+    <Sheet
+      title="About Knock Knock"
+      icon="info"
+      sub={`Version ${__APP_VERSION__}`}
+      onClose={sheets.close}
+    >
       <div className="about-mark">
         <Wordmark pop />
       </div>

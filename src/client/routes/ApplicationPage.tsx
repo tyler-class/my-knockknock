@@ -2,7 +2,7 @@
 // edited where it's shown (a pencil at the right of each), notes, the timeline, files and
 // linked stories.
 import { useRef, useState, type ReactNode } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import {
   CLOSED_STATUSES,
   FILE_KINDS,
@@ -17,7 +17,6 @@ import {
   type SalaryPeriod,
   type Status,
 } from '@shared/lookups';
-import { stagesReached } from '@shared/logic/status';
 import { payRange } from '@shared/logic/pay';
 import { withScheme } from '@shared/url';
 import { SYNC_LABEL, frameworkOf, syncState } from '@shared/logic/stories';
@@ -28,7 +27,6 @@ import { bytes, compLabel, dayLabel, relDays } from '../lib/format';
 import { shortDateLabel } from '../lib/dates';
 import { DatePicker } from '../components/DateTimePicker';
 import { useSheets } from '../sheets/context';
-import { useViewState } from '../lib/viewState';
 import { Timeline } from '../components/Timeline';
 import { StatusIcon } from '../components/StatusChip';
 import { Icon } from '../components/Icon';
@@ -40,11 +38,10 @@ import {
   Field,
   Select,
   Sheet,
-  TagInput,
   cx,
 } from '../components/ui';
 import { useToast } from '../components/Toast';
-import { EditActs, EditBox, groupKeys } from '../components/edit';
+import { EditActs, EditBox, groupKeys, shortUrl, TagsEdit } from '../components/edit';
 
 const workModeLabel = (m: string) => WORK_MODES.find((w) => w.key === m)?.label ?? m;
 
@@ -55,10 +52,15 @@ const CLOSE_TYPES: Status[] = ['accepted', ...CLOSED_STATUSES];
  * The stages left to right, ending with Closed. Tapping one opens the status sheet set to move
  * there (with an optional note); Closed asks how it ended.
  */
-function Stepper({ a, data }: { a: Application; data: Data }) {
+function Stepper({ a }: { a: Application }) {
   const sheets = useSheets();
-  const reached = stagesReached(data.eventsByApp.get(a.id) ?? []);
   const closed = CLOSE_TYPES.includes(a.status);
+  // Purely by position: the stages before the current one are done, the ones after are to come
+  // (a job moved back a stage doesn't keep the later ones lit). A closed job's open stages all
+  // count as done up to where it closed from.
+  const at = closed
+    ? OPEN_STATUSES.indexOf(a.closed_from ?? 'applied') + 1
+    : OPEN_STATUSES.indexOf(a.status);
   return (
     <StageBar
       label="Stage"
@@ -71,7 +73,7 @@ function Stepper({ a, data }: { a: Application; data: Data }) {
             icon: <StatusIcon status={s} size={15} />,
             state: here
               ? ('here' as const)
-              : reached.includes(s)
+              : OPEN_STATUSES.indexOf(s) < at
                 ? ('done' as const)
                 : ('todo' as const),
             disabled: here,
@@ -122,6 +124,16 @@ const choiceGroups = (options: { value: string; label: string }[], current: stri
 ];
 const WORK_MODE_CHOICES = WORK_MODES.map((w) => ({ value: w.key, label: w.label }));
 const SOURCE_CHOICES = SOURCES.map((s) => ({ value: s, label: s }));
+const EMPLOYMENT_CHOICES = [
+  'Full-time',
+  'Part-time',
+  'Contract',
+  'Contract-to-hire',
+  'Internship',
+].map((v) => ({ value: v, label: v }));
+/** "1200" or "1000-5000 employees" with thousands separators: "1,200", "1,000-5,000 employees". */
+const groupThousands = (s: string) =>
+  s.replace(/\d[\d,]*/g, (n) => Number(n.replace(/,/g, '')).toLocaleString('en-US'));
 
 /**
  * One detail, edited where it's shown: tap the value (or "Add"), change it, and Enter or
@@ -159,14 +171,16 @@ function InlineField({
   const [pending, setPending] = useState<string | null>(null);
   const raw = pending ?? stored;
   const [editing, setEditing] = useState(false);
+  // A link is edited exactly as it's shown (short); unchanged, it keeps its stored form.
+  const asShown = (x: string) => (kind === 'url' ? shortUrl(x) : x);
   const [v, setV] = useState(raw);
   const begin = () => {
-    setV(raw);
+    setV(asShown(raw));
     setEditing(true);
   };
   const save = async (next = v) => {
     setEditing(false);
-    if (next.trim() === raw || (required && !next.trim())) return;
+    if (next.trim() === asShown(raw) || (required && !next.trim())) return;
     setPending(next.trim());
     await act.patch(`/applications/${a.id}`, { [k]: next.trim() || null });
     setPending(null);
@@ -176,14 +190,8 @@ function InlineField({
     ? null
     : (display ??
       (kind === 'url' ? (
-        <a
-          href={withScheme(raw)}
-          target="_blank"
-          rel="noreferrer"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {raw.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}
-        </a>
+        // Shown short, as text: tapping it edits it; the new-tab button beside the label opens it.
+        <span className="link-v">{raw.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}</span>
       ) : kind === 'date' ? (
         shortDateLabel(raw)
       ) : kind === 'choice' ? (
@@ -192,7 +200,14 @@ function InlineField({
         raw
       )));
   return (
-    <EditBox label={label} full={full} shown={shown} editing={editing} onEdit={begin}>
+    <EditBox
+      label={label}
+      href={kind === 'url' && raw ? raw : undefined}
+      full={full}
+      shown={shown}
+      editing={editing}
+      onEdit={begin}
+    >
       {kind === 'choice' ? (
         <Select
           className="sm"
@@ -242,9 +257,43 @@ function InlineField({
  * Pay edits as one group: a range (min, max, per what) and a note on pay (bonus, equity, the
  * posting's own words). Either, both or neither can be set; min and max swap if entered backwards.
  */
+/**
+ * The posting as pasted, at the end of The Job: about eight lines, with Show full posting to read
+ * the rest in place. Editing works as for any long text.
+ */
+function PostingField({ a }: { a: Application }) {
+  const [full, setFull] = useState(false);
+  const text = a.description ?? '';
+  const long = text.length > 700 || text.split('\n').length > 9;
+  return (
+    <div className={cx('posting kv-full', long && !full && 'clamped')}>
+      <TextField
+        a={a}
+        k="description"
+        label="Full job description"
+        rows={12}
+        fixed
+        className="jd"
+      />
+      {long && (
+        <button
+          type="button"
+          className="linkish more"
+          aria-expanded={full}
+          onClick={() => setFull((f) => !f)}
+        >
+          {full ? 'Show less' : 'Show full posting'}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function PayField({ a }: { a: Application }) {
   const act = useActions();
-  const str = (n: number | null) => (n == null ? '' : String(n));
+  const str = (n: number | null) => (n == null ? '' : groupThousands(String(n)));
+  // Typing plain digits groups them as you go ("444333" → "444,333"); "150k" is left as typed.
+  const grouped = (v: string) => (/^[\d,]*$/.test(v) ? groupThousands(v.replace(/,/g, '')) : v);
   const [editing, setEditing] = useState(false);
   const [lo, setLo] = useState('');
   const [hi, setHi] = useState('');
@@ -285,7 +334,7 @@ function PayField({ a }: { a: Application }) {
               autoFocus
               inputMode="decimal"
               value={lo}
-              onChange={(e) => setLo(e.target.value)}
+              onChange={(e) => setLo(grouped(e.target.value))}
             />
           </label>
           <label className="mini-l">
@@ -294,7 +343,7 @@ function PayField({ a }: { a: Application }) {
               className="in sm"
               inputMode="decimal"
               value={hi}
-              onChange={(e) => setHi(e.target.value)}
+              onChange={(e) => setHi(grouped(e.target.value))}
             />
           </label>
           <div className="mini-l">
@@ -328,38 +377,12 @@ function TagsField({
   label: string;
 }) {
   const act = useActions();
-  const [editing, setEditing] = useState(false);
-  const [v, setV] = useState<string[]>([]);
-  const save = async () => {
-    if (v.join('\n') === a[k].join('\n') || (await act.patch(`/applications/${a.id}`, { [k]: v })))
-      setEditing(false);
-  };
   return (
-    <EditBox
+    <TagsEdit
       label={label}
-      full
-      shown={
-        a[k].length ? (
-          <span className="tags">
-            {a[k].map((m) => (
-              <span key={m} className="tag">
-                {m}
-              </span>
-            ))}
-          </span>
-        ) : null
-      }
-      editing={editing}
-      onEdit={() => {
-        setV(a[k]);
-        setEditing(true);
-      }}
-    >
-      <div {...groupKeys(save, () => setEditing(false), false)}>
-        <TagInput value={v} onChange={setV} suggestions={[]} placeholder="Add one, press Enter" />
-        <EditActs onSave={() => void save()} onCancel={() => setEditing(false)} />
-      </div>
-    </EditBox>
+      value={a[k]}
+      onSave={(v) => act.patch(`/applications/${a.id}`, { [k]: v })}
+    />
   );
 }
 
@@ -391,8 +414,11 @@ function TextField({
       setEditing(false);
   };
   const props = {
-    className: 'in',
-    rows,
+    // The same class as the shown text (e.g. .jd), so the editor's type matches it exactly.
+    className: cx('in', className),
+    // A growing editor starts at one row and grows to the text, so it opens exactly as tall as
+    // the text was shown; the fixed one (the job description) keeps its rows.
+    rows: fixed ? rows : 1,
     autoFocus: true,
     value: v,
     placeholder,
@@ -421,19 +447,28 @@ function Details({ a, data }: { a: Application; data: Data }) {
   const sheets = useSheets();
   const people = data.state.people.filter((p) => p.application_id === a.id);
   return (
-    // Two columns that each stack on their own (The job; Company, Notes, People), so a short card
+    // Two columns that each stack on their own (The job; Company, People, Notes), so a short card
     // isn't pushed down by a tall one beside it. One column on phones.
     <div className="details">
       <div className="details-col">
         <section className="card">
           <div className="card-h">
             <h2 className="sec-title">
-              <Icon name="briefcase" size={18} /> The job
+              <Icon name="briefcase" size={18} /> The Job
             </h2>
           </div>
           <div className="kvs">
             <InlineField a={a} k="title" label="Title" required full />
             <PayField a={a} />
+            <InlineField a={a} k="url" label="Job link" kind="url" full />
+            <InlineField a={a} k="source" label="Source" kind="choice" choices={SOURCE_CHOICES} />
+            <InlineField
+              a={a}
+              k="employment_type"
+              label="Employment type"
+              kind="choice"
+              choices={EMPLOYMENT_CHOICES}
+            />
             <InlineField
               a={a}
               k="work_mode"
@@ -442,16 +477,11 @@ function Details({ a, data }: { a: Application; data: Data }) {
               choices={WORK_MODE_CHOICES}
             />
             <InlineField a={a} k="location" label="Location" />
-            <InlineField a={a} k="seniority" label="Seniority" />
-            <InlineField a={a} k="reports_to" label="Reports to" />
             <InlineField a={a} k="team" label="Team" />
-            <InlineField a={a} k="employment_type" label="Type" />
-            <InlineField a={a} k="posted_on" label="Posted" kind="date" />
-            <InlineField a={a} k="applied_on" label="Applied" kind="date" />
-            <InlineField a={a} k="url" label="Job link" kind="url" full />
-            <InlineField a={a} k="source" label="Source" kind="choice" choices={SOURCE_CHOICES} />
-            <TagsField a={a} k="must_haves" label="Must-haves" />
-            <TagsField a={a} k="nice_to_haves" label="Nice-to-haves" />
+            <InlineField a={a} k="reports_to" label="Reports to" />
+            <TagsField a={a} k="must_haves" label="Required" />
+            <TagsField a={a} k="nice_to_haves" label="Preferred" />
+            <PostingField a={a} />
           </div>
         </section>
       </div>
@@ -464,23 +494,18 @@ function Details({ a, data }: { a: Application; data: Data }) {
           </div>
           <div className="kvs">
             <InlineField a={a} k="company" label="Name" required full />
-            <InlineField a={a} k="company_domain" label="Domain" />
+            <InlineField a={a} k="company_domain" label="Domain" kind="url" />
             <InlineField a={a} k="company_hq" label="HQ" />
-            <InlineField a={a} k="company_size" label="Size" />
+            <InlineField
+              a={a}
+              k="company_size"
+              label="Size"
+              display={a.company_size ? groupThousands(a.company_size) : undefined}
+            />
             <InlineField a={a} k="company_industry" label="Industry" />
             <InlineField a={a} k="company_funding" label="Funding" />
             <InlineField a={a} k="company_website" label="Website" kind="url" />
             <InlineField a={a} k="company_linkedin" label="LinkedIn" kind="url" />
-          </div>
-        </section>
-        <section className="card notes-card">
-          <div className="card-h">
-            <h2 className="sec-title">
-              <Icon name="note" size={18} /> Notes
-            </h2>
-          </div>
-          <div className="kvs">
-            <TextField a={a} k="notes" label="Notes" rows={4} />
           </div>
         </section>
         <section className="card">
@@ -519,6 +544,16 @@ function Details({ a, data }: { a: Application; data: Data }) {
           ))}
           {!people.length && <p className="sub">No one yet.</p>}
         </section>
+        <section className="card notes-card">
+          <div className="card-h">
+            <h2 className="sec-title">
+              <Icon name="note" size={18} /> Notes
+            </h2>
+          </div>
+          <div className="kvs">
+            <TextField a={a} k="notes" label="Notes" rows={4} />
+          </div>
+        </section>
       </div>
     </div>
   );
@@ -548,9 +583,6 @@ function StoriesSection({ a, data }: { a: Application; data: Data }) {
           <button type="button" className="btn sm" onClick={() => sheets.newStory(a.id)}>
             New story for this job
           </button>
-          <Link className="btn sm" to={`/a/${a.id}/call`}>
-            Call Mode
-          </Link>
         </div>
       </div>
       <div className="card list">
@@ -578,7 +610,7 @@ function StoriesSection({ a, data }: { a: Application; data: Data }) {
                   disabled={i === 0}
                   onClick={() => move(j, -1)}
                 >
-                  ↑
+                  <Icon name="chevDown" size={16} className="flip" />
                 </button>
                 <button
                   type="button"
@@ -587,7 +619,7 @@ function StoriesSection({ a, data }: { a: Application; data: Data }) {
                   disabled={i === list.length - 1}
                   onClick={() => move(j, 1)}
                 >
-                  ↓
+                  <Icon name="chevDown" size={16} />
                 </button>
               </span>
             </div>
@@ -639,8 +671,8 @@ function PasteSheet({ a, data, onClose }: { a: Application; data: Data; onClose:
   };
   return (
     <Sheet
-      title="Paste text"
-      sub={`${a.company} · saved as a text file your assistant can read`}
+      title="Paste Text"
+      icon="paperclip"
       onClose={onClose}
       footer={
         <button
@@ -697,6 +729,7 @@ function FilesSection({ a, data }: { a: Application; data: Data }) {
   const act = useActions();
   const toast = useToast();
   const [paste, setPaste] = useState(false);
+  const [drag, setDrag] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const files = data.state.files
     .filter((f) => f.application_id === a.id)
@@ -716,14 +749,31 @@ function FilesSection({ a, data }: { a: Application; data: Data }) {
   }
   return (
     <section className="sec" aria-label="Files">
-      <div className="sec-h">
-        <h2>Files {files.length ? `· ${files.length}` : ''}</h2>
+      {/* Adding sits first, right under the tabs: drop a file on the bar, choose one, or paste text. */}
+      <div
+        className={drag ? 'file-drop over' : 'file-drop'}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDrag(true);
+        }}
+        onDragLeave={() => setDrag(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDrag(false);
+          void upload(e.dataTransfer.files);
+        }}
+      >
+        <Icon name="upload" size={20} />
+        <span className="file-drop-t">
+          <strong>Add a file</strong>
+          <span className="sub">Drop it here, choose one, or paste text</span>
+        </span>
         <div className="acts">
           <button type="button" className="btn sm" onClick={() => input.current?.click()}>
-            <Icon name="upload" size={14} /> Add file
+            Choose a file
           </button>
           <button type="button" className="btn sm" onClick={() => setPaste(true)}>
-            <Icon name="note" size={14} /> Paste
+            Paste text
           </button>
           <input
             ref={input}
@@ -735,60 +785,63 @@ function FilesSection({ a, data }: { a: Application; data: Data }) {
           />
         </div>
       </div>
-      <div className="card list">
-        {files.map((f) => (
-          <div key={f.id} className="file-row">
-            <Icon name="file" size={20} />
-            <span className="row-text">
-              <a href={fileUrl(f.id, true)} target="_blank" rel="noreferrer" className="file-name">
-                {f.label ?? f.filename}
-              </a>
-              <span className="sub">
-                {bytes(f.size)} · {relDays(f.created_at)}
-                {a.resume_file_id === f.id ? ' · sent with this application' : ''}
+      {files.length > 0 && (
+        <div className="card list">
+          {files.map((f) => (
+            <div key={f.id} className="file-row">
+              <Icon name="paperclip" size={20} />
+              <span className="row-text">
+                <a
+                  href={fileUrl(f.id, true)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="file-name"
+                >
+                  {f.label ?? f.filename}
+                </a>
+                <span className="sub">
+                  {bytes(f.size)} · {relDays(f.created_at)}
+                  {a.resume_file_id === f.id ? ' · sent with this application' : ''}
+                </span>
               </span>
-            </span>
-            <span className="acts">
-              <span className="file-kind">
-                <Select
-                  value={f.kind}
-                  onChange={(v) => void act.patch(`/files/${f.id}`, { kind: v })}
-                  groups={[{ options: FILE_KINDS.map((k) => ({ value: k.key, label: k.label })) }]}
-                />
-              </span>
-              {f.kind === 'resume' && a.resume_file_id !== f.id && (
+              <span className="acts">
+                <span className="file-kind">
+                  <Select
+                    value={f.kind}
+                    onChange={(v) => void act.patch(`/files/${f.id}`, { kind: v })}
+                    groups={[
+                      { options: FILE_KINDS.map((k) => ({ value: k.key, label: k.label })) },
+                    ]}
+                  />
+                </span>
+                {f.kind === 'resume' && a.resume_file_id !== f.id && (
+                  <button
+                    type="button"
+                    className="btn sm"
+                    onClick={() =>
+                      act.patch(
+                        `/applications/${a.id}`,
+                        { resume_file_id: f.id },
+                        'Marked as the one you sent',
+                      )
+                    }
+                  >
+                    Sent this one
+                  </button>
+                )}
                 <button
                   type="button"
-                  className="btn sm"
-                  onClick={() =>
-                    act.patch(
-                      `/applications/${a.id}`,
-                      { resume_file_id: f.id },
-                      'Marked as the one you sent',
-                    )
-                  }
+                  className="xbtn"
+                  aria-label={`Delete ${fileKindLabel(f.kind).toLowerCase()} ${f.filename}`}
+                  onClick={() => setDoomed(f)}
                 >
-                  Sent this one
+                  <Icon name="trash" size={16} />
                 </button>
-              )}
-              <button
-                type="button"
-                className="xbtn"
-                aria-label={`Delete ${fileKindLabel(f.kind).toLowerCase()} ${f.filename}`}
-                onClick={() => setDoomed(f)}
-              >
-                <Icon name="trash" size={16} />
-              </button>
-            </span>
-          </div>
-        ))}
-        {!files.length && (
-          <p className="empty">
-            No files yet. Add a resume, cover letter or offer (PDF, Word, image or text), or paste a
-            transcript.
-          </p>
-        )}
-      </div>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
       {paste && <PasteSheet a={a} data={data} onClose={() => setPaste(false)} />}
       {doomed && (
         <ConfirmDialog
@@ -809,7 +862,7 @@ const TABS = [
   { key: 'details', label: 'Details', icon: 'list' },
   { key: 'timeline', label: 'Timeline', icon: 'clock' },
   { key: 'stories', label: 'Stories', icon: 'quote' },
-  { key: 'files', label: 'Files', icon: 'file' },
+  { key: 'files', label: 'Files', icon: 'paperclip' },
 ] as const;
 type Tab = (typeof TABS)[number]['key'];
 
@@ -819,9 +872,21 @@ export function ApplicationPage() {
   const sheets = useSheets();
   const act = useActions();
   const nav = useNavigate();
-  // The open tab is remembered on this device and kept in the address (?tab=timeline).
-  const [view, choose] = useViewState('kk:app-tab', { tab: 'details' });
-  const tab: Tab = TABS.some((t) => t.key === view.tab) ? (view.tab as Tab) : 'details';
+  // A job always opens on Details; the open tab lives only in the address (?tab=timeline), so a
+  // link to a timeline entry or a reload keeps it, but opening a job never lands elsewhere.
+  const [params, setParams] = useSearchParams();
+  const asked = params.get('tab');
+  const tab: Tab = TABS.some((t) => t.key === asked) ? (asked as Tab) : 'details';
+  const choose = ({ tab: t }: { tab: Tab }) =>
+    setParams(
+      (p) => {
+        const q = new URLSearchParams(p);
+        if (t === 'details') q.delete('tab');
+        else q.set('tab', t);
+        return q;
+      },
+      { replace: true },
+    );
   if (!data) return null;
   const a = data.appById.get(id);
   if (!a)
@@ -855,17 +920,31 @@ export function ApplicationPage() {
           </a>
         )}
       </div>
-      <header className="app-head">
-        <h1 className="title">{a.title}</h1>
-        <p className="app-co">at {a.company}</p>
-        {(pay || a.work_mode) && (
-          <div className="tags">
-            {pay && <span className="tag mono">{pay}</span>}
-            {a.work_mode && <span className="tag">{workModeLabel(a.work_mode)}</span>}
+      {/* The job, its company (bold) with how it works and when you applied, the two things to do
+          next, and the stage bar, in one card. The status is the stage bar's: no separate pill. */}
+      <header className="card app-head">
+        <div className="app-head-top">
+          <div className="app-head-text">
+            <h1 className="title">{a.title}</h1>
+            <p className="app-meta">
+              <strong className="app-co">{a.company}</strong>
+              {a.work_mode && <span>{workModeLabel(a.work_mode)}</span>}
+              {a.location && a.work_mode !== 'remote' && <span>{a.location}</span>}
+              {a.applied_on && <span>Applied {shortDateLabel(a.applied_on)}</span>}
+              {pay && <span className="mono">{pay}</span>}
+            </p>
           </div>
-        )}
+          <div className="acts app-acts">
+            <Link className="btn sm" to={`/a/${a.id}/call`}>
+              <Icon name="phone" size={16} /> Call Mode
+            </Link>
+            <button type="button" className="btn sm primary" onClick={() => sheets.log(a.id)}>
+              <Icon name="plus" size={16} /> Log to timeline
+            </button>
+          </div>
+        </div>
+        <Stepper a={a} />
       </header>
-      <Stepper a={a} data={data} />
       <div className="tabs" role="tablist" aria-label="Sections">
         {TABS.map((t) => (
           <button
@@ -878,7 +957,7 @@ export function ApplicationPage() {
           >
             <Icon name={t.icon} size={16} />
             {t.label}
-            {counts[t.key] ? <span className="mono sub">{counts[t.key]}</span> : null}
+            {counts[t.key] ? <span className="count">{counts[t.key]}</span> : null}
           </button>
         ))}
       </div>
@@ -886,25 +965,6 @@ export function ApplicationPage() {
         {tab === 'details' && (
           <>
             <Details a={a} data={data} />
-            {/* The posting as pasted: the full text the details above were read from. */}
-            <section className="card jd-card">
-              <div className="card-h">
-                <h2 className="sec-title">
-                  <Icon name="file" size={18} /> Job description
-                </h2>
-                {a.description && <span className="sub">saved {dayLabel(a.created_at)}</span>}
-              </div>
-              <div className="kvs">
-                <TextField
-                  a={a}
-                  k="description"
-                  label="The posting"
-                  rows={12}
-                  fixed
-                  className="jd"
-                />
-              </div>
-            </section>
             <div className="del-row">
               <ConfirmButton
                 solid
@@ -922,16 +982,6 @@ export function ApplicationPage() {
         {tab === 'stories' && <StoriesSection a={a} data={data} />}
         {tab === 'files' && <FilesSection a={a} data={data} />}
       </div>
-      {/* Job pages only: log a meeting, email or note to this job's timeline. */}
-      <button
-        type="button"
-        className="fab"
-        aria-label="Log to timeline"
-        title="Log to timeline"
-        onClick={() => sheets.log(a.id)}
-      >
-        <Icon name="plus" size={26} />
-      </button>
     </div>
   );
 }

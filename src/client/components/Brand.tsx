@@ -1,8 +1,18 @@
-// The Knock Knock marks: the asterisk (six square-ended bars, 14° off true) and the wordmark,
-// two level "knock"s overlapping: solid ink in front, white behind, offset down and right.
+// The Knock Knock marks: the asterisk (six thick square-ended bars, 14° off true) and the
+// wordmark, "KNOCK KNOCK" in narrow heavy capitals.
 import { cx } from './ui';
 
-export function Asterisk({ size = 24, className }: { size?: number; className?: string }) {
+export function Asterisk({
+  size = 24,
+  className,
+  bar = 24,
+}: {
+  size?: number;
+  className?: string;
+  /** Bar thickness, out of 100: thinner where it sits among line icons (the timeline). */
+  bar?: number;
+}) {
+  const x = 50 - bar / 2;
   return (
     <svg
       viewBox="0 0 100 100"
@@ -12,9 +22,9 @@ export function Asterisk({ size = 24, className }: { size?: number; className?: 
       className={cx('asterisk', className)}
     >
       <g transform="rotate(14 50 50)" fill="currentColor">
-        <rect x="40" y="4" width="20" height="92" />
-        <rect x="40" y="4" width="20" height="92" transform="rotate(60 50 50)" />
-        <rect x="40" y="4" width="20" height="92" transform="rotate(120 50 50)" />
+        <rect x={x} y="4" width={bar} height="92" />
+        <rect x={x} y="4" width={bar} height="92" transform="rotate(60 50 50)" />
+        <rect x={x} y="4" width={bar} height="92" transform="rotate(120 50 50)" />
       </g>
     </svg>
   );
@@ -22,24 +32,42 @@ export function Asterisk({ size = 24, className }: { size?: number; className?: 
 
 /** The wordmark (one style everywhere). `pop` is the big size, for the login and about screens. */
 export function Wordmark({ pop, className }: { pop?: boolean; className?: string }) {
+  return <span className={cx('wordmark', pop && 'pop', className)}>Knock Knock</span>;
+}
+
+/** The asterisk on its tilted ultramarine tile: the app's mark. */
+export function Mark({ size = 34 }: { size?: number }) {
   return (
-    <span className={cx('wordmark', pop && 'pop', className)} aria-label="knock knock">
-      <span aria-hidden="true">knock</span>
-      <span aria-hidden="true" className="second">
-        knock
-      </span>
+    <span className="mark" style={{ width: size, height: size }} aria-hidden="true">
+      <Asterisk size={Math.round(size * 0.56)} />
     </span>
   );
 }
 
-/** The footer line, with the asterisk standing in for the u. */
+/** The footer line. */
 export function Joke() {
+  return <p className="joke">Helping job hunting feel like less of a joke.</p>;
+}
+
+/**
+ * A status change on the timeline: an arrow built like the asterisk, from thick square-ended
+ * bars (a shaft and two angled bars for the head), never a block arrow.
+ */
+export function StatusArrow({ size = 18 }: { size?: number }) {
   return (
-    <p className="joke">
-      Why is this app called Knock Knock? Because getting a job is a f
-      <Asterisk size={10} />
-      <span className="sr-only">u</span>cking joke sometimes.
-    </p>
+    <svg
+      viewBox="0 0 100 100"
+      width={size}
+      height={size}
+      aria-hidden="true"
+      className="status-arrow"
+    >
+      <g fill="currentColor">
+        <rect x="8" y="43.5" width="72" height="13" />
+        <rect x="52" y="43.5" width="42" height="13" transform="rotate(42 88 50)" />
+        <rect x="52" y="43.5" width="42" height="13" transform="rotate(-42 88 50)" />
+      </g>
+    </svg>
   );
 }
 
@@ -73,7 +101,7 @@ export function burst(from?: Element | null) {
     const el = document.createElement('span');
     el.className = 'burst-bit';
     el.style.cssText = `left:${x}px;top:${y}px;width:${s}px;height:${s}px;--dx:${Math.cos(a) * d}px;--dy:${Math.sin(a) * d}px;--rot:${Math.round(Math.random() * 240 - 120)}deg;--delay:${Math.round(Math.random() * 80)}ms`;
-    el.innerHTML = `<svg viewBox="0 0 100 100" width="${s}" height="${s}"><g transform="rotate(14 50 50)" fill="currentColor"><rect x="40" y="4" width="20" height="92"/><rect x="40" y="4" width="20" height="92" transform="rotate(60 50 50)"/><rect x="40" y="4" width="20" height="92" transform="rotate(120 50 50)"/></g></svg>`;
+    el.innerHTML = `<svg viewBox="0 0 100 100" width="${s}" height="${s}"><g transform="rotate(14 50 50)" fill="currentColor"><rect x="38" y="4" width="24" height="92"/><rect x="38" y="4" width="24" height="92" transform="rotate(60 50 50)"/><rect x="38" y="4" width="24" height="92" transform="rotate(120 50 50)"/></g></svg>`;
     layer.appendChild(el);
   }
   document.body.appendChild(layer);

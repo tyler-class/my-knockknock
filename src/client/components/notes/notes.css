@@ -1,0 +1,244 @@
+/* Call notes: the editor (NotesEditor), its format pill, and the read-only NoteText. */
+
+/* ---------- the editor ---------- */
+
+.notes-editor {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+  font-family: 'Manrope Variable', system-ui, sans-serif;
+  color: var(--ink, #1a1d24);
+}
+.notes-editor .cm-editor {
+  flex: 1;
+  min-height: 0;
+  font-size: 15.5px;
+  line-height: 1.6;
+  background: transparent;
+}
+.notes-editor .cm-editor.cm-focused {
+  outline: none;
+}
+.notes-editor .cm-scroller {
+  font-family: inherit;
+  line-height: inherit;
+  overflow-y: auto;
+}
+.notes-editor .cm-content {
+  padding: 2px 0 24px;
+  caret-color: var(--accent, #2b3fd0);
+  min-height: 100%;
+}
+.notes-editor .cm-line {
+  padding: 0;
+}
+.notes-editor .cm-placeholder {
+  color: #b8c2ce;
+}
+.notes-editor .cm-selectionBackground,
+.notes-editor .cm-focused .cm-selectionBackground,
+.notes-editor .cm-content ::selection {
+  background: var(--accent-soft, #e4e8fd) !important;
+}
+.notes-editor .cm-cursor {
+  border-left: 2px solid var(--accent, #2b3fd0);
+}
+
+/* A line's hidden start (bullet, checkbox): in the text, but at no size. */
+.cm-conceal {
+  font-size: 0;
+  letter-spacing: 0;
+}
+.cm-u {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Lists: every level indents the same step, with its marker hanging in the margin. */
+.notes-editor .cm-line.cm-li {
+  --step: 1.6em;
+  padding-left: calc(var(--lvl, 1) * var(--step));
+}
+.cm-prefix {
+  display: inline;
+}
+.cm-lm {
+  display: inline-flex;
+  align-items: center;
+  width: var(--step);
+  margin-left: calc(-1 * var(--step));
+  height: 1.6em;
+  vertical-align: top;
+  color: var(--ink2, #5c6370);
+  user-select: none;
+}
+.cm-lm.cm-num {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.95em;
+}
+.cm-dot {
+  flex: none;
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 5px;
+  border-radius: 50%;
+  background: var(--ink, #1a1d24);
+}
+.cm-dot-1 {
+  background: none;
+  box-shadow: inset 0 0 0 1.5px var(--ink, #1a1d24);
+}
+.cm-dot-2 {
+  border-radius: 1px;
+}
+.notes-editor .cm-line.cm-done {
+  color: var(--ink3, #8a909c);
+  text-decoration: line-through;
+}
+.cm-check {
+  cursor: pointer;
+}
+
+/* Task checkboxes (the editor's and NoteText's): 17px rounded squares. */
+.note-check {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 17px;
+  height: 17px;
+  padding: 0;
+  margin: 0;
+  border: 1.5px solid var(--line2, #d9dce3);
+  border-radius: 5px;
+  background: var(--surface, #fff);
+  vertical-align: middle;
+}
+.note-check[aria-checked='true'] {
+  border-color: var(--accent, #2b3fd0);
+  background: var(--accent, #2b3fd0);
+}
+.note-check[aria-checked='true']::after {
+  content: '';
+  width: 4px;
+  height: 8px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: translate(0, -1px) rotate(45deg);
+}
+button.note-check {
+  cursor: pointer;
+}
+
+/* ---------- the format pill over a selection ---------- */
+
+.cm-tooltip:has(> .note-pill) {
+  border: none !important;
+  background: none !important;
+}
+.note-pill {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 999px;
+  background: #1f2330;
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(20, 30, 50, 0.22);
+  font-family: 'Manrope Variable', system-ui, sans-serif;
+}
+.note-pill button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: #fff;
+  font: inherit;
+  font-size: 14.5px;
+  cursor: pointer;
+}
+.note-pill button b {
+  font-weight: 800;
+}
+.note-pill button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+.note-pill button.on {
+  background: rgba(255, 255, 255, 0.18);
+}
+.note-pill-sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 3px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ---------- a note, read-only ---------- */
+
+.note-text {
+  font-size: inherit;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.note-text > * {
+  margin: 0;
+}
+.note-text > * + * {
+  margin-top: 0.6em;
+}
+.note-text p {
+  white-space: pre-wrap;
+}
+.note-text ul,
+.note-text ol {
+  margin: 0;
+  padding-left: 1.5em;
+}
+.note-text li + li,
+.note-text li > ul,
+.note-text li > ol {
+  margin-top: 0.15em;
+}
+.note-text ul ul {
+  list-style-type: circle;
+}
+.note-text ul ul ul {
+  list-style-type: square;
+}
+.note-text ol ol {
+  list-style-type: lower-alpha;
+}
+.note-text ol ol ol {
+  list-style-type: lower-roman;
+}
+.note-text li.nt-task {
+  list-style: none;
+  position: relative;
+}
+.note-text li.nt-task > .note-check {
+  position: absolute;
+  left: -1.45em;
+  top: 0.22em;
+}
+.note-text ul.nt-tasks {
+  padding-left: 1.6em;
+}
+.note-text li.nt-task.done > .nt-li {
+  color: var(--ink3, #8a909c);
+  text-decoration: line-through;
+}
+.note-text code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+  padding: 1px 4px;
+  border-radius: 5px;
+  background: var(--bg, #ebedf1);
+}

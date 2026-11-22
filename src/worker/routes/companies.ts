@@ -77,6 +77,27 @@ companies.post('/companies/:id/people', async (c) => {
   return c.json((await loadPeople(c.env.DB, pid))[0], 201);
 });
 
+/**
+ * Deletes a company and everything under it: its jobs (with their timelines, story copies and
+ * board places) and its people. Files stay in the library, as when a job is deleted.
+ */
+companies.delete('/companies/:id', async (c) => {
+  const id = c.req.param('id');
+  const co = await first<{ logo_key: string | null }>(
+    c.env.DB,
+    'SELECT logo_key FROM companies WHERE id = ?',
+    id,
+  );
+  if (!co) throw notFound('Company');
+  await c.env.DB.batch([
+    c.env.DB.prepare('DELETE FROM people WHERE company_id = ?').bind(id),
+    c.env.DB.prepare('DELETE FROM applications WHERE company_id = ?').bind(id),
+    c.env.DB.prepare('DELETE FROM companies WHERE id = ?').bind(id),
+  ]);
+  if (co.logo_key) await c.env.FILES.delete(co.logo_key);
+  return c.json({ ok: true });
+});
+
 // ---------- logo ----------
 
 const LOGO_TYPE = /^image\/(png|jpeg|webp|gif|svg\+xml)$/;

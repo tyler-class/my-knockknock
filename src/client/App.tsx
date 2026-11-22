@@ -13,6 +13,7 @@ import { Layout } from './routes/Layout';
 import { Pipeline } from './routes/Pipeline';
 import { Reports } from './routes/Reports';
 import { Companies, CompanyPage } from './routes/Companies';
+import { Files, People } from './routes/Directory';
 import { Stories } from './routes/Stories';
 import { Home } from './routes/Home';
 import { Login, SetupNeeded } from './routes/Login';
@@ -60,6 +61,8 @@ const router = createBrowserRouter([
       { path: '/a/:id', element: <ApplicationPage /> },
       { path: '/companies', element: <Companies /> },
       { path: '/c/:id', element: <CompanyPage /> },
+      { path: '/people', element: <People /> },
+      { path: '/files', element: <Files /> },
       { path: '/stories', element: <Stories /> },
       { path: '/reports', element: <Reports /> },
       { path: '/settings', element: <Settings /> },

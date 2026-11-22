@@ -1,7 +1,7 @@
 // Companies: each its own record, with the jobs you have there. A job looks its company up; the
 // company's details (website, HQ, size…) and logo are kept and edited here, once, for every job
 // at it.
-import { Link, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 import type { Company } from '@shared/types';
 import { useActions, useData, type Data } from '../lib/queries';
 import { compLabel } from '../lib/format';
@@ -12,8 +12,9 @@ import { useSheets } from '../sheets/context';
 import { CompanyLogo } from '../components/CompanyLogo';
 import { CompanyLogoEdit, LogoMark } from '../components/CompanyFields';
 import { StatusChip } from '../components/StatusChip';
-import { PageHeader } from '../components/ui';
+import { ConfirmButton, PageHeader } from '../components/ui';
 import { companyFacts } from '../lib/company';
+import { DirectoryTabs } from './Directory';
 
 const jobsAt = (data: Data, id: string) =>
   data.state.applications.filter((a) => a.company_id === id);
@@ -26,6 +27,7 @@ export function Companies() {
   return (
     <>
       <PageHeader title="Companies" icon="building" />
+      <DirectoryTabs />
       <div className="card list">
         {list.map((c) => {
           const n = jobsAt(data, c.id).length;
@@ -59,6 +61,7 @@ export function CompanyPage() {
   const data = useData();
   const act = useActions();
   const sheets = useSheets();
+  const nav = useNavigate();
   if (!data) return null;
   const c = data.state.companies.find((x) => x.id === id);
   if (!c)
@@ -185,6 +188,29 @@ export function CompanyPage() {
           </section>
         </div>
       </div>
+      {/* Deleting a company takes everything under it; the popup says how much. */}
+      <div className="del-row">
+        <ConfirmButton
+          solid
+          confirm={deleteQuestion(c.name, jobs.length, people.length)}
+          onConfirm={async () => {
+            if (await act.del(`/companies/${c.id}`, `Deleted ${c.name}`)) nav('/companies');
+          }}
+        >
+          Delete company
+        </ConfirmButton>
+      </div>
     </div>
   );
+}
+
+/** "Delete Acme? This also deletes its 3 jobs (with their timelines) and 2 people." */
+function deleteQuestion(name: string, jobs: number, people: number): string {
+  const parts = [
+    jobs ? `its ${jobs} ${jobs === 1 ? 'job' : 'jobs'} (with their timelines)` : null,
+    people ? `${people} ${people === 1 ? 'person' : 'people'}` : null,
+  ].filter(Boolean);
+  return parts.length
+    ? `Delete ${name}? This also deletes ${parts.join(' and ')}.`
+    : `Delete ${name}?`;
 }

@@ -159,6 +159,13 @@ Don't bring in styling from the sibling apps; match this app's look for anything
   ("today", "yesterday" when it can) and an ultramarine one only when there's something to act
   on (an interview coming up, an offer to decide, gone quiet).
 - Search fields have a ✕ to clear them (`SearchClear`).
+- People (`/people`) and Files (`/files`) list everyone and every file across companies and jobs.
+  With Companies they share a row of tabs (`DirectoryTabs`); the sidebar lists all three, and on
+  phones People and Files sit under the Companies tab.
+- A company can be deleted from its page (the popup says how many jobs and people go with it);
+  a person from their sheet (Delete; from a job, Remove from job takes them off just that one).
+- A status change's comment sits on its own line under the change and edits in place. A note
+  reads Title, When, then the note; a file has a Name (its label, also the timeline title).
 - Stories filters: frameworks are many-of (All clears the rest), and Group by None or Framework.
 - The report's flow: something still in play stops at its stage (no "still at" branch).
 - An application, event or story is changed the same way wherever it appears: one shared sheet

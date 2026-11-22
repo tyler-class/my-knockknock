@@ -15,13 +15,15 @@ const TABS: GlassTab[] = [
   ['/', 'Home', 'home'],
   ['/jobs', 'Jobs', 'briefcase'],
   ['/companies', 'Companies', 'building'],
+  ['/people', 'People', 'user'],
+  ['/files', 'Files', 'paperclip'],
   ['/stories', 'Stories', 'quote'],
   ['/reports', 'Report', 'chart'],
   ['/settings', 'Settings', 'settings'],
 ];
 
 /** Phones: Settings is the gear in the top bar, so five tabs share the bar's width. */
-const PHONE_TABS = TABS.filter(([to]) => to !== '/settings');
+const PHONE_TABS = TABS.filter(([to]) => !['/settings', '/people', '/files'].includes(to));
 const TAB_PATHS = PHONE_TABS.map(([to]) => to);
 
 function tabRoot(path: string): string | null {
@@ -32,6 +34,8 @@ function tabRoot(path: string): string | null {
 function activeTab(path: string): string {
   if (path.startsWith('/a/')) return '/jobs';
   if (path.startsWith('/c/') || path.startsWith('/companies')) return '/companies';
+  if (path.startsWith('/people')) return '/people';
+  if (path.startsWith('/files')) return '/files';
   for (const [p] of TABS.slice(1)) if (path.startsWith(p)) return p;
   return '/';
 }
@@ -231,7 +235,11 @@ export function Layout() {
           </div>
         )}
       </main>
-      <GlassTabBar tabs={PHONE_TABS} active={active} />
+      {/* Phones: People and Files sit under the Companies tab (tabs at the top of each). */}
+      <GlassTabBar
+        tabs={PHONE_TABS}
+        active={active === '/people' || active === '/files' ? '/companies' : active}
+      />
     </div>
   );
 }

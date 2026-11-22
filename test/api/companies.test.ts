@@ -177,3 +177,17 @@ describe('people at companies', () => {
     }
   });
 });
+
+describe('deleting a company', () => {
+  it('deletes its jobs and its people with it', async () => {
+    const api = await session();
+    const job = (await api.post<Application>('/applications', { title: 'X', company: 'Initech' }))
+      .data;
+    await api.post(`/applications/${job.id}/people`, { name: 'Bill', role: 'other' });
+    expect((await api.del(`/companies/${job.company_id}`)).status).toBe(200);
+    const state = (await api.get<AppState>('/state')).data;
+    expect(state.companies.some((c) => c.id === job.company_id)).toBe(false);
+    expect(state.applications.some((a) => a.id === job.id)).toBe(false);
+    expect(state.people.some((p) => p.name === 'Bill')).toBe(false);
+  });
+});

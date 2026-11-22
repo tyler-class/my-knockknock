@@ -652,26 +652,30 @@ export function PersonSheet({
       onClose={sheets.close}
       footer={
         <>
-          {/* Seen from a job: off that job only. From the company's page: gone altogether. */}
-          {p && appId && (
-            <ConfirmButton
-              className="left"
-              confirm="Remove from this job?"
-              onConfirm={async () =>
-                (await act.del(`/applications/${appId}/people/${p.id}`)) && sheets.close()
-              }
-            >
-              Remove from job
-            </ConfirmButton>
-          )}
-          {p && !appId && (
+          {/* Delete removes them everywhere (asks first). From a job, Remove from job takes them
+              off just that one; they stay at the company. */}
+          {p && (
             <ConfirmButton
               className="left"
               confirm={`Delete ${p.name}?`}
-              onConfirm={async () => (await act.del(`/people/${p.id}`)) && sheets.close()}
+              onConfirm={async () =>
+                (await act.del(`/people/${p.id}`, `Deleted ${p.name}`)) && sheets.close()
+              }
             >
-              Delete person
+              Delete
             </ConfirmButton>
+          )}
+          {p && appId && (
+            <button
+              type="button"
+              className="btn"
+              onClick={async () =>
+                (await act.del(`/applications/${appId}/people/${p.id}`, 'Removed from this job')) &&
+                sheets.close()
+              }
+            >
+              Remove from job
+            </button>
           )}
           {(p || creating) && (
             <button type="button" className="btn primary" disabled={!name.trim()} onClick={save}>

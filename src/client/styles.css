@@ -8112,3 +8112,95 @@ textarea.in.angle {
   border-color: var(--line2);
   background: none;
 }
+
+/* ---- Tabs, one style everywhere (a job's sections, the Jobs list's stages, Stories) ----
+   Bold with a thicker ink underline when chosen. An icon sits in a round disc: grey at rest, and
+   ultramarine with a white icon when chosen, like the Jobs list's status badges. */
+.tab {
+  border-bottom-width: 3.5px;
+}
+.tabs .tab > svg {
+  box-sizing: content-box;
+  padding: 5px;
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--ink2);
+}
+.tabs .tab[aria-selected='true'] > svg {
+  background: var(--accent);
+  color: #fff;
+}
+/* A status change's comment: its own line under the change, editable in place. */
+.status-note {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: 100%;
+  margin-top: 2px;
+  padding: 4px 8px;
+  margin-left: -8px;
+  border: 1.5px solid transparent;
+  border-radius: 10px;
+  background: none;
+  font: inherit;
+  font-size: 15px;
+  color: var(--ink);
+  text-align: left;
+  cursor: text;
+}
+.status-note svg {
+  flex: none;
+  margin-top: 4px;
+  color: var(--ink2);
+  opacity: 0.6;
+}
+@media (hover: hover) and (pointer: fine) {
+  .status-note:hover {
+    border-color: var(--line2);
+  }
+  .status-note:hover svg {
+    opacity: 1;
+    color: var(--accent);
+  }
+}
+.status-note-add {
+  align-self: flex-start;
+  font-size: 13px;
+}
+.status-note-in {
+  margin-left: -8px;
+  width: calc(100% + 8px);
+  padding: 4px 8px;
+  font-size: 15px;
+  border-radius: 10px;
+}
+/* Companies · People · Files: one set of tabs over each, then the list. */
+.dir-tabs {
+  margin-bottom: 14px;
+}
+.dir-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+.dir-row .row-text {
+  flex: 1;
+  min-width: 0;
+}
+.dir-row .pill {
+  text-decoration: none;
+  color: var(--ink);
+}
+.dir-row .pill.dir-job {
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+}
+@media (hover: hover) and (pointer: fine) {
+  .dir-row:hover {
+    background: var(--bg);
+  }
+}
+.dir-tabs .tab {
+  text-decoration: none;
+}

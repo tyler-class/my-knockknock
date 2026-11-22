@@ -14,7 +14,8 @@ import { Icon } from './Icon';
 import { StatusChip } from './StatusChip';
 import { Asterisk, StatusArrow } from './Brand';
 import { NoteText } from './notes/NoteText';
-import { cx } from './ui';
+import { AutoTextarea, cx } from './ui';
+import { useActions } from '../lib/queries';
 
 /**
  * A note under its meeting or email: a few lines of it, with Show more to open it to full size
@@ -55,6 +56,62 @@ function NoteBlock({ n, appId }: { n: TimelineEvent; appId: string }) {
         </button>
       )}
     </div>
+  );
+}
+
+/**
+ * A status change's comment, on its own line under the change: tap it to edit (Enter or leaving
+ * saves, Escape cancels), or add one when there's none.
+ */
+function StatusComment({ e, text }: { e: TimelineEvent; text: string | null }) {
+  const act = useActions();
+  const [editing, setEditing] = useState(false);
+  const [v, setV] = useState(text ?? '');
+  const save = async () => {
+    setEditing(false);
+    const next = v.trim() || null;
+    if (next !== (text ?? null)) await act.patch(`/events/${e.id}`, { reason: next });
+  };
+  if (editing)
+    return (
+      <AutoTextarea
+        className="in status-note-in"
+        rows={1}
+        autoFocus
+        value={v}
+        placeholder="Comment"
+        onChange={(x) => setV(x.target.value)}
+        onBlur={() => void save()}
+        onKeyDown={(x) => {
+          if (x.key === 'Enter' && !x.shiftKey) {
+            x.preventDefault();
+            (x.target as HTMLTextAreaElement).blur();
+          } else if (x.key === 'Escape') {
+            x.stopPropagation();
+            setV(text ?? '');
+            setEditing(false);
+          }
+        }}
+      />
+    );
+  return (
+    <button
+      type="button"
+      className={text ? 'status-note' : 'linkish status-note-add'}
+      onClick={() => {
+        setV(text ?? '');
+        setEditing(true);
+      }}
+    >
+      {text ? (
+        <>
+          <span>{text}</span>
+          <Icon name="edit" size={13} />
+        </>
+      ) : (
+        '+ Comment'
+      )}
+    </button>
   );
 }
 
@@ -146,12 +203,14 @@ export function EventCard({
           Created in <StatusChip status={d.to} small />
         </div>
       ) : (
-        <div className="status-move">
-          {d.from && <StatusChip status={d.from} small />}
-          <Icon name="chevRight" size={15} />
-          <StatusChip status={d.to} small />
-          {d.reason && <span className="sub">{d.reason}</span>}
-        </div>
+        <>
+          <div className="status-move">
+            {d.from && <StatusChip status={d.from} small />}
+            <Icon name="chevRight" size={15} />
+            <StatusChip status={d.to} small />
+          </div>
+          <StatusComment e={e} text={d.reason} />
+        </>
       );
   } else if (fileId) {
     // A file being added: its own entry, dated when it was uploaded (editable like a note).

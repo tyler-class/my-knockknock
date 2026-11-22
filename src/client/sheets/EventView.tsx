@@ -355,6 +355,19 @@ export function EventView({ data, appId, ev }: { data: Data; appId: string; ev: 
       <>
         {/* One group: the file (opens in a new tab), its kind, when it was added, and a comment. */}
         <Group icon="paperclip" title="The File">
+          {/* Its name (the file's label; the timeline entry is titled with it too). */}
+          {f && (
+            <LineEdit
+              label="Name"
+              full
+              value={f.label ?? ''}
+              onSave={async (v) => {
+                const ok = await act.patch(`/files/${f.id}`, { label: v || null });
+                if (ok) await save({ title: `File added: ${v || f.filename}`.slice(0, 300) });
+                return ok;
+              }}
+            />
+          )}
           {f && (
             <div className="kv kv-full">
               <span className="kv-l">File</span>
@@ -391,6 +404,8 @@ export function EventView({ data, appId, ev }: { data: Data; appId: string; ev: 
     title = 'Note';
     groups = (
       <Group icon="note" title="The Note">
+        <LineEdit label="Title" full value={ev.title ?? ''} onSave={(v) => save({ title: v })} />
+        <WhenEdit label="When" start={ev.occurred_at} onSave={(s) => save({ occurred_at: s })} />
         <TextEdit
           label="Note"
           rows={5}
@@ -398,8 +413,7 @@ export function EventView({ data, appId, ev }: { data: Data; appId: string; ev: 
           value={ev.body ?? ''}
           onSave={(v) => save({ body: v })}
         />
-        <LineEdit label="Title" full value={ev.title ?? ''} onSave={(v) => save({ title: v })} />
-        <WhenEdit label="When" start={ev.occurred_at} onSave={(s) => save({ occurred_at: s })} />
+
         {parents.length > 0 && (
           <ChoiceEdit
             label="About"

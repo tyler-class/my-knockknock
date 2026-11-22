@@ -305,9 +305,14 @@ export function EventSheet({
 
       {type === 'note' && (
         <>
-          {/* Title (full width), then the note, then when (on its own, at the left). */}
+          {/* Title (full width), then when (on its own, at the left), then the note. */}
           <Field label="Title (optional)">
             <input className="in" value={title} onChange={(e) => setTitle(e.target.value)} />
+          </Field>
+          <Field label="When">
+            <div className="when-left">
+              <DateTimeField label="When" value={when} onChange={setWhen} />
+            </div>
           </Field>
           <Field label="Note">
             <AutoTextarea
@@ -318,11 +323,7 @@ export function EventSheet({
               onChange={(e) => setBody(e.target.value)}
             />
           </Field>
-          <Field label="When">
-            <div className="when-left">
-              <DateTimeField label="When" value={when} onChange={setWhen} />
-            </div>
-          </Field>
+
           {parents.length > 0 && (
             <Field label="About">
               <Select

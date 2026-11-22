@@ -166,6 +166,7 @@ export const toCompany = (r: Row): Company => ({
   industry: s(r.industry),
   funding: s(r.funding),
   has_logo: !!r.logo_key,
+  logo_color: s(r.logo_color),
   created_at: String(r.created_at),
   updated_at: String(r.updated_at),
 });

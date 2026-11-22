@@ -393,8 +393,7 @@ function CompanyCard({ a, data }: { a: Application; data: Data }) {
       </div>
       <div className="co-lookup">
         <span className={c?.has_logo ? 'co-mark has-img' : 'co-mark'}>
-          <CompanyLogo company={c} size={40} />
-          {!c?.has_logo && <Icon name="building" size={18} />}
+          {c ? <CompanyLogo company={c} size={40} /> : <Icon name="building" size={18} />}
         </span>
         <div className="co-name">
           <strong>{c?.name ?? a.company}</strong>

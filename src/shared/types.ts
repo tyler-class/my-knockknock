@@ -101,6 +101,8 @@ export interface Company {
   funding: string | null;
   /** Whether a logo was uploaded (served at /api/companies/:id/logo). */
   has_logo: boolean;
+  /** The monogram's colour (a LOGO_COLORS key) when there's no logo; null is ultramarine. */
+  logo_color: string | null;
   created_at: string;
   updated_at: string;
 }

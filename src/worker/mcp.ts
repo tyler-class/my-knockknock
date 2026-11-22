@@ -20,6 +20,13 @@ import {
   statusLabel,
 } from '@shared/lookups';
 import { EXAMPLE_PROMPTS, MCP_PROMPTS } from '@shared/examples';
+import {
+  DEFAULT_LOGO_COLOR,
+  LOGO_COLOR_KEYS,
+  LOGO_COLORS,
+  logoColor,
+  monogram,
+} from '@shared/logo';
 import { searchStories, syncState, frameworkOf } from '@shared/logic/stories';
 import { dayIn, parseLocal, whenIn } from '@shared/logic/tz';
 import {
@@ -33,6 +40,7 @@ import {
 import type {
   AppState,
   Application,
+  Company,
   EmailData,
   FileRef,
   JobStory,
@@ -257,7 +265,15 @@ const INSTRUCTIONS =
     'Archived stories are left out of list_stories, search_overview and get_started. To find one, use list_archived_stories; if the owner asks to bring one back, call update_story with archived: false.',
     'To attach a file the person has (resume, transcript), call upload_link and give them the link; a file seen in the chat cannot be passed to a tool. For a transcript you already have as text, use add_text_file. Adding a file puts a "File added" note on the timeline (with file_id); change its time with update_event if the file belongs to an earlier moment.',
     'People have a role (recruiter, hiring_manager, interviewer, referrer or other); for other, put their actual role in other_role.',
+    'Companies show their logo, or without one a monogram (their initial) on an ultramarine tile. set_company_logo attaches a logo from an image on the web (find the company’s own logo and pass the image’s address) and sets the monogram’s color: if you know the brand color you may pick the closest of the ten, otherwise leave the default.',
   ].join(' ') + GETTING_STARTED;
+
+/** How a company shows in the app: its logo, or its monogram and the monogram's color. */
+function companyMark(co: Company) {
+  return co.has_logo
+    ? { logo: 'uploaded' }
+    : { logo: 'none', monogram: monogram(co.name), color: logoColor(co.logo_color).key };
+}
 
 function buildServer(call: Call) {
   const server = new McpServer(
@@ -281,6 +297,30 @@ function buildServer(call: Call) {
       (a) => `${a.company} · ${a.title} [${a.status}, id ${a.id}]`,
       (a) => isOpen(a.status),
     );
+
+  /** A company by name or id, or the company of an application named that way. */
+  const findCompany = (c: Ctx, key: string): Company => {
+    try {
+      return pick(
+        c.state.companies,
+        key,
+        (co) => [co.name, co.website ?? ''],
+        'company',
+        (co) => `${co.name} [id ${co.id}]`,
+      );
+    } catch (e) {
+      const a = (() => {
+        try {
+          return findApp(c, key);
+        } catch {
+          return null;
+        }
+      })();
+      const co = a && c.state.companies.find((x) => x.id === a.company_id);
+      if (co) return co;
+      throw e;
+    }
+  };
 
   const findStory = (c: Ctx, key: string, includeArchived = false) =>
     pick(
@@ -516,6 +556,10 @@ function buildServer(call: Call) {
         ...(include_description === false ? {} : { description }),
         search: search?.name,
         comp: comp(a),
+        ...(() => {
+          const co = c.state.companies.find((x) => x.id === a.company_id);
+          return co ? { company_mark: companyMark(co) } : {};
+        })(),
         people: c.state.people
           .filter((p) => p.application_ids.includes(a.id))
           .map((p) => ({ ...p, role_label: personRoleLabel(p) })),
@@ -712,6 +756,46 @@ function buildServer(call: Call) {
         return { updated: appLine(next, c), fields: Object.keys(body) };
       },
     ),
+  );
+
+  server.registerTool(
+    'set_company_logo',
+    {
+      title: 'Set a company’s logo or color',
+      description: `Gives a company its logo, from an image on the web: find the company’s logo (its own website or press kit is best; a square icon or mark reads better than a wide wordmark) and pass the image’s own address, not a web page. PNG, JPEG, WebP, GIF or SVG, up to 2 MB; a data: URL with base64 also works. Knock Knock fetches and keeps it. A company without a logo shows a monogram (its initial) on a colored tile; \`color\` sets that tile. If you know the company’s brand color, you may pick the closest of: ${LOGO_COLORS.map((c) => `${c.key} ${c.hex}`).join(', ')}. Otherwise leave it at the default (ultramarine). Only change a logo the owner already has when they ask.`,
+      inputSchema: z.object({
+        company: z.string().describe('The company (named loosely), or an application at it.'),
+        image_url: z
+          .string()
+          .optional()
+          .describe('The logo image’s address (https://…/logo.png), or a data:image/…;base64 URL.'),
+        color: z
+          .enum([...LOGO_COLOR_KEYS, 'default'])
+          .optional()
+          .describe('The monogram’s color; "default" is ultramarine.'),
+        remove_logo: z
+          .boolean()
+          .optional()
+          .describe('Remove the uploaded logo (back to the monogram).'),
+      }),
+    },
+    safe(async ({ company, image_url, color, remove_logo }) => {
+      if (!image_url && !color && !remove_logo)
+        throw new ToolError('Pass image_url, color or remove_logo.');
+      if (image_url && remove_logo) throw new ToolError('Pass image_url or remove_logo, not both.');
+      const c = await load();
+      const co = findCompany(c, company);
+      let next: Company = co;
+      if (remove_logo && co.has_logo)
+        next = await call<Company>('DELETE', `/companies/${co.id}/logo`);
+      if (image_url)
+        next = await call<Company>('POST', `/companies/${co.id}/logo-from-url`, { url: image_url });
+      if (color)
+        next = await call<Company>('PATCH', `/companies/${co.id}`, {
+          logo_color: color === 'default' || color === DEFAULT_LOGO_COLOR ? null : color,
+        });
+      return { company: next.name, id: next.id, ...companyMark(next) };
+    }),
   );
 
   server.registerTool(
@@ -1328,7 +1412,7 @@ function buildServer(call: Call) {
       ask(`Add these jobs to Knock Knock:\n${links}\n\nFor each link:
 1. find_applications with the url. If it's already tracked, say so and skip it.
 2. Open the posting (if the site blocks you, ask me to paste the text). Pull out title, company, comp (min, max, currency, period, or salary_text), location and work mode, seniority, reports-to, team, employment type, posted date, must-haves and nice-to-haves, and the full description text.
-3. Fill in company basics you can find quickly and reliably: domain, website, HQ, size band, industry, funding stage. Don't guess; leave out what you can't find.
+3. Fill in company basics you can find quickly and reliably: domain, website, HQ, size band, industry, funding stage. Don't guess; leave out what you can't find. If the company has no logo in Knock Knock yet and you can find its logo image quickly (its own site is best), attach it with set_company_logo; if you know its brand color, set the closest color too.
 4. create_application with status saved and source set to where the link came from. List anything you inferred (not read) in inferred.
 Finish with a one-line summary per job: company, title, comp, work mode.`),
   );

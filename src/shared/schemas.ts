@@ -1,6 +1,7 @@
 // Request bodies. Shared so the client, the Worker and the MCP server agree on shapes.
 import { z } from 'zod';
 import { withScheme } from './url';
+import { LOGO_COLOR_KEYS } from './logo';
 import {
   EMAIL_CATEGORY_KEYS,
   FILE_KIND_KEYS,
@@ -326,7 +327,15 @@ const companyFields = {
   funding: text(200),
 };
 export const companyInput = z.object(companyFields);
-export const companyPatch = z.object(companyFields).partial();
+export const companyPatch = z
+  .object({
+    ...companyFields,
+    /** The monogram's colour; null puts it back to ultramarine. */
+    logo_color: z.enum(LOGO_COLOR_KEYS).nullable(),
+  })
+  .partial();
+/** A company logo from an image on the web (or a data: URL holding one). */
+export const logoFromUrl = z.object({ url: z.string().trim().min(1).max(3_000_000) });
 /** Point a job at a company: an existing one by id, or a new one by name. */
 export const companyLink = z.union([
   z.object({ company_id: z.string().max(100) }),

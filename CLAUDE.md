@@ -13,12 +13,14 @@ Don't bring in styling from the sibling apps; match this app's look for anything
 - Light mode only: no dark theme, no theme setting, no `prefers-color-scheme: dark` rules.
 - Buttons are pills: the primary action solid ultramarine with white text; every other button
   white with a grey outline (never white on white with no edge), ghost buttons in ultramarine
-  text. Nothing lifts on an extrusion: hovers shade softly.
+  text. The primary button rises 1px on hover (not with reduced motion); nothing else lifts,
+  and other hovers shade softly.
 - Cards: white, `--radius` corners, the soft `--sh` shadow, no border.
 - Section and card headings are in Title Case ("Job Description", "Log to Timeline", "The
   Meeting"); buttons and body text stay in sentence case.
-- Tabs (a job's Details, Timeline, Stories, Files; the Jobs list's stages): plain text, the open
-  one bold with an ink underline; counts sit in small circles, the open tab's in ultramarine.
+- Tabs (a job's Details, Timeline, Stories, Files; the Jobs list's stages; Stories' Current and
+  Archived): an icon (the Jobs list's stages use their `StatusIcon` badge) and text, the open one
+  bold with an ink underline; counts sit in small circles, the open tab's in ultramarine.
 - The stage bar is a row of rounded segments with the stage name under each: done stages light
   ultramarine, the current one solid, the rest grey.
 - Statuses show their icon (`STATUS_ICON`) in white on a small solid round badge (`StatusIcon`):
@@ -28,15 +30,16 @@ Don't bring in styling from the sibling apps; match this app's look for anything
   icon buttons are ink on a visible grey disc; letter badges (story parts, initials) are white on
   solid ultramarine; danger buttons are white with a red outline, filled red on hover (only the
   confirm popup's final Delete is solid red). No soft red on grey.
-- Every sheet carries an icon left of its title (`Sheet icon=`) and no subtitle under it (About's
-  version line is the one exception). Files use the paperclip
-  everywhere.
+- Every sheet carries an icon left of its title (`Sheet icon=`) and no subtitle under it. The
+  exceptions are About's version line and Call Mode's "How Did It Go?" ("Your call notes are
+  already saved."). Files use the paperclip everywhere.
 - Pay shows as "$187.2–198.8K" (thousands and millions to one decimal); amounts being typed get
   thousands commas.
 - Icons on cards, timelines and lists are grey or ink outlines, never filled with the accent.
   Page headings carry the page's icon in white on the tilted ultramarine tile (`.h-icon`).
-- A job's header card: the title, then the company in bold with work mode and the applied date,
-  Call Mode and Log to timeline at the right, and the stage bar. No status pill (the stage bar
+- A job's header card: the title, then the company in bold with pills for work mode, location
+  (unless remote), the applied date and pay; Call Mode and Log to timeline at the right; and the
+  stage bar. No status pill (the stage bar
   says it), and no floating "+" button anywhere.
 - Each detail edits in place in exactly the spot, size, type and content it's shown in: nothing
   but the border changes when editing starts. A link is shown and edited in its short form
@@ -44,7 +47,9 @@ Don't bring in styling from the sibling apps; match this app's look for anything
   click on it edits it. Nested text in a value never picks up the label rules. A blank field
   shows an em dash (—), never "Add".
 - Field labels are bold ink; values are regular weight, shown and editing alike.
-- Filters open from a filter icon button into a drawer, offering only choices that exist.
+- Filters open from a filter icon button into a drawer (`FilterButton`, `FilterSheet`), offering
+  only choices that exist. Stories is the only page with one; Jobs narrows with its stage tabs and
+  search box.
 - Many-valued choices (six meeting kinds) are a dropdown (`Select`), not a sliding toggle.
 
 ## Workflow
@@ -59,15 +64,17 @@ Don't bring in styling from the sibling apps; match this app's look for anything
 - Verify with typecheck, lint, tests and `curl`; don't open a browser unless the owner asks.
 - Push to `main` only when the owner says so. Deploying (`npm run deploy`) is a separate step,
   also only when asked.
-- Files headed "Selfhost Kit: synced from tyler-class/selfhost-kit" (`src/*/kit/*`,
-  `scripts/release.ts`, `.github/workflows/update.yml`) are overwritten by the kit's sync: make
-  those changes in the kit, not here.
+- Files headed "Selfhost Kit" and marked as synced from tyler-class/selfhost-kit (`src/*/kit/*`,
+  `scripts/kit/*`, `test/api/kit/*`, `scripts/release.ts`, `.github/workflows/update.yml`, and the
+  README's `kit:readme` block) are overwritten by the kit's sync: make those changes in the kit,
+  not here.
 
 ## Behaviour
 
 - Home (`/`) is the default page: counts for the chosen search, what's coming up, and recent
   activity. The search menu at the top of the sidebar (top bar on phones) picks the search;
-  everything but the Story Bank follows it. The pick is remembered on the device
+  everything but Stories and Companies follows it (Companies count and list jobs from every
+  search, with the search's name on each job when there are several). The pick is remembered on the device
   (`lib/currentSearch.ts`) and also saved as the server's `current_search_id`, which is what new
   applications and assistants use.
 - Every detail of an application (title, company, pay, links, dates, company facts,
@@ -78,9 +85,11 @@ Don't bring in styling from the sibling apps; match this app's look for anything
   deleting sits at the bottom of the page. Tapping a stage on the stepper opens the status sheet
   for that stage.
 - The Job card holds everything about the role: its fields, Required and Preferred, and the
-  pasted job posting at the end (clamped, with Show full posting). Notes sits under it in the
-  left column; Company and People on the right.
-- The timeline is one plain list with no filter. Every entry's icon sits in a grey disc in a white
+  pasted job posting at the end (clamped, with Show full posting). It fills the left
+  column; the right column stacks Company, People and Notes. The two columns stack on their own,
+  so a short card never leaves a gap beside a long one.
+- The timeline is one plain list with no filter: upcoming meetings first under an "Upcoming"
+  label, then the rest, newest first. Every entry's icon sits in a grey disc in a white
   circle, all in the same grey and line weight; status changes use the bar-built arrow
   (`StatusArrow`), the job being added the asterisk, files the paperclip. The rail starts at the
   asterisk (the oldest entry) and nothing runs below it. A file entry's open button sits right
@@ -95,8 +104,8 @@ Don't bring in styling from the sibling apps; match this app's look for anything
   that was written during a meeting (15 minutes before it starts to 30 after it ends) shows under
   that meeting too (`timelineView`). Notes under an event show four lines with Show more.
 - Deleting a job, a timeline entry or a file asks first in a small popup ("Are you sure you want
-  to delete …?", Cancel and Delete). Jobs and entries use a boxed red button at the lower right of the page or
-  panel (`ConfirmButton solid`); a file keeps its small trash button (`ConfirmDialog`).
+  to delete …?", Cancel and Delete). Jobs and entries use a danger button (white, red outline, filled red on
+  hover) at the lower right of the page or panel (`ConfirmButton solid`); a file keeps its small trash button (`ConfirmDialog`).
 - Files are just there or not (no locking). Adding one writes a "File added" note on the
   timeline (`data.file_id`), dated when it was uploaded and editable like any note; deleting the
   file removes it.
@@ -106,7 +115,8 @@ Don't bring in styling from the sibling apps; match this app's look for anything
   name and the parts' text (`searchStories` in `src/shared/logic/stories.ts`). The `hook`,
   `tags` and `questions` columns (and frameworks' `questions`) stay in D1 and in exports, unused,
   rather than dropping them with a migration; they also stay in the copy hash so existing job
-  copies keep their sync state. The UI and MCP tools don't show or take them.
+  copies keep their sync state. The UI and MCP tools don't show or take them (the API's story
+  schemas still accept `hook`, `tags` and `questions`).
 - A new story's sheet is titled "New Story" whatever the framework; Cancel goes back to the
   framework picker.
 - Report numbers come from `src/shared/logic/report.ts`. "Heard back" means the application
@@ -117,14 +127,13 @@ Don't bring in styling from the sibling apps; match this app's look for anything
 - If drag to reorder is added: start it after a short press on touch so a swipe still scrolls,
   support the keyboard, show the new order straight away and put the old one back if saving fails,
   and don't animate the dropped item back to where it started.
-- Removing or changing something that can be undone (deleting an event, story or application,
-  changing a status) shows a toast with **Undo** (the toast already supports an action). Keep the
-  two-tap confirm only where undo isn't possible. Status changes undo by deleting the status
-  events they wrote (status is derived from the timeline), and archiving a story undoes by
-  unarchiving. Deleting an application, event, story or search is still a hard delete (it
-  cascades to timelines, notes, copies and files; a job's people stay at its company), so those ask first until the API can restore
-  them: jobs and timeline entries in the popup above, stories and searches with the two-tap
-  confirm.
+- Two changes can be undone and show a toast with **Undo**: changing a status (undone by
+  deleting the status events it wrote; status is derived from the timeline) and archiving or
+  unarchiving a story (undone by flipping it back). Anything else that becomes undoable should do
+  the same, and drop its confirm. Deleting an application, event, story or search is a hard
+  delete (it cascades to timelines, notes, copies and files; a job's people stay at its company),
+  so those ask first until the API can restore them: jobs and timeline entries in the popup
+  above, stories and searches with the two-tap confirm.
 - A filter shows the same choices and counts everywhere the same data appears: count in
   `src/client/lib/filters.ts`, not inline.
 - Companies are their own records (`companies`; `src/worker/companies.ts`): several jobs can be
@@ -133,7 +142,7 @@ Don't bring in styling from the sibling apps; match this app's look for anything
   the job still see them. A company name or detail written to a job (the job page, an assistant)
   goes to its company: a name links the job to the company of that name (ignoring case) or makes
   one, except that a job alone at its company renames it. Website replaces Domain in the UI (the
-  domain is derived from it). A logo is optional and shows on Jobs cards and rows.
+  domain is derived from it). A logo is optional and shows wherever the company does (`CompanyLogo`): Jobs cards and rows, the Companies list, a job's Company card and the company's page. Without one, the company shows a monogram: the first letter of its name's first word that isn't an article ("The Copperleaf Group" → C; `monogram` in `src/shared/logo.ts`), white on ultramarine, or on one of the ten `LOGO_COLORS` picked from the logo menu (⋯) on the company's page (`logo_color`).
   Companies have their own list (`/companies`, in the sidebar) and page (`/c/:id`), where their
   details and logo are edited. A job's Company card is a lookup: pick or type the company, see a
   summary (facts, website, LinkedIn, other jobs there), and Open company to change it.
@@ -142,30 +151,38 @@ Don't bring in styling from the sibling apps; match this app's look for anything
   person makes one there. A company's page lists its people and can add someone on no job yet.
   Remove from job takes them off that job only; deleting a job leaves its people at the company
   (only someone at no company goes with it).
-- The Jobs board opens on a computer and the list on a phone (not remembered). Cards can be
+- The Jobs board opens on a computer and the list on a phone (not remembered; a switch is kept
+  in the address as `?view=` while you're there). Cards can be
   dragged within a lane into your own order (`board_position`, saved straight away and put back if
   saving fails); a card not yet placed sits at the top; moving to another lane clears its place.
-  Under each job: grey pills for pay and "Last activity 3d ago", an ultramarine one only when
-  there's something to act on.
+  Under each job: tags for pay, work mode and source, then a grey "Last activity 3d ago" pill
+  ("today", "yesterday" when it can) and an ultramarine one only when there's something to act
+  on (an interview coming up, an offer to decide, gone quiet).
 - Search fields have a ✕ to clear them (`SearchClear`).
 - Stories filters: frameworks are many-of (All clears the rest), and Group by None or Framework.
 - The report's flow: something still in play stops at its stage (no "still at" branch).
 - An application, event or story is changed the same way wherever it appears: one shared sheet
   (`useSheets()`), as now.
 - After a save, everything on screen updates straight away; nothing needs a reload.
-- View choices (Jobs view, stage and search; Stories filters) are remembered on the device, and
-  put in the address when it makes sense to bookmark or share the view (`useViewState` in
-  `src/client/lib/viewState.ts`; the address wins when present).
+- View choices (the Jobs stage and search; Stories' frameworks, grouping and Current/Archived)
+  are remembered on the device and put in the address (`useViewState` in
+  `src/client/lib/viewState.ts`; the address wins when present). The Jobs view and a job page's
+  open tab (`?tab=`) live in the address only: a job page opens on Details. Stories' search text
+  isn't kept. Home's recent activity links to a job's timeline with `?event=<id>`, which scrolls
+  to the entry, flashes it and clears the parameter.
 - A list or column with nothing in it is hidden or says clearly that it's empty.
 - Phones: text wraps rather than running off the edge where the full text matters; notes fields
   grow with the text (`AutoTextarea` in `components/ui.tsx`). The pasted posting and pasted
   transcript fields stay fixed-height on purpose: they hold very long text.
+- Note bodies are Markdown, shown with `NoteText`. Call Mode's notepad is a CodeMirror Markdown
+  editor (`components/notes/NotesEditor.tsx`, loaded lazily).
 
 ## Wording
 
 - Product nouns are capitalized; group headings are plural where they name a kind of thing.
 - Ranges of times read "2:00 to 2:45 PM", not with a dash.
-- Relative times are compact: "3h ago", "3d ago".
+- Relative times are compact and by the day (`relDays`): "today", "yesterday", "3d ago",
+  "tomorrow", "in 2 days".
 
 ## Assistants (MCP)
 
@@ -176,6 +193,11 @@ Don't bring in styling from the sibling apps; match this app's look for anything
 - `find_applications` looks in the current search unless `all_searches` is true, and says how many
   more matches sit in past searches. The current search is the one last picked in the app.
 - People with role `other` carry their own words in `other_role`, shown in place of "Other".
+- `set_company_logo` attaches a logo from an image's address on the web (or a data: URL). The
+  worker fetches it (`POST /companies/:id/logo-from-url`) and keeps it only if its bytes are a
+  PNG, JPEG, WebP, GIF or SVG, up to 2 MB. The same tool sets the monogram's color: the tool and
+  server instructions tell assistants they may pick the color closest to the company's brand,
+  otherwise leave the default. `get_application` shows the company's mark (`company_mark`).
 
 ## Statuses and stories
 

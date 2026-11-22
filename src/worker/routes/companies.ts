@@ -1,5 +1,12 @@
 import { Hono } from 'hono';
-import { boardOrder, companyInput, companyLink, companyPatch, personInput } from '@shared/schemas';
+import {
+  boardOrder,
+  companyInput,
+  companyLink,
+  companyPatch,
+  logoFromUrl,
+  personInput,
+} from '@shared/schemas';
 import {
   createCompany,
   findCompanyByName,
@@ -72,24 +79,99 @@ companies.post('/companies/:id/people', async (c) => {
 
 // ---------- logo ----------
 
-companies.post('/companies/:id/logo', async (c) => {
-  const id = c.req.param('id');
-  if (!(await exists(c.env.DB, 'companies', id))) throw notFound('Company');
-  const type = (c.req.header('Content-Type') ?? '').split(';')[0]!.trim().toLowerCase();
-  if (!/^image\/(png|jpeg|webp|gif|svg\+xml)$/.test(type))
-    throw new ApiError(400, 'invalid', 'Use a PNG, JPEG, WebP, GIF or SVG image.');
-  const bytes = await c.req.arrayBuffer();
+const LOGO_TYPE = /^image\/(png|jpeg|webp|gif|svg\+xml)$/;
+
+/** What an image really is, from its first bytes (a server's Content-Type is often wrong). */
+function sniffImage(bytes: Uint8Array): string | null {
+  const b = (i: number) => bytes[i] ?? -1;
+  if (b(0) === 0x89 && b(1) === 0x50 && b(2) === 0x4e && b(3) === 0x47) return 'image/png';
+  if (b(0) === 0xff && b(1) === 0xd8 && b(2) === 0xff) return 'image/jpeg';
+  if (b(0) === 0x47 && b(1) === 0x49 && b(2) === 0x46) return 'image/gif';
+  const ascii = (from: number, n: number) => String.fromCharCode(...bytes.slice(from, from + n));
+  if (ascii(0, 4) === 'RIFF' && ascii(8, 4) === 'WEBP') return 'image/webp';
+  const head = new TextDecoder().decode(bytes.slice(0, 1024)).toLowerCase();
+  if (/<svg[\s>]/.test(head) && !/<html[\s>]/.test(head)) return 'image/svg+xml';
+  return null;
+}
+
+/** Saves a company's logo (replacing any it had) and returns the company. */
+async function storeLogo(env: Cloudflare.Env, id: string, bytes: ArrayBuffer, type: string) {
   if (!bytes.byteLength) throw new ApiError(400, 'invalid', 'Send the image.');
   if (bytes.byteLength > MAX_LOGO_BYTES)
     throw new ApiError(413, 'too_large', 'That image is too big (2 MB max).');
   const key = `logos/${id}`;
-  await c.env.FILES.put(key, bytes, { httpMetadata: { contentType: type } });
-  await c.env.DB.prepare(
+  await env.FILES.put(key, bytes, { httpMetadata: { contentType: type } });
+  await env.DB.prepare(
     'UPDATE companies SET logo_key = ?, logo_type = ?, updated_at = ? WHERE id = ?',
   )
     .bind(key, type, new Date().toISOString(), id)
     .run();
-  return c.json(await loadCompany(c.env.DB, id));
+  return loadCompany(env.DB, id);
+}
+
+companies.post('/companies/:id/logo', async (c) => {
+  const id = c.req.param('id');
+  if (!(await exists(c.env.DB, 'companies', id))) throw notFound('Company');
+  const type = (c.req.header('Content-Type') ?? '').split(';')[0]!.trim().toLowerCase();
+  if (!LOGO_TYPE.test(type))
+    throw new ApiError(400, 'invalid', 'Use a PNG, JPEG, WebP, GIF or SVG image.');
+  return c.json(await storeLogo(c.env, id, await c.req.arrayBuffer(), type));
+});
+
+/**
+ * A logo from an image's address on the web (assistants use this: they find the image, Knock
+ * Knock fetches it). A data: URL with the image in base64 works too.
+ */
+companies.post('/companies/:id/logo-from-url', async (c) => {
+  const id = c.req.param('id');
+  if (!(await exists(c.env.DB, 'companies', id))) throw notFound('Company');
+  const { url } = await body(c, logoFromUrl);
+  let bytes: ArrayBuffer;
+  // What the server said it was sending (only used to explain a refusal).
+  let declared = '';
+  const data = /^data:image\/[\w.+-]+;base64,(.*)$/is.exec(url);
+  if (data) {
+    try {
+      bytes = Uint8Array.from(atob(data[1]!.replace(/\s/g, '')), (ch) => ch.charCodeAt(0))
+        .buffer as ArrayBuffer;
+    } catch {
+      throw new ApiError(400, 'invalid', 'That data URL isn’t valid base64.');
+    }
+  } else {
+    if (!/^https?:\/\//i.test(url))
+      throw new ApiError(400, 'invalid', 'Use an http(s) link to the image, or a data: URL.');
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        headers: { Accept: 'image/*,*/*;q=0.8', 'User-Agent': 'KnockKnock/1 (logo fetch)' },
+        redirect: 'follow',
+        signal: AbortSignal.timeout(10_000),
+      });
+    } catch {
+      throw new ApiError(400, 'fetch_failed', 'Couldn’t reach that link to fetch the image.');
+    }
+    if (!res.ok)
+      throw new ApiError(
+        400,
+        'fetch_failed',
+        `Fetching the image failed (the site answered ${res.status}).`,
+      );
+    if (Number(res.headers.get('Content-Length') ?? 0) > MAX_LOGO_BYTES)
+      throw new ApiError(413, 'too_large', 'That image is too big (2 MB max).');
+    declared = (res.headers.get('Content-Type') ?? '').split(';')[0]!.trim().toLowerCase();
+    bytes = await res.arrayBuffer();
+  }
+  // Only what the bytes say counts: a page or error served as image/png isn't a logo.
+  const type = sniffImage(new Uint8Array(bytes));
+  if (!type)
+    throw new ApiError(
+      400,
+      'invalid',
+      declared.startsWith('text/html')
+        ? 'That link is a web page, not an image. Use the address of the image itself.'
+        : 'That isn’t a PNG, JPEG, WebP, GIF or SVG image.',
+    );
+  return c.json(await storeLogo(c.env, id, bytes, type));
 });
 
 companies.delete('/companies/:id/logo', async (c) => {

@@ -19,6 +19,7 @@ export const TABLE_COLUMNS = {
     'funding',
     'logo_key',
     'logo_type',
+    'logo_color',
     'created_at',
     'updated_at',
   ],

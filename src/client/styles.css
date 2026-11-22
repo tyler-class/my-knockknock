@@ -1886,7 +1886,7 @@ textarea.in {
    Style only, scoped to the Insights board (.pn-wrap), except the tiles, which Home shares.
    Tiles: label above the number. Bars: pastel fill with an outline; this week (still in
    progress) dashed. Ranked rows: a slim share track along the bottom. Panels are targeted
-   by data-panel. Every colour mixes this file's theme tokens. */
+   by data-panel. Every color mixes this file's theme tokens. */
 .pn-wrap {
   --i-soft: color-mix(in srgb, var(--surface2) 55%, var(--surface));
   --i-track: color-mix(in srgb, var(--line) 70%, transparent);
@@ -2579,7 +2579,7 @@ time {
   padding: 0 7px;
   font-size: 12px;
 }
-/* Statuses carry an icon, not a colour: every chip is the same plain chip. */
+/* Statuses carry an icon, not a color: every chip is the same plain chip. */
 .st {
   gap: 5px;
   border: 1.5px solid var(--edge);
@@ -4073,12 +4073,6 @@ textarea.in.angle {
   font-size: 13px;
   font-weight: 600;
 }
-.live {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: #ff4d4d;
-}
 .call-bar .btn {
   --ext: #ffe14d;
 }
@@ -4641,7 +4635,7 @@ textarea.in.angle {
   color: inherit;
 }
 /* Chips in a detail: beat the label rules (.kv span:first-child / :last-child) so every chip is
-   the same size, weight and ink colour. */
+   the same size, weight and ink color. */
 .kv .tags .tag,
 .tag-rm {
   font-size: 13px;
@@ -5103,7 +5097,7 @@ textarea.in.angle {
   }
 }
 
-/* Status icons are filled inside: yellow along the way, then a colour for how it ended. */
+/* Status icons are filled inside: yellow along the way, then a color for how it ended. */
 .sti-saved,
 .sti-applied,
 .sti-screening,
@@ -6436,6 +6430,7 @@ time,
   white-space: nowrap;
 }
 .wchart {
+  container-type: inline-size;
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr);
   grid-template-rows: 200px auto;
@@ -6511,10 +6506,26 @@ time,
   color: var(--ink3);
   white-space: nowrap;
 }
-@media (max-width: 600px) {
-  .wchart-x span:nth-child(even):not(:last-child) {
+/* Twelve week labels need room: in a narrow chart, label every other week (or every third),
+   counting back from this week so it always keeps its label. */
+@container (max-width: 560px) {
+  .wchart-x span:nth-last-child(even) {
     visibility: hidden;
   }
+}
+@container (max-width: 340px) {
+  .wchart-x span:nth-last-child(even) {
+    visibility: visible;
+  }
+  .wchart-x span:not(:nth-last-child(3n + 1)),
+  .wchart-x span:nth-last-child(4) {
+    visibility: hidden;
+  }
+}
+/* "This week" is wider than its column: it hangs left from the chart's right edge. */
+.wchart-x span:last-child {
+  display: flex;
+  justify-content: flex-end;
 }
 
 /* Status badges: solid, white icon, so they stand clear of any grey or white behind them. */
@@ -6949,8 +6960,8 @@ textarea.in.angle {
 /* ---- Editing in place changes nothing but editability ----
    Every editor in a detail (one-line input, long text, pick list, date) is the shown value's box
    exactly: same width, offset, padding, radius, border width, font, size, weight, line height and
-   colour. The right padding leaves the room the pencil took, so text wraps at the same place.
-   Only the border colour and focus ring say it's being edited. */
+   color. The right padding leaves the room the pencil took, so text wraps at the same place.
+   Only the border color and focus ring say it's being edited. */
 .ikv .kv-v,
 .ikv .in,
 .ikv textarea.in,
@@ -7669,6 +7680,66 @@ textarea.in.angle {
 }
 .co-logo-menu button.danger {
   color: var(--bad);
+}
+/* A monogram: the company's first meaningful initial, white on its color (ultramarine unless the
+   owner picked another). Same size and corners as a logo, wherever a logo would be. */
+.co-mono {
+  display: inline-grid;
+  place-items: center;
+  color: #fff;
+  font-family: var(--display);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0;
+  user-select: none;
+}
+.co-mark.big.mono {
+  border: 0;
+  background: none;
+}
+.co-mark.big.mono .co-logo {
+  border-radius: 16px;
+}
+.co-mark.mono:hover .co-logo-more {
+  opacity: 1;
+}
+/* The monogram's color, in the logo menu: ten swatches, the current one ticked. */
+.co-colors {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px 6px;
+  border-top: 1px solid var(--line);
+  margin-top: 4px;
+}
+.co-colors-l {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.co-swatches {
+  display: grid;
+  grid-template-columns: repeat(5, 28px);
+  gap: 8px;
+}
+.co-logo-menu .co-swatch {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 50%;
+  color: #fff;
+}
+.co-logo-menu .co-swatch:hover {
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 4px var(--line2);
+}
+.co-logo-menu .co-swatch[aria-checked='true'] {
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 4px var(--ink);
 }
 /* The job's company preview: mark, then the name with its website link beside it. */
 .co-name {

@@ -405,4 +405,37 @@ describe('MCP', () => {
     expect(everywhere.data.count).toBe(1);
     expect(everywhere.data.applications.map((a) => a.id)).toEqual([old.data.id]);
   });
+
+  it('set_company_logo attaches a logo from a data URL and sets the monogram color', async () => {
+    const api = await session();
+    await api.post('/applications', { title: 'PM', company: 'The Quokka Company' });
+    const { token } = (await connect()) as { token: string };
+    const colored = await tool<{ logo: string; monogram: string; color: string }>(
+      token,
+      'set_company_logo',
+      { company: 'quokka', color: 'teal' },
+    );
+    expect(colored.data).toMatchObject({ logo: 'none', monogram: 'Q', color: 'teal' });
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"><circle r="4"/></svg>';
+    const withLogo = await tool<{ logo: string }>(token, 'set_company_logo', {
+      company: 'The Quokka Company',
+      image_url: `data:image/svg+xml;base64,${btoa(svg)}`,
+    });
+    expect(withLogo.data.logo).toBe('uploaded');
+    const app = await tool<{ company_mark: { logo: string } }>(token, 'get_application', {
+      application: 'quokka',
+    });
+    expect(app.data.company_mark.logo).toBe('uploaded');
+    const notImage = await tool(token, 'set_company_logo', {
+      company: 'quokka',
+      image_url: `data:image/png;base64,${btoa('<html><body>hi</body></html>')}`,
+    });
+    expect(notImage.error).toMatch(/isn’t a PNG/);
+    const back = await tool<{ logo: string; color: string }>(token, 'set_company_logo', {
+      company: 'quokka',
+      remove_logo: true,
+      color: 'default',
+    });
+    expect(back.data).toMatchObject({ logo: 'none', color: 'ultramarine' });
+  });
 });

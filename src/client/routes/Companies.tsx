@@ -34,7 +34,6 @@ export function Companies() {
             <Link key={c.id} to={`/c/${c.id}`} className="prow co-row">
               <span className="co-mark">
                 <CompanyLogo company={c} size={36} />
-                {!c.has_logo && <Icon name="building" size={18} />}
               </span>
               <span className="row-text">
                 <strong>{c.name}</strong>

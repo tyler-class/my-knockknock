@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { AppState, Application, Company, Person } from '../../src/shared/types';
 import { session } from './helpers';
 
@@ -127,5 +127,53 @@ describe('people at companies', () => {
     await api.del(`/applications/${two.id}`);
     state = (await api.get<AppState>('/state')).data;
     expect(state.people.find((p) => p.id === sam.id)?.company_id).toBe(one.company_id);
+  });
+
+  it('keeps a monogram color from the palette, and null puts it back to ultramarine', async () => {
+    const api = await session();
+    const co = (await api.post<Company>('/companies', { name: 'The Copperleaf Group' })).data;
+    expect(co.logo_color).toBeNull();
+    const teal = await api.patch<Company>(`/companies/${co.id}`, { logo_color: 'teal' });
+    expect(teal.data.logo_color).toBe('teal');
+    const bad = await api.patch(`/companies/${co.id}`, { logo_color: '#ff00ff' });
+    expect(bad.status).toBe(400);
+    const back = await api.patch<Company>(`/companies/${co.id}`, { logo_color: null });
+    expect(back.data.logo_color).toBeNull();
+  });
+
+  it('fetches a logo from an image address, checking it really is an image', async () => {
+    const api = await session();
+    const co = (await api.post<Company>('/companies', { name: 'Wombat Works' })).data;
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
+    const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const u = String(input instanceof Request ? input.url : input);
+      if (u.endsWith('/logo.png'))
+        return new Response(png, { headers: { 'Content-Type': 'application/octet-stream' } });
+      if (u.endsWith('/about'))
+        return new Response('<html></html>', { headers: { 'Content-Type': 'text/html' } });
+      return new Response('nope', { status: 404 });
+    });
+    try {
+      const ok = await api.post<Company>(`/companies/${co.id}/logo-from-url`, {
+        url: 'https://wombat.example/logo.png',
+      });
+      expect(ok.status).toBe(200);
+      expect(ok.data.has_logo).toBe(true);
+      const page = await api.post<{ message: string }>(`/companies/${co.id}/logo-from-url`, {
+        url: 'https://wombat.example/about',
+      });
+      expect(page.status).toBe(400);
+      expect(page.data.message).toMatch(/web page, not an image/);
+      const missing = await api.post<{ message: string }>(`/companies/${co.id}/logo-from-url`, {
+        url: 'https://wombat.example/missing.png',
+      });
+      expect(missing.data.message).toMatch(/answered 404/);
+      const ftp = await api.post(`/companies/${co.id}/logo-from-url`, {
+        url: 'ftp://x.example/a.png',
+      });
+      expect(ftp.status).toBe(400);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

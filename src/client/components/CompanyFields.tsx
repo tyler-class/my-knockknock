@@ -7,6 +7,7 @@ import { Icon } from './Icon';
 import { CompanyLogo } from './CompanyLogo';
 import { cx } from './ui';
 import { INDUSTRIES } from '@shared/lookups';
+import { DEFAULT_LOGO_COLOR, LOGO_COLORS, logoColor } from '@shared/logo';
 
 /** The company's logo at the right of its card's heading: add one, change it, or remove it. */
 export function CompanyLogoEdit({ company }: { company: Company | undefined }) {
@@ -58,25 +59,27 @@ export function CompanyLogoEdit({ company }: { company: Company | undefined }) {
 }
 
 /**
- * A company's big mark on its page: the logo, or a building icon when there's none. With a logo,
- * a ⋯ button over its corner (on hover; always there on touch) offers Replace and Delete.
+ * A company's big mark on its page: its logo, or its monogram when it has none. A ⋯ button over
+ * its corner (on hover; always there on touch) opens a menu: Replace and Delete for a logo;
+ * Upload logo and the monogram's color (a small palette, ultramarine by default) otherwise.
  */
 export function LogoMark({ company }: { company: Company }) {
   const act = useActions();
   const input = useRef<HTMLInputElement>(null);
   const [menu, setMenu] = useState(false);
-  if (!company.has_logo)
-    return (
-      <span className="co-mark big">
-        <Icon name="building" size={26} />
-      </span>
-    );
-  const replace = async (file: File | undefined) => {
+  const current = logoColor(company.logo_color).key;
+  const upload = async (file: File | undefined) => {
     if (!file) return;
-    await act.run(() => uploadFile(`/companies/${company.id}/logo`, file), 'Logo replaced');
+    await act.run(
+      () => uploadFile(`/companies/${company.id}/logo`, file),
+      company.has_logo ? 'Logo replaced' : 'Logo added',
+    );
   };
   return (
-    <span className="co-mark big has-logo" onMouseLeave={() => setMenu(false)}>
+    <span
+      className={cx('co-mark big has-logo', !company.has_logo && 'mono')}
+      onMouseLeave={() => setMenu(false)}
+    >
       <CompanyLogo company={company} size={64} />
       <input
         ref={input}
@@ -84,7 +87,7 @@ export function LogoMark({ company }: { company: Company }) {
         accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
         hidden
         onChange={(e) => {
-          void replace(e.target.files?.[0]);
+          void upload(e.target.files?.[0]);
           e.target.value = '';
         }}
       />
@@ -108,19 +111,48 @@ export function LogoMark({ company }: { company: Company }) {
               input.current?.click();
             }}
           >
-            <Icon name="upload" size={14} /> Replace
+            <Icon name="upload" size={14} /> {company.has_logo ? 'Replace' : 'Upload logo'}
           </button>
-          <button
-            type="button"
-            role="menuitem"
-            className="danger"
-            onClick={() => {
-              setMenu(false);
-              void act.del(`/companies/${company.id}/logo`, 'Logo deleted');
-            }}
-          >
-            <Icon name="trash" size={14} /> Delete
-          </button>
+          {company.has_logo ? (
+            <button
+              type="button"
+              role="menuitem"
+              className="danger"
+              onClick={() => {
+                setMenu(false);
+                void act.del(`/companies/${company.id}/logo`, 'Logo deleted');
+              }}
+            >
+              <Icon name="trash" size={14} /> Delete
+            </button>
+          ) : (
+            <span className="co-colors" role="group" aria-label="Color">
+              <span className="co-colors-l">Color</span>
+              <span className="co-swatches">
+                {LOGO_COLORS.map((c) => (
+                  <button
+                    key={c.key}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={c.key === current}
+                    aria-label={c.label}
+                    title={c.label}
+                    className="co-swatch"
+                    style={{ background: c.hex }}
+                    onClick={() => {
+                      setMenu(false);
+                      if (c.key !== current)
+                        void act.patch(`/companies/${company.id}`, {
+                          logo_color: c.key === DEFAULT_LOGO_COLOR ? null : c.key,
+                        });
+                    }}
+                  >
+                    {c.key === current && <Icon name="check" size={14} />}
+                  </button>
+                ))}
+              </span>
+            </span>
+          )}
         </span>
       )}
     </span>
@@ -177,7 +209,6 @@ export function CompanyChooser({
       <div className="co-chosen">
         <span className={picked.has_logo ? 'co-mark has-img' : 'co-mark'}>
           <CompanyLogo company={picked} size={40} />
-          {!picked.has_logo && <Icon name="building" size={18} />}
         </span>
         <strong>{picked.name}</strong>
         <button type="button" className="btn sm" onClick={() => onPick(null)}>

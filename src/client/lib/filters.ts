@@ -1,6 +1,6 @@
 // The counts every filter shows. A filter over the same data shows the same choices and the same
 // numbers wherever it appears (the Jobs board, its list and the list's stage tabs; Stories'
-// Framework and Competency toggles), so they all count here.
+// Framework filter), so they all count here.
 import { CLOSED_STATUSES, statusLabel, type Status } from '@shared/lookups';
 import type { Application, Framework, Story } from '@shared/types';
 

@@ -6,7 +6,10 @@ import type { Company } from '@shared/types';
 import { first, insertStmt, newId, nowIso, toCompany, updateStmt } from './db';
 
 export type CompanyFields = Partial<
-  Pick<Company, 'name' | 'website' | 'linkedin' | 'hq' | 'size' | 'industry' | 'funding'>
+  Pick<
+    Company,
+    'name' | 'website' | 'linkedin' | 'hq' | 'size' | 'industry' | 'funding' | 'logo_color'
+  >
 >;
 
 /** "https://www.acme.com/about" → "acme.com": what assistants match an email's domain against. */

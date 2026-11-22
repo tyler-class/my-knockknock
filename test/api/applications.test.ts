@@ -228,6 +228,7 @@ describe('applications and their timelines', () => {
     expect(hit.data.applications.map((x) => x.id)).toEqual([a.id]);
     expect((await api.del(`/applications/${a.id}`)).status).toBe(200);
     const state = (await api.get<AppState>('/state')).data;
-    expect(state.people.some((x) => x.id === p.data.id)).toBe(false);
+    // They work at the company, so they stay there (on no job now).
+    expect(state.people.find((x) => x.id === p.data.id)).toMatchObject({ application_ids: [] });
   });
 });

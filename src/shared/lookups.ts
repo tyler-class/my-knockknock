@@ -113,3 +113,63 @@ export const FILE_KINDS = [
 export type FileKind = (typeof FILE_KINDS)[number]['key'];
 export const FILE_KIND_KEYS = FILE_KINDS.map((k) => k.key) as [FileKind, ...FileKind[]];
 export const fileKindLabel = (k: string) => FILE_KINDS.find((x) => x.key === k)?.label ?? k;
+
+/** Common industries, offered when filling in a company's (any other can be typed in). */
+export const INDUSTRIES = [
+  'Software',
+  'SaaS',
+  'Artificial Intelligence',
+  'Cybersecurity',
+  'Fintech',
+  'Financial Services',
+  'Banking',
+  'Insurance',
+  'Healthcare',
+  'Health Tech',
+  'Biotech',
+  'Pharmaceuticals',
+  'Medical Devices',
+  'E-commerce',
+  'Retail',
+  'Consumer Goods',
+  'Marketplaces',
+  'Media & Entertainment',
+  'Gaming',
+  'Advertising & Marketing',
+  'Education',
+  'EdTech',
+  'Government',
+  'Nonprofit',
+  'Consulting',
+  'Professional Services',
+  'Legal',
+  'Real Estate',
+  'Construction',
+  'Manufacturing',
+  'Automotive',
+  'Aerospace & Defense',
+  'Energy',
+  'Climate & Clean Tech',
+  'Utilities',
+  'Telecommunications',
+  'Transportation & Logistics',
+  'Travel & Hospitality',
+  'Food & Beverage',
+  'Agriculture',
+  'Hardware',
+  'Semiconductors',
+  'Data & Analytics',
+  'Developer Tools',
+  'HR & Recruiting',
+  'Sports & Fitness',
+  'Crypto & Web3',
+] as const;
+
+/** Employment types offered for a job (anything else can be kept as written). */
+export const EMPLOYMENT_TYPES = [
+  'Full-time',
+  'Part-time',
+  'Contract',
+  'Contract-to-hire',
+  'Internship',
+] as const;

@@ -5,6 +5,7 @@
 // answers with the event, the application and what's nearby on its timeline, so an assistant can
 // spot a duplicate it just made and fix it in the same turn.
 import { Hono } from 'hono';
+import { settleCompany } from '../companies';
 import type { z } from 'zod';
 import { isOpen } from '@shared/lookups';
 import {
@@ -41,7 +42,7 @@ import {
   nowIso,
   refreshApplication,
   saveSetting,
-  toPerson,
+  loadPeople,
   toSearch,
   updateStmt,
 } from '../db';
@@ -125,7 +126,7 @@ applications.get('/applications', async (c) => {
   if (q) {
     const people = await all<{ application_id: string; hay: string }>(
       c.env.DB,
-      "SELECT application_id, lower(name || ' ' || coalesce(email, '')) AS hay FROM people",
+      "SELECT j.application_id, lower(p.name || ' ' || coalesce(p.email, '')) AS hay FROM people p JOIN job_people j ON j.person_id = p.id",
     );
     const words = q.split(/\s+/);
     list = list.filter((a) => {
@@ -184,6 +185,7 @@ applications.post('/applications', async (c) => {
       updated_at: now,
     }),
   ]);
+  await settleCompany(db, id, input, true);
   await refreshApplication(db, id);
   return c.json(await loadApplication(db, id), 201);
 });
@@ -196,14 +198,31 @@ applications.patch('/applications/:id', async (c) => {
     throw new ApiError(400, 'invalid', 'That search no longer exists.');
   if (Object.keys(input).length)
     await updateStmt(c.env.DB, 'applications', id, encode(input)).run();
+  // A company name or company details: they belong to the job's company record.
+  if (Object.keys(input).some((k) => k === 'company' || k.startsWith('company_')))
+    await settleCompany(c.env.DB, id, input, false);
   return c.json(await loadApplication(c.env.DB, id));
 });
 
 applications.delete('/applications/:id', async (c) => {
   const id = c.req.param('id');
   if (!(await exists(c.env.DB, 'applications', id))) throw notFound('Application');
-  // Its timeline, people and story copies go too; its files stay in your library.
+  // Its timeline, people and story copies go too; its files stay in your library. Someone also on
+  // another job stays, moved to hang off that job.
+  await c.env.DB.prepare(
+    `UPDATE people SET application_id = (
+       SELECT j.application_id FROM job_people j
+       WHERE j.person_id = people.id AND j.application_id <> ?1 ORDER BY j.created_at LIMIT 1)
+     WHERE application_id = ?1 AND EXISTS (
+       SELECT 1 FROM job_people j WHERE j.person_id = people.id AND j.application_id <> ?1)`,
+  )
+    .bind(id)
+    .run();
   await c.env.DB.prepare('DELETE FROM applications WHERE id = ?').bind(id).run();
+  // Someone who was only on this job, at no company, has nothing left to belong to.
+  await c.env.DB.prepare(
+    'DELETE FROM people WHERE company_id IS NULL AND application_id IS NULL AND NOT EXISTS (SELECT 1 FROM job_people j WHERE j.person_id = people.id)',
+  ).run();
   return c.json({ ok: true });
 });
 
@@ -498,20 +517,61 @@ applications.delete('/events/:id', async (c) => {
 
 // ---------- people ----------
 
+/** Someone new on a job: at the job's company, and on the job. */
 applications.post('/applications/:id/people', async (c) => {
   const id = await needApp(c);
   const input = await body(c, personInput);
   if (input.role !== 'other') input.other_role = null;
   const pid = newId();
   const now = nowIso();
-  await insertStmt(c.env.DB, 'people', {
-    id: pid,
-    application_id: id,
-    ...input,
-    created_at: now,
-    updated_at: now,
-  }).run();
-  return c.json(toPerson((await first(c.env.DB, 'SELECT * FROM people WHERE id = ?', pid))!), 201);
+  const app = await first<{ company_id: string | null }>(
+    c.env.DB,
+    'SELECT company_id FROM applications WHERE id = ?',
+    id,
+  );
+  await c.env.DB.batch([
+    insertStmt(c.env.DB, 'people', {
+      id: pid,
+      application_id: id,
+      company_id: app?.company_id ?? null,
+      ...input,
+      created_at: now,
+      updated_at: now,
+    }),
+    insertStmt(c.env.DB, 'job_people', { application_id: id, person_id: pid, created_at: now }),
+  ]);
+  return c.json((await loadPeople(c.env.DB, pid))[0], 201);
+});
+
+/** Someone already known (at the job's company) added to another of its jobs. */
+applications.post('/applications/:id/people/:personId', async (c) => {
+  const id = await needApp(c);
+  const pid = c.req.param('personId');
+  if (!(await exists(c.env.DB, 'people', pid))) throw notFound('Person');
+  await c.env.DB.prepare(
+    'INSERT OR IGNORE INTO job_people (application_id, person_id, created_at) VALUES (?, ?, ?)',
+  )
+    .bind(id, pid, nowIso())
+    .run();
+  return c.json((await loadPeople(c.env.DB, pid))[0]);
+});
+
+/** Off this job; they stay at their company (and on any other jobs there). */
+applications.delete('/applications/:id/people/:personId', async (c) => {
+  const id = await needApp(c);
+  const pid = c.req.param('personId');
+  await c.env.DB.prepare('DELETE FROM job_people WHERE application_id = ? AND person_id = ?')
+    .bind(id, pid)
+    .run();
+  // Their first job is the one they hang off: move it to a job they're still on, if any.
+  await c.env.DB.prepare(
+    `UPDATE people SET application_id = COALESCE(
+       (SELECT application_id FROM job_people WHERE person_id = ?1 ORDER BY created_at LIMIT 1),
+       application_id) WHERE id = ?1`,
+  )
+    .bind(pid)
+    .run();
+  return c.json({ ok: true });
 });
 
 applications.patch('/people/:id', async (c) => {
@@ -521,7 +581,7 @@ applications.patch('/people/:id', async (c) => {
   // Only "other" carries its own words.
   if (input.role && input.role !== 'other') input.other_role = null;
   if (Object.keys(input).length) await updateStmt(c.env.DB, 'people', id, input).run();
-  return c.json(toPerson((await first(c.env.DB, 'SELECT * FROM people WHERE id = ?', id))!));
+  return c.json((await loadPeople(c.env.DB, id))[0]);
 });
 
 applications.delete('/people/:id', async (c) => {

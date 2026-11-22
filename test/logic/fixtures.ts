@@ -75,6 +75,8 @@ export function app(o: Partial<Application> = {}): Application {
     created_at: '2026-10-01T12:00:00.000Z',
     updated_at: '2026-10-01T12:00:00.000Z',
     last_activity_at: '2026-10-01T12:00:00.000Z',
+    board_position: null,
+    company_id: null,
     ...o,
   };
 }

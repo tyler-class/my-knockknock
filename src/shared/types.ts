@@ -83,11 +83,36 @@ export interface Application {
   updated_at: string;
   /** The newest timeline event's time (or created_at). */
   last_activity_at: string;
+  /** Its place in its board lane, set by dragging; null until placed by hand. */
+  board_position: number | null;
+  /** The company record it's at (its company_* fields are a copy of that record's). */
+  company_id: string | null;
+}
+
+/** A company: several jobs can be at one. Its details are edited here, once, for all of them. */
+export interface Company {
+  id: string;
+  name: string;
+  website: string | null;
+  linkedin: string | null;
+  hq: string | null;
+  size: string | null;
+  industry: string | null;
+  funding: string | null;
+  /** Whether a logo was uploaded (served at /api/companies/:id/logo). */
+  has_logo: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Person {
   id: string;
-  application_id: string;
+  /** The job they were first added to, if any (see application_ids for every job they're on). */
+  application_id: string | null;
+  /** The company they work at. */
+  company_id: string | null;
+  /** Every job they're on (they can be on several at their company). */
+  application_ids: string[];
   name: string;
   email: string | null;
   title: string | null;
@@ -235,6 +260,7 @@ export interface AppState {
   settings: Settings;
   searches: Search[];
   applications: Application[];
+  companies: Company[];
   people: Person[];
   events: TimelineEvent[];
   frameworks: Framework[];

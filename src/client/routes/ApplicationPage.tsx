@@ -16,6 +16,7 @@ import {
   type FileKind,
   type SalaryPeriod,
   type Status,
+  EMPLOYMENT_TYPES,
 } from '@shared/lookups';
 import { payRange } from '@shared/logic/pay';
 import { withScheme } from '@shared/url';
@@ -42,6 +43,7 @@ import {
 } from '../components/ui';
 import { useToast } from '../components/Toast';
 import { EditActs, EditBox, groupKeys, shortUrl, TagsEdit } from '../components/edit';
+import { CompanyLogo } from '../components/CompanyLogo';
 
 const workModeLabel = (m: string) => WORK_MODES.find((w) => w.key === m)?.label ?? m;
 
@@ -124,13 +126,7 @@ const choiceGroups = (options: { value: string; label: string }[], current: stri
 ];
 const WORK_MODE_CHOICES = WORK_MODES.map((w) => ({ value: w.key, label: w.label }));
 const SOURCE_CHOICES = SOURCES.map((s) => ({ value: s, label: s }));
-const EMPLOYMENT_CHOICES = [
-  'Full-time',
-  'Part-time',
-  'Contract',
-  'Contract-to-hire',
-  'Internship',
-].map((v) => ({ value: v, label: v }));
+const EMPLOYMENT_CHOICES = EMPLOYMENT_TYPES.map((v) => ({ value: v, label: v }));
 /** "1200" or "1000-5000 employees" with thousands separators: "1,200", "1,000-5,000 employees". */
 const groupThousands = (s: string) =>
   s.replace(/\d[\d,]*/g, (n) => Number(n.replace(/,/g, '')).toLocaleString('en-US'));
@@ -366,6 +362,105 @@ function PayField({ a }: { a: Application }) {
   );
 }
 
+/**
+ * The job's company, read only: a preview of its own record (logo, name with its website, and
+ * whichever details are filled in). Open company changes it.
+ */
+function CompanyCard({ a, data }: { a: Application; data: Data }) {
+  const c = data.state.companies.find((x) => x.id === a.company_id);
+  const rows: [string, ReactNode][] = c
+    ? (
+        [
+          ['Headquarters', c.hq],
+          ['Size', c.size ? groupThousands(c.size) : null],
+          ['Industry', c.industry],
+          ['Funding', c.funding],
+          ['LinkedIn', c.linkedin ? shortUrl(c.linkedin) : null],
+        ] as [string, ReactNode][]
+      ).filter(([, v]) => v != null && v !== '')
+    : [];
+  return (
+    <section className="card co-card">
+      <div className="card-h">
+        <h2 className="sec-title">
+          <Icon name="building" size={18} /> Company
+        </h2>
+        {c && (
+          <Link className="btn sm" to={`/c/${c.id}`}>
+            Open company <Icon name="chevRight" size={14} />
+          </Link>
+        )}
+      </div>
+      <div className="co-lookup">
+        <span className={c?.has_logo ? 'co-mark has-img' : 'co-mark'}>
+          <CompanyLogo company={c} size={40} />
+          {!c?.has_logo && <Icon name="building" size={18} />}
+        </span>
+        <div className="co-name">
+          <strong>{c?.name ?? a.company}</strong>
+          {c?.website && (
+            <a
+              href={withScheme(c.website)}
+              target="_blank"
+              rel="noreferrer"
+              className="pill co-web"
+              aria-label={`Open the website (${shortUrl(c.website)}) in a new tab`}
+            >
+              Website <Icon name="external" size={12} />
+            </a>
+          )}
+        </div>
+      </div>
+      {rows.length > 0 && (
+        <div className="kvs co-kvs">
+          {rows.map(([l, v]) => (
+            <div key={l} className="kv">
+              <span className="kv-l">
+                {l}
+                {/* A link opens from the round new-tab button beside its label, as elsewhere. */}
+                {l === 'LinkedIn' && c?.linkedin && (
+                  <a
+                    className="kv-open"
+                    href={withScheme(c.linkedin)}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="Open LinkedIn in a new tab"
+                    title="Open in a new tab"
+                  >
+                    <Icon name="external" size={12} />
+                  </a>
+                )}
+              </span>
+              <span className="kv-ro">{v}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <OtherJobsHere a={a} data={data} />
+    </section>
+  );
+}
+
+/** Other jobs you have at the same company, as links (nothing when there are none). */
+function OtherJobsHere({ a, data }: { a: Application; data: Data }) {
+  const others = a.company_id
+    ? data.state.applications.filter((x) => x.company_id === a.company_id && x.id !== a.id)
+    : [];
+  if (!others.length) return null;
+  return (
+    <div className="kv kv-full">
+      <span className="kv-l">Other jobs here</span>
+      <span className="co-others">
+        {others.map((x) => (
+          <Link key={x.id} to={`/a/${x.id}`} className="pill">
+            {x.title}
+          </Link>
+        ))}
+      </span>
+    </div>
+  );
+}
+
 /** Must-haves or nice-to-haves: a list of short tags. */
 function TagsField({
   a,
@@ -445,7 +540,7 @@ function TextField({
 
 function Details({ a, data }: { a: Application; data: Data }) {
   const sheets = useSheets();
-  const people = data.state.people.filter((p) => p.application_id === a.id);
+  const people = data.state.people.filter((p) => p.application_ids.includes(a.id));
   return (
     // Two columns that each stack on their own (The job; Company, People, Notes), so a short card
     // isn't pushed down by a tall one beside it. One column on phones.
@@ -479,35 +574,14 @@ function Details({ a, data }: { a: Application; data: Data }) {
             <InlineField a={a} k="location" label="Location" />
             <InlineField a={a} k="team" label="Team" />
             <InlineField a={a} k="reports_to" label="Reports to" />
-            <TagsField a={a} k="must_haves" label="Required" />
-            <TagsField a={a} k="nice_to_haves" label="Preferred" />
+            <TagsField a={a} k="must_haves" label="Required qualifications" />
+            <TagsField a={a} k="nice_to_haves" label="Preferred qualifications" />
             <PostingField a={a} />
           </div>
         </section>
       </div>
       <div className="details-col">
-        <section className="card">
-          <div className="card-h">
-            <h2 className="sec-title">
-              <Icon name="building" size={18} /> Company
-            </h2>
-          </div>
-          <div className="kvs">
-            <InlineField a={a} k="company" label="Name" required full />
-            <InlineField a={a} k="company_domain" label="Domain" kind="url" />
-            <InlineField a={a} k="company_hq" label="HQ" />
-            <InlineField
-              a={a}
-              k="company_size"
-              label="Size"
-              display={a.company_size ? groupThousands(a.company_size) : undefined}
-            />
-            <InlineField a={a} k="company_industry" label="Industry" />
-            <InlineField a={a} k="company_funding" label="Funding" />
-            <InlineField a={a} k="company_website" label="Website" kind="url" />
-            <InlineField a={a} k="company_linkedin" label="LinkedIn" kind="url" />
-          </div>
-        </section>
+        <CompanyCard a={a} data={data} />
         <section className="card">
           <div className="card-h">
             <h2 className="sec-title">

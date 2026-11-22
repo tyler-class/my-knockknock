@@ -8,7 +8,8 @@ export interface SheetApi {
   status: (appId: string, to?: Status | 'closed') => void;
   /** Log a new event, or open one (eventId) to edit in place. parentId puts a note on an event. */
   log: (appId: string, o?: { type?: LogType; eventId?: string; parentId?: string }) => void;
-  person: (appId: string, personId?: string) => void;
+  /** A person on a job (appId), or at a company with no job in view (appId null, companyId). */
+  person: (appId: string | null, personId?: string, companyId?: string) => void;
   search: (id?: string) => void;
   /** A bank story: edit one, or a new one in a framework. */
   story: (o: { id?: string; framework?: string }) => void;

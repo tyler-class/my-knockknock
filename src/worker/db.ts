@@ -6,6 +6,7 @@ import { lastActivity } from '@shared/logic/timeline';
 import type {
   AppState,
   Application,
+  Company,
   EventData,
   FileRef,
   Framework,
@@ -151,11 +152,29 @@ export const toApplication = (r: Row): Application => ({
   created_at: String(r.created_at),
   updated_at: String(r.updated_at),
   last_activity_at: String(r.last_activity_at),
+  board_position: n(r.board_position),
+  company_id: s(r.company_id),
 });
 
-export const toPerson = (r: Row): Person => ({
+export const toCompany = (r: Row): Company => ({
   id: String(r.id),
-  application_id: String(r.application_id),
+  name: String(r.name),
+  website: s(r.website),
+  linkedin: s(r.linkedin),
+  hq: s(r.hq),
+  size: s(r.size),
+  industry: s(r.industry),
+  funding: s(r.funding),
+  has_logo: !!r.logo_key,
+  created_at: String(r.created_at),
+  updated_at: String(r.updated_at),
+});
+
+export const toPerson = (r: Row, jobs: string[] = []): Person => ({
+  id: String(r.id),
+  application_id: s(r.application_id),
+  company_id: s(r.company_id),
+  application_ids: jobs,
   name: String(r.name),
   email: s(r.email),
   title: s(r.title),
@@ -337,24 +356,36 @@ export async function loadFile(db: D1Database, id: string) {
 }
 
 export async function loadState(db: D1Database): Promise<AppState> {
-  const [settings, searches, applications, people, events, frameworks, stories, jobStories, files] =
-    await Promise.all([
-      loadSettings(db),
-      loadSearches(db),
-      loadApplications(db),
-      all(db, 'SELECT * FROM people ORDER BY created_at').then((r) => r.map(toPerson)),
-      loadEvents(db),
-      loadFrameworks(db),
-      all(db, 'SELECT * FROM stories ORDER BY updated_at DESC').then((r) => r.map(toStory)),
-      all(db, 'SELECT * FROM job_stories ORDER BY application_id, position, created_at').then((r) =>
-        r.map(toJobStory),
-      ),
-      all(db, `SELECT ${FILE_COLS} FROM files ORDER BY created_at DESC`).then((r) => r.map(toFile)),
-    ]);
+  const [
+    settings,
+    searches,
+    applications,
+    companies,
+    people,
+    events,
+    frameworks,
+    stories,
+    jobStories,
+    files,
+  ] = await Promise.all([
+    loadSettings(db),
+    loadSearches(db),
+    loadApplications(db),
+    all(db, 'SELECT * FROM companies ORDER BY name COLLATE NOCASE').then((r) => r.map(toCompany)),
+    loadPeople(db),
+    loadEvents(db),
+    loadFrameworks(db),
+    all(db, 'SELECT * FROM stories ORDER BY updated_at DESC').then((r) => r.map(toStory)),
+    all(db, 'SELECT * FROM job_stories ORDER BY application_id, position, created_at').then((r) =>
+      r.map(toJobStory),
+    ),
+    all(db, `SELECT ${FILE_COLS} FROM files ORDER BY created_at DESC`).then((r) => r.map(toFile)),
+  ]);
   return {
     settings,
     searches,
     applications,
+    companies,
     people,
     events,
     frameworks,
@@ -368,6 +399,25 @@ export async function loadState(db: D1Database): Promise<AppState> {
  * Recomputes an application's cached status, closed_from and last activity from its timeline.
  * Called after any timeline change.
  */
+/** Everyone, each with every job they're on. */
+export async function loadPeople(db: D1Database, id?: string): Promise<Person[]> {
+  const [rows, links] = await Promise.all([
+    all(
+      db,
+      `SELECT * FROM people${id ? ' WHERE id = ?' : ''} ORDER BY created_at`,
+      ...(id ? [id] : []),
+    ),
+    all<{ application_id: string; person_id: string }>(
+      db,
+      `SELECT application_id, person_id FROM job_people${id ? ' WHERE person_id = ?' : ''} ORDER BY created_at`,
+      ...(id ? [id] : []),
+    ),
+  ]);
+  const by = new Map<string, string[]>();
+  for (const l of links) by.set(l.person_id, [...(by.get(l.person_id) ?? []), l.application_id]);
+  return rows.map((r) => toPerson(r, by.get(String(r.id)) ?? []));
+}
+
 export async function refreshApplication(db: D1Database, id: string): Promise<void> {
   const app = await first<{ created_at: string }>(
     db,
@@ -385,9 +435,10 @@ export async function refreshApplication(db: D1Database, id: string): Promise<vo
     .run();
   const events = await loadEvents(db, id);
   const { status, closed_from } = deriveStatus(events);
+  // Moving to another lane drops its hand-set place there (it goes to the top of the new lane).
   await db
     .prepare(
-      'UPDATE applications SET status = ?, closed_from = ?, last_activity_at = ? WHERE id = ?',
+      'UPDATE applications SET status = ?1, closed_from = ?2, last_activity_at = ?3, board_position = CASE WHEN status = ?1 THEN board_position ELSE NULL END WHERE id = ?4',
     )
     .bind(status, closed_from, lastActivity(events, '') || app.created_at, id)
     .run();

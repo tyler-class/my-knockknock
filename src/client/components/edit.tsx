@@ -374,3 +374,114 @@ export function TagsEdit({
     </EditBox>
   );
 }
+
+/**
+ * A pick list you can add to (Industry): tap the value and the list opens, the current choice
+ * checked. Typing narrows it; when nothing matches, "Add …" adds what you typed. Picking saves;
+ * leaving without picking changes nothing; Escape closes.
+ */
+export function ComboEdit({
+  label,
+  value,
+  options,
+  onSave,
+  full,
+}: {
+  label: string;
+  value: string;
+  options: readonly string[];
+  onSave: (v: string) => Promise<unknown>;
+  full?: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [q, setQ] = useState('');
+  const [hi, setHi] = useState(0);
+  const ql = q.trim().toLowerCase();
+  // A value typed in earlier (not on the list) stays a choice.
+  const all = value && !options.includes(value) ? [value, ...options] : [...options];
+  const hits = all.filter((o) => !ql || o.toLowerCase().includes(ql));
+  const canAdd = !!ql && !all.some((o) => o.toLowerCase() === ql);
+  const rows = [
+    ...hits.map((o) => ({ o, add: false })),
+    ...(canAdd ? [{ o: q.trim(), add: true }] : []),
+  ];
+  const pick = async (v: string) => {
+    setEditing(false);
+    if (v !== value) await onSave(v);
+  };
+  return (
+    <EditBox
+      label={label}
+      full={full}
+      shown={value}
+      editing={editing}
+      onEdit={() => {
+        setQ('');
+        setHi(Math.max(0, all.indexOf(value)));
+        setEditing(true);
+      }}
+    >
+      <div className="co-pick">
+        <input
+          className="in"
+          autoFocus
+          value={q}
+          placeholder={value || 'Search or add'}
+          aria-label={label}
+          aria-autocomplete="list"
+          onChange={(e) => {
+            setQ(e.target.value);
+            setHi(0);
+          }}
+          onBlur={() => setEditing(false)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              e.stopPropagation();
+              setEditing(false);
+            } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+              e.preventDefault();
+              const d = e.key === 'ArrowDown' ? 1 : -1;
+              setHi((i) => Math.max(0, Math.min(rows.length - 1, i + d)));
+            } else if (e.key === 'Enter') {
+              e.preventDefault();
+              const r = rows[hi];
+              if (r) void pick(r.o);
+            }
+          }}
+        />
+        <div className="sel-list co-list" role="listbox" aria-label={label}>
+          <div>
+            {rows.map((r, i) => (
+              <div
+                key={r.add ? '+add' : r.o}
+                role="option"
+                aria-selected={!r.add && r.o === value}
+                className={cx('sel-opt', i === hi && 'hi', r.add && 'co-add')}
+                ref={(el) => {
+                  if (el && i === hi) el.scrollIntoView({ block: 'nearest' });
+                }}
+                // Before the field's blur, so the pick lands.
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  void pick(r.o);
+                }}
+              >
+                {r.add ? (
+                  <span>
+                    <Icon name="plus" size={14} /> Add “{r.o}”
+                  </span>
+                ) : (
+                  <>
+                    {r.o}
+                    {r.o === value && <Icon name="check" size={14} />}
+                  </>
+                )}
+              </div>
+            ))}
+            {!rows.length && <div className="sel-empty">No matches</div>}
+          </div>
+        </div>
+      </div>
+    </EditBox>
+  );
+}

@@ -26,7 +26,7 @@ type Open =
       parentId?: string;
       n: number;
     }
-  | { type: 'person'; appId: string; id?: string; n: number }
+  | { type: 'person'; appId: string | null; id?: string; companyId?: string; n: number }
   | { type: 'search'; id?: string; n: number }
   | { type: 'story'; id?: string; framework?: string; n: number }
   | { type: 'pick'; appId?: string; n: number }
@@ -63,7 +63,7 @@ export function SheetProvider({ children }: { children: ReactNode }) {
           parentId: o.parentId,
           n: ++n,
         }),
-      person: (appId, id) => setOpen({ type: 'person', appId, id, n: ++n }),
+      person: (appId, id, companyId) => setOpen({ type: 'person', appId, id, companyId, n: ++n }),
       search: (id) => setOpen({ type: 'search', id, n: ++n }),
       story: (o) => setOpen({ type: 'story', ...o, n: ++n }),
       newStory: (appId) => setOpen({ type: 'pick', appId, n: ++n }),
@@ -102,7 +102,15 @@ export function SheetProvider({ children }: { children: ReactNode }) {
     // than showing an empty form, and key on it so the fields fill when it arrives.
     if (open.type === 'person') {
       const found = !open.id || data.state.people.some((x) => x.id === open.id);
-      sheet = found ? <PersonSheet key={k} data={data} appId={open.appId} id={open.id} /> : null;
+      sheet = found ? (
+        <PersonSheet
+          key={k}
+          data={data}
+          appId={open.appId}
+          id={open.id}
+          companyId={open.companyId}
+        />
+      ) : null;
     }
     if (open.type === 'search') sheet = <SearchSheet key={k} data={data} id={open.id} />;
     if (open.type === 'story')

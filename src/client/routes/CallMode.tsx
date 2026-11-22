@@ -14,7 +14,7 @@ import type { JobStory, MeetingData, Story, TimelineEvent } from '@shared/types'
 import { useActions, useData } from '../lib/queries';
 import { whenLabel } from '../lib/format';
 import { Icon } from '../components/Icon';
-import { AutoTextarea, Field, Sheet, cx } from '../components/ui';
+import { AutoTextarea, Field, SearchClear, Sheet, cx } from '../components/ui';
 import './callmode.css';
 
 // The notes editor (CodeMirror) is big: it loads on its own, after the page.
@@ -369,7 +369,8 @@ export function CallMode() {
               placeholder="Type the question you just heard…"
               aria-label="Search stories"
             />
-            <kbd>/</kbd>
+            <SearchClear value={q} onClear={() => setQ('')} />
+            {!q && <kbd>/</kbd>}
           </label>
           <div className="cmv-stories-body">
             <div className="cmv-list">

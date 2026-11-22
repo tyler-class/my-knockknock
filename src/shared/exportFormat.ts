@@ -8,6 +8,20 @@ export const EXPORT_VERSION = 1;
 export const TABLE_COLUMNS = {
   settings: ['key', 'value'],
   searches: ['id', 'name', 'status', 'started_on', 'ended_on', 'notes', 'created_at', 'updated_at'],
+  companies: [
+    'id',
+    'name',
+    'website',
+    'linkedin',
+    'hq',
+    'size',
+    'industry',
+    'funding',
+    'logo_key',
+    'logo_type',
+    'created_at',
+    'updated_at',
+  ],
   applications: [
     'id',
     'search_id',
@@ -46,10 +60,13 @@ export const TABLE_COLUMNS = {
     'created_at',
     'updated_at',
     'last_activity_at',
+    'board_position',
+    'company_id',
   ],
   people: [
     'id',
     'application_id',
+    'company_id',
     'name',
     'email',
     'title',
@@ -60,6 +77,8 @@ export const TABLE_COLUMNS = {
     'created_at',
     'updated_at',
   ],
+
+  job_people: ['application_id', 'person_id', 'created_at'],
   events: [
     'id',
     'application_id',

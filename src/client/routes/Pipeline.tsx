@@ -1,20 +1,32 @@
-import { useState, type ReactNode } from 'react';
-import { Link } from 'react-router';
+import { useRef, useState, type ReactNode } from 'react';
+import { Link, useSearchParams } from 'react-router';
 import {
+  closestCenter,
+  pointerWithin,
+  type CollisionDetection,
   DndContext,
   DragOverlay,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
   TouchSensor,
-  useDraggable,
   useDroppable,
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { useQueryClient } from '@tanstack/react-query';
 import { OPEN_STATUSES, statusLabel, type Status } from '@shared/lookups';
 import { isUpcoming, quietDays } from '@shared/logic/timeline';
-import type { Application, MeetingData } from '@shared/types';
-import { useData } from '../lib/queries';
+import type { AppState, Application, MeetingData } from '@shared/types';
+import { keys, useActions, useData } from '../lib/queries';
+import { CompanyLogo } from '../components/CompanyLogo';
 import { compLabel, relDays } from '../lib/format';
 import {
   CLOSED_STAGES,
@@ -29,30 +41,39 @@ import { useViewState } from '../lib/viewState';
 import { useSheets } from '../sheets/context';
 import { StatusChip, StatusIcon } from '../components/StatusChip';
 import { Icon } from '../components/Icon';
-import { PageHeader, SlideToggle } from '../components/ui';
+import { PageHeader, SearchClear, SlideToggle } from '../components/ui';
 import { SearchLine } from '../components/SearchLine';
 
 type View = 'board' | 'list';
 
+/**
+ * Something to act on, when there is one: a meeting coming up, an offer to decide on, or a quiet
+ * spell long enough to follow up. Null otherwise (the status already says the rest).
+ */
 function nextStep(
   a: Application,
   data: NonNullable<ReturnType<typeof useData>>,
   now: Date,
-): { text: string; hot: boolean } {
+): string | null {
   const meet = (data.eventsByApp.get(a.id) ?? [])
     .filter((e) => isUpcoming(e, now))
     .sort((x, y) => x.occurred_at.localeCompare(y.occurred_at))[0];
-  if (meet)
-    return {
-      text: `${meet.title || (meet.data as MeetingData).kind} ${relDays(meet.occurred_at)}`,
-      hot: true,
-    };
+  if (meet) return `${meet.title || (meet.data as MeetingData).kind} ${relDays(meet.occurred_at)}`;
+  if (a.status === 'offer') return 'Decide on the offer';
   const q = quietDays(a, now, data.state.events);
-  if (a.status === 'saved') return { text: 'Not sent yet', hot: false };
-  if (a.status === 'offer') return { text: 'Decide', hot: true };
-  if (q >= data.state.settings.follow_up_days)
-    return { text: `${q}d silent · follow up`, hot: true };
-  return { text: 'Waiting', hot: false };
+  if (a.status !== 'saved' && q >= data.state.settings.follow_up_days)
+    return `${q}d quiet · follow up`;
+  return null;
+}
+
+/** "Last activity today", "… yesterday", "… 3d ago". */
+function lastActivityLabel(
+  a: Application,
+  data: NonNullable<ReturnType<typeof useData>>,
+  now: Date,
+) {
+  const q = quietDays(a, now, data.state.events);
+  return `Last activity ${q === 0 ? 'today' : q === 1 ? 'yesterday' : `${q}d ago`}`;
 }
 
 function Card({
@@ -81,6 +102,7 @@ function Card({
           <strong>{a.company}</strong>
           <span className="kcard-title">{a.title}</span>
         </span>
+        <CompanyLogo company={data.state.companies.find((c) => c.id === a.company_id)} />
       </span>
       <span className="tags">
         {pay && <span className="tag mono">{pay}</span>}
@@ -94,29 +116,40 @@ function Card({
         {a.source && <span className="tag">{a.source}</span>}
       </span>
       <span className="kcard-foot">
-        {next.hot && <i className="hot" aria-hidden="true" />}
-        <span className={next.hot ? 'strong' : ''}>{next.text}</span>
-        <span className="mono sub">{quietDays(a, now, data.state.events)}d</span>
+        {next && <span className="pill hot-pill">{next}</span>}
+        <span className="pill when-pill">{lastActivityLabel(a, data, now)}</span>
       </span>
     </Link>
   );
 }
 
-/** Set while a drag is ending: the click that follows it mustn't open the card. */
-let dropping = false;
-
-/** A board card you can pick up and drop on another lane. A tap still opens it. */
-function DragCard({ a, children }: { a: Application; children: ReactNode }) {
-  const { setNodeRef, isDragging, attributes, listeners } = useDraggable({ id: a.id });
+/**
+ * A board card you can pick up and drop in another place in its lane (your own order) or on
+ * another lane (a status change). A tap still opens it.
+ */
+function DragCard({
+  a,
+  dropping,
+  children,
+}: {
+  a: Application;
+  /** True while a drag is ending: the click that follows it mustn't open the card. */
+  dropping: React.RefObject<boolean>;
+  children: ReactNode;
+}) {
+  const { setNodeRef, isDragging, attributes, listeners, transform, transition } = useSortable({
+    id: a.id,
+  });
   return (
     <div
       ref={setNodeRef}
       className={`kdrag${isDragging ? ' kdrag-away' : ''}`}
+      style={{ transform: CSS.Translate.toString(transform), transition }}
       {...attributes}
       {...listeners}
       // A drag ends with a click on the card's link: don't open it then.
       onClickCapture={(e) => {
-        if (dropping) {
+        if (dropping.current) {
           e.preventDefault();
           e.stopPropagation();
         }
@@ -131,26 +164,43 @@ function DragCard({ a, children }: { a: Application; children: ReactNode }) {
  * A lane that takes a dropped card. While a card from another lane is over it, a dashed slot
  * at the end shows where it will go.
  */
+/** The board lane a status sits in: each open status its own, every ending in Closed. */
+const laneOf = (s: Status) => ((CLOSED_STAGES as readonly string[]).includes(s) ? 'closed' : s);
+
+/**
+ * A lane in your order: cards not yet placed by hand at the top (newest activity first), then the
+ * ones you've dragged into place, in that order.
+ */
+function laneOrder(list: Application[]): Application[] {
+  return [...list].sort((x, y) => {
+    const px = x.board_position,
+      py = y.board_position;
+    if (px == null && py == null) return y.last_activity_at.localeCompare(x.last_activity_at);
+    if (px == null) return -1;
+    if (py == null) return 1;
+    return px - py;
+  });
+}
+
 function Lane({
   id,
   label,
   dragging,
+  over,
   className,
   children,
 }: {
   id: string;
   label: string;
   dragging: Application | null;
+  /** The lane the dragged card is over right now (over a card in it, or its empty space). */
+  over: string | null;
   className?: string;
   children: ReactNode;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id });
-  const from = dragging
-    ? (CLOSED_STAGES as readonly string[]).includes(dragging.status)
-      ? 'closed'
-      : dragging.status
-    : null;
-  const target = !!dragging && from !== id;
+  const { setNodeRef } = useDroppable({ id });
+  const target = !!dragging && laneOf(dragging.status) !== id;
+  const isOver = over === id;
   return (
     <section
       ref={setNodeRef}
@@ -170,20 +220,37 @@ function Lane({
 export function Pipeline() {
   const data = useData();
   const sheets = useSheets();
-  // Remembered on this device and kept in the address (?view=list&stage=applied&q=acme).
-  const [choice, choose] = useViewState('kk:pipeline', {
-    view: window.matchMedia('(min-width: 900px)').matches ? 'board' : 'list',
-    stage: 'saved',
-    q: '',
-  });
-  const view: View = choice.view === 'list' ? 'list' : 'board';
+  // The stage and search are remembered on this device and kept in the address
+  // (?stage=applied&q=acme). The view isn't remembered: it opens as the board on a computer and
+  // the list on a phone, and a switch lasts while you're on the page (it's in the address).
+  const [choice, choose] = useViewState('kk:pipeline', { stage: 'saved', q: '' });
+  const [params, setParams] = useSearchParams();
+  const wide = window.matchMedia('(min-width: 900px)').matches;
+  const asked = params.get('view');
+  const view: View = asked === 'list' || asked === 'board' ? asked : wide ? 'board' : 'list';
+  const setView = (v: View) =>
+    setParams(
+      (p) => {
+        const q = new URLSearchParams(p);
+        if (v === (wide ? 'board' : 'list')) q.delete('view');
+        else q.set('view', v);
+        return q;
+      },
+      { replace: true },
+    );
   // Dragging a card to another lane opens the status sheet set to that lane (note optional).
   const [dragId, setDragId] = useState<string | null>(null);
+  const [overLane, setOverLane] = useState<string | null>(null);
+  const dropping = useRef(false);
+  const qc = useQueryClient();
+  const act = useActions();
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    // A mouse picks a card up after a short move. (Pointer events would also catch touches and
+    // start a drag the browser is already scrolling, so touch has its own sensor below.)
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
     // Phones: a short press picks a card up, so a swipe still scrolls the board.
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
-    useSensor(KeyboardSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
   const stage: Stage = isStage(choice.stage) ? choice.stage : 'saved';
   const q = choice.q;
@@ -194,6 +261,44 @@ export function Pipeline() {
   const counts = stageCounts(apps);
   const by = counts.byStatus;
   const dragged = dragId ? (data.appById.get(dragId) ?? null) : null;
+  /** Which lane a drop target is: a card's lane, or the lane itself. */
+  const laneAt = (id: string | null) => {
+    if (!id) return null;
+    const card = data.appById.get(id);
+    return card ? laneOf(card.status) : id;
+  };
+  // Over cards, the nearest card under the pointer (a place in that lane); over a lane's empty
+  // space, the lane. Keyboard drags (no pointer) use the nearest of either.
+  const collide: CollisionDetection = (args) => {
+    const hits = pointerWithin(args);
+    const cards = hits.filter((h) => data.appById.has(String(h.id)));
+    if (cards.length)
+      return closestCenter({
+        ...args,
+        droppableContainers: args.droppableContainers.filter((c) =>
+          cards.some((h) => h.id === c.id),
+        ),
+      });
+    return hits.length ? hits : closestCenter(args);
+  };
+  /** Your own order in a lane: shown straight away, saved, and put back if saving fails. */
+  const reorder = (ids: string[]) => {
+    const before = qc.getQueryData<AppState>(keys.state);
+    qc.setQueryData<AppState>(keys.state, (cur) =>
+      cur
+        ? {
+            ...cur,
+            applications: cur.applications.map((x) => {
+              const i = ids.indexOf(x.id);
+              return i >= 0 ? { ...x, board_position: i } : x;
+            }),
+          }
+        : cur,
+    );
+    void act.post('/applications/board-order', { ids }).then((ok) => {
+      if (!ok && before) qc.setQueryData(keys.state, before);
+    });
+  };
 
   return (
     <>
@@ -216,11 +321,12 @@ export function Pipeline() {
             placeholder="Company or title"
             aria-label="Search applications"
           />
+          <SearchClear value={q} onClear={() => choose({ q: '' })} />
         </label>
         <SlideToggle
           label="View"
           value={view}
-          onChange={(v) => choose({ view: v })}
+          onChange={setView}
           options={[
             ['board', 'Board'],
             ['list', 'List'],
@@ -231,15 +337,30 @@ export function Pipeline() {
       {view === 'board' ? (
         <DndContext
           sensors={sensors}
+          collisionDetection={collide}
           onDragStart={(e) => setDragId(String(e.active.id))}
-          onDragCancel={() => setDragId(null)}
+          onDragOver={(e) => setOverLane(laneAt(e.over ? String(e.over.id) : null))}
+          onDragCancel={() => {
+            setDragId(null);
+            setOverLane(null);
+          }}
           onDragEnd={(e) => {
             setDragId(null);
-            dropping = true;
-            setTimeout(() => (dropping = false), 0);
+            setOverLane(null);
+            dropping.current = true;
+            setTimeout(() => (dropping.current = false), 0);
             const app = data.appById.get(String(e.active.id));
-            const to = e.over ? String(e.over.id) : null;
-            if (!app || !to || to === app.status) return;
+            const overId = e.over ? String(e.over.id) : null;
+            const to = laneAt(overId);
+            if (!app || !overId || !to) return;
+            if (to === laneOf(app.status)) {
+              // Within its lane: a new place among the others there.
+              const ids = laneOrder(by(app.status)).map((x) => x.id);
+              const from = ids.indexOf(app.id);
+              const at = ids.indexOf(overId);
+              if (at >= 0 && from >= 0 && at !== from) reorder(arrayMove(ids, from, at));
+              return;
+            }
             if (to === 'closed') {
               // Closing asks which way it ended (rejected, declined, ghosted).
               if (!(CLOSED_STAGES as readonly string[]).includes(app.status))
@@ -248,22 +369,40 @@ export function Pipeline() {
           }}
         >
           <div className="card board-scroll">
-            <div className="board">
+            {/* "crossing": the card is over another lane, so its old place isn't where it lands. */}
+            <div
+              className={
+                dragged && overLane && overLane !== laneOf(dragged.status)
+                  ? 'board crossing'
+                  : 'board'
+              }
+            >
               {OPEN_STATUSES.map((s) => (
-                <Lane key={s} id={s} label={statusLabel(s)} dragging={dragged}>
+                <Lane key={s} id={s} label={statusLabel(s)} dragging={dragged} over={overLane}>
                   <div className="col-h">
                     <StatusIcon status={s} size={15} />
                     <strong>{statusLabel(s)}</strong>
                     <span className="count">{by(s).length}</span>
                   </div>
-                  {by(s).map((a) => (
-                    <DragCard key={a.id} a={a}>
-                      <Card a={a} data={data} now={now} />
-                    </DragCard>
-                  ))}
+                  <SortableContext
+                    items={laneOrder(by(s)).map((a) => a.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {laneOrder(by(s)).map((a) => (
+                      <DragCard key={a.id} a={a} dropping={dropping}>
+                        <Card a={a} data={data} now={now} />
+                      </DragCard>
+                    ))}
+                  </SortableContext>
                 </Lane>
               ))}
-              <Lane id="closed" label="Closed" dragging={dragged} className="closed-col">
+              <Lane
+                id="closed"
+                label="Closed"
+                dragging={dragged}
+                over={overLane}
+                className="closed-col"
+              >
                 <div className="col-h">
                   <StatusIcon status="closed" size={15} />
                   <strong>Closed</strong>
@@ -275,13 +414,23 @@ export function Pipeline() {
                       key={s}
                       type="button"
                       className="closed-line"
-                      onClick={() => choose({ view: 'list', stage: s })}
+                      // One address change for both (two in a row would drop the first).
+                      onClick={() =>
+                        setParams(
+                          (p) => {
+                            const q = new URLSearchParams(p);
+                            q.set('stage', s);
+                            q.set('view', 'list');
+                            return q;
+                          },
+                          { replace: true },
+                        )
+                      }
                     >
                       <StatusChip status={s} small />
                       <span className="count">{by(s).length}</span>
                     </button>
                   ))}
-                  <p className="sub">Closing asks which stage it died at, for the report.</p>
                 </div>
               </Lane>
             </div>
@@ -327,14 +476,24 @@ export function Pipeline() {
                   </div>
                   {rows.map((a) => {
                     const next = nextStep(a, data, now);
+                    const pay = compLabel(a);
                     return (
                       <Link key={a.id} to={`/a/${a.id}`} className="prow">
                         <span className="row-text">
                           <strong>{a.company}</strong>
                           <span className="sub ell">{a.title}</span>
-                          <span className={next.hot ? 'strong small' : 'small'}>{next.text}</span>
+                          <span className="prow-pills">
+                            {pay && <span className="pill">{pay}</span>}
+                            {next && <span className="pill hot-pill">{next}</span>}
+                            <span className="pill when-pill">
+                              {lastActivityLabel(a, data, now)}
+                            </span>
+                          </span>
                         </span>
-                        <span className="mono sub">{compLabel(a) ?? ''}</span>
+                        <CompanyLogo
+                          company={data.state.companies.find((c) => c.id === a.company_id)}
+                          size={36}
+                        />
                       </Link>
                     );
                   })}

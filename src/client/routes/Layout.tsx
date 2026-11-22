@@ -14,12 +14,15 @@ import { onPushOpen, syncBadge } from '../kit/push';
 const TABS: GlassTab[] = [
   ['/', 'Home', 'home'],
   ['/jobs', 'Jobs', 'briefcase'],
+  ['/companies', 'Companies', 'building'],
   ['/stories', 'Stories', 'quote'],
   ['/reports', 'Report', 'chart'],
   ['/settings', 'Settings', 'settings'],
 ];
 
-const TAB_PATHS = TABS.map(([to]) => to);
+/** Phones: Settings is the gear in the top bar, so five tabs share the bar's width. */
+const PHONE_TABS = TABS.filter(([to]) => to !== '/settings');
+const TAB_PATHS = PHONE_TABS.map(([to]) => to);
 
 function tabRoot(path: string): string | null {
   const p = path.replace(/\/+$/, '') || '/';
@@ -28,6 +31,7 @@ function tabRoot(path: string): string | null {
 
 function activeTab(path: string): string {
   if (path.startsWith('/a/')) return '/jobs';
+  if (path.startsWith('/c/') || path.startsWith('/companies')) return '/companies';
   for (const [p] of TABS.slice(1)) if (path.startsWith(p)) return p;
   return '/';
 }
@@ -209,6 +213,14 @@ export function Layout() {
           <Brand />
         </Link>
         <SearchSwitch data={data} compact />
+        <Link
+          to="/settings"
+          className="appbar-settings"
+          aria-label="Settings"
+          aria-current={active === '/settings' ? 'page' : undefined}
+        >
+          <Icon name="settings" size={20} />
+        </Link>
       </header>
       <main className="main">
         {data ? (
@@ -219,7 +231,7 @@ export function Layout() {
           </div>
         )}
       </main>
-      <GlassTabBar tabs={TABS} active={active} />
+      <GlassTabBar tabs={PHONE_TABS} active={active} />
     </div>
   );
 }

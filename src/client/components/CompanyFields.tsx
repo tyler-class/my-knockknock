@@ -1,0 +1,322 @@
+// Companies in forms: choosing (or adding) a job's company, and a company's logo.
+import { useRef, useState } from 'react';
+import type { Company } from '@shared/types';
+import { uploadFile } from '../lib/api';
+import { useActions } from '../lib/queries';
+import { Icon } from './Icon';
+import { CompanyLogo } from './CompanyLogo';
+import { cx } from './ui';
+import { INDUSTRIES } from '@shared/lookups';
+
+/** The company's logo at the right of its card's heading: add one, change it, or remove it. */
+export function CompanyLogoEdit({ company }: { company: Company | undefined }) {
+  const act = useActions();
+  const input = useRef<HTMLInputElement>(null);
+  if (!company) return null;
+  const upload = async (file: File | undefined) => {
+    if (!file) return;
+    await act.run(() => uploadFile(`/companies/${company.id}/logo`, file), 'Logo added');
+  };
+  return (
+    <div className="co-logo-edit">
+      <input
+        ref={input}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+        hidden
+        onChange={(e) => {
+          void upload(e.target.files?.[0]);
+          e.target.value = '';
+        }}
+      />
+      {company.has_logo ? (
+        <>
+          <button
+            type="button"
+            className="co-logo-btn"
+            aria-label="Change the logo"
+            title="Change the logo"
+            onClick={() => input.current?.click()}
+          >
+            <CompanyLogo company={company} size={32} />
+          </button>
+          <button
+            type="button"
+            className="linkish"
+            onClick={() => void act.del(`/companies/${company.id}/logo`, 'Logo removed')}
+          >
+            Remove
+          </button>
+        </>
+      ) : (
+        <button type="button" className="linkish" onClick={() => input.current?.click()}>
+          <Icon name="upload" size={14} /> Add logo
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * A company's big mark on its page: the logo, or a building icon when there's none. With a logo,
+ * a ⋯ button over its corner (on hover; always there on touch) offers Replace and Delete.
+ */
+export function LogoMark({ company }: { company: Company }) {
+  const act = useActions();
+  const input = useRef<HTMLInputElement>(null);
+  const [menu, setMenu] = useState(false);
+  if (!company.has_logo)
+    return (
+      <span className="co-mark big">
+        <Icon name="building" size={26} />
+      </span>
+    );
+  const replace = async (file: File | undefined) => {
+    if (!file) return;
+    await act.run(() => uploadFile(`/companies/${company.id}/logo`, file), 'Logo replaced');
+  };
+  return (
+    <span className="co-mark big has-logo" onMouseLeave={() => setMenu(false)}>
+      <CompanyLogo company={company} size={64} />
+      <input
+        ref={input}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+        hidden
+        onChange={(e) => {
+          void replace(e.target.files?.[0]);
+          e.target.value = '';
+        }}
+      />
+      <button
+        type="button"
+        className="co-logo-more"
+        aria-label="Logo options"
+        aria-haspopup="menu"
+        aria-expanded={menu}
+        onClick={() => setMenu((m) => !m)}
+      >
+        <Icon name="more" size={14} />
+      </button>
+      {menu && (
+        <span className="co-logo-menu" role="menu">
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setMenu(false);
+              input.current?.click();
+            }}
+          >
+            <Icon name="upload" size={14} /> Replace
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="danger"
+            onClick={() => {
+              setMenu(false);
+              void act.del(`/companies/${company.id}/logo`, 'Logo deleted');
+            }}
+          >
+            <Icon name="trash" size={14} /> Delete
+          </button>
+        </span>
+      )}
+    </span>
+  );
+}
+
+export interface NewCompany {
+  name: string;
+  website: string;
+  linkedin: string;
+  hq: string;
+  size: string;
+  industry: string;
+  funding: string;
+}
+export const EMPTY_COMPANY: NewCompany = {
+  name: '',
+  website: '',
+  linkedin: '',
+  hq: '',
+  size: '',
+  industry: '',
+  funding: '',
+};
+
+/**
+ * Adding a job: find the company it's at among yours, or add a new company (its details in a
+ * card of their own). `picked` is the chosen company; `fresh` the new one being filled in.
+ */
+export function CompanyChooser({
+  companies,
+  picked,
+  onPick,
+  fresh,
+  onFresh,
+  logo,
+  onLogo,
+}: {
+  companies: Company[];
+  picked: Company | null;
+  onPick: (c: Company | null) => void;
+  fresh: NewCompany | null;
+  onFresh: (c: NewCompany | null) => void;
+  /** A logo for the new company, uploaded once it's made. */
+  logo: File | null;
+  onLogo: (f: File | null) => void;
+}) {
+  const logoInput = useRef<HTMLInputElement>(null);
+  const [q, setQ] = useState('');
+  const [hi, setHi] = useState(-1);
+  const [open, setOpen] = useState(false);
+  if (picked)
+    return (
+      <div className="co-chosen">
+        <span className={picked.has_logo ? 'co-mark has-img' : 'co-mark'}>
+          <CompanyLogo company={picked} size={40} />
+          {!picked.has_logo && <Icon name="building" size={18} />}
+        </span>
+        <strong>{picked.name}</strong>
+        <button type="button" className="btn sm" onClick={() => onPick(null)}>
+          Change
+        </button>
+      </div>
+    );
+  if (fresh) {
+    const set = (k: keyof NewCompany) => (e: { target: { value: string } }) =>
+      onFresh({ ...fresh, [k]: e.target.value });
+    const inp = (k: keyof NewCompany, label: string, url = false, list?: string) => (
+      <label className="fg">
+        <span className="lbl">{label}</span>
+        <input
+          className="in"
+          value={fresh[k]}
+          onChange={set(k)}
+          list={list}
+          {...(url ? { inputMode: 'url' as const, autoCapitalize: 'off', spellCheck: false } : {})}
+        />
+      </label>
+    );
+    return (
+      <div className="co-new card-inset">
+        <div className="co-new-h">
+          <strong>
+            <Icon name="building" size={16} /> New Company
+          </strong>
+          <button type="button" className="linkish" onClick={() => onFresh(null)}>
+            Choose an existing one
+          </button>
+        </div>
+        <div className="co-new-name">
+          <button
+            type="button"
+            className="co-mark co-logo-pick"
+            aria-label={logo ? 'Change the logo' : 'Add a logo'}
+            title={logo ? 'Change the logo' : 'Add a logo'}
+            onClick={() => logoInput.current?.click()}
+          >
+            {logo ? (
+              <img src={URL.createObjectURL(logo)} alt="" className="co-logo" />
+            ) : (
+              <Icon name="upload" size={18} />
+            )}
+          </button>
+          <input
+            ref={logoInput}
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+            hidden
+            onChange={(e) => {
+              onLogo(e.target.files?.[0] ?? null);
+              e.target.value = '';
+            }}
+          />
+          {inp('name', 'Company Name')}
+        </div>
+        <div className="two">
+          {inp('website', 'Website', true)}
+          {inp('linkedin', 'LinkedIn', true)}
+          {inp('hq', 'Headquarters')}
+          {inp('size', 'Size')}
+          {inp('industry', 'Industry', false, 'kk-industries')}
+          {inp('funding', 'Funding')}
+        </div>
+        <datalist id="kk-industries">
+          {INDUSTRIES.map((x) => (
+            <option key={x} value={x} />
+          ))}
+        </datalist>
+      </div>
+    );
+  }
+  const ql = q.trim().toLowerCase();
+  const hits = companies.filter((c) => !ql || c.name.toLowerCase().includes(ql)).slice(0, 8);
+  const exact = companies.some((c) => c.name.trim().toLowerCase() === ql);
+  // The list: matching companies, then "Add company" (with what's typed as its name).
+  const choices = [...hits.map((c) => ({ c })), ...(exact ? [] : [{ c: null }])];
+  const choose = (i: number) => {
+    const ch = choices[i];
+    if (!ch) return;
+    if (ch.c) onPick(ch.c);
+    else onFresh({ ...EMPTY_COMPANY, name: q.trim() });
+  };
+  return (
+    <div className="co-pick">
+      <label className="search-in search-full">
+        <Icon name="search" size={16} />
+        <input
+          value={q}
+          placeholder="Search companies"
+          aria-label="Company"
+          aria-autocomplete="list"
+          onFocus={() => setOpen(true)}
+          onBlur={() => setOpen(false)}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setHi(-1);
+            setOpen(true);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+              e.preventDefault();
+              const d = e.key === 'ArrowDown' ? 1 : -1;
+              setHi((i) => Math.max(0, Math.min(choices.length - 1, i + d)));
+            } else if (e.key === 'Enter') {
+              e.preventDefault();
+              choose(hi >= 0 ? hi : 0);
+            }
+          }}
+        />
+      </label>
+      {open && (
+        <div className="sel-list co-list" role="listbox" aria-label="Companies">
+          <div>
+            {choices.map((ch, i) => (
+              <div
+                key={ch.c?.id ?? 'new'}
+                role="option"
+                aria-selected={i === hi}
+                className={cx('sel-opt', i === hi && 'hi', !ch.c && 'co-add')}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  choose(i);
+                }}
+              >
+                {ch.c ? (
+                  ch.c.name
+                ) : (
+                  <span>
+                    <Icon name="plus" size={14} /> Add company{q.trim() ? ` “${q.trim()}”` : ''}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

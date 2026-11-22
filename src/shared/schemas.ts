@@ -314,3 +314,23 @@ export const uploadLinkInput = z.object({
   kind: z.enum(FILE_KIND_KEYS).default('resume'),
   event_id: z.string().max(100).nullish(),
 });
+
+/** A company's details (several jobs can be at one company). */
+const companyFields = {
+  name: name(200),
+  website: url,
+  linkedin: url,
+  hq: text(200),
+  size: text(100),
+  industry: text(200),
+  funding: text(200),
+};
+export const companyInput = z.object(companyFields);
+export const companyPatch = z.object(companyFields).partial();
+/** Point a job at a company: an existing one by id, or a new one by name. */
+export const companyLink = z.union([
+  z.object({ company_id: z.string().max(100) }),
+  z.object(companyFields),
+]);
+/** A lane's jobs in their new order (dragged on the board). */
+export const boardOrder = z.object({ ids: z.array(z.string().max(100)).min(1).max(500) });

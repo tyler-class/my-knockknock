@@ -467,7 +467,7 @@ function buildServer(call: Call) {
         applications: inScope.slice(0, 50).map((a) => ({
           ...appLine(a, c),
           people: c.state.people
-            .filter((x) => x.application_id === a.id)
+            .filter((x) => x.application_ids.includes(a.id))
             .map((x) => [x.name, x.email].filter(Boolean).join(' ')),
         })),
       };
@@ -517,7 +517,7 @@ function buildServer(call: Call) {
         search: search?.name,
         comp: comp(a),
         people: c.state.people
-          .filter((p) => p.application_id === a.id)
+          .filter((p) => p.application_ids.includes(a.id))
           .map((p) => ({ ...p, role_label: personRoleLabel(p) })),
         upcoming: view.upcoming.map(childOut),
         timeline: view.past.slice(0, timeline_limit ?? 40).map(childOut),
@@ -795,7 +795,7 @@ function buildServer(call: Call) {
       const a = findApp(c, application);
       const dup = c.state.people.find(
         (p) =>
-          p.application_id === a.id &&
+          p.application_ids.includes(a.id) &&
           ((input.email && p.email?.toLowerCase() === input.email.toLowerCase()) ||
             norm(p.name) === norm(input.name)),
       );

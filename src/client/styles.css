@@ -7293,3 +7293,751 @@ textarea.in.angle {
   width: 36px;
   height: 36px;
 }
+
+/* ---- Jobs board 1.0.1 ---- */
+/* Each lane: a grey dashed outline with the app's corner radius. */
+.board .col {
+  border: 1.5px dashed var(--line2);
+  border-left: 1.5px dashed var(--line2);
+  border-radius: var(--radius);
+  padding: 12px 10px;
+  background: none;
+}
+/* A lane a card can move to: the outline turns ultramarine while the card is over it. */
+.board .col.col-target {
+  transition:
+    border-color 0.12s ease,
+    background-color 0.12s ease;
+}
+.board .col.col-over {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+/* Where the card will land: a dashed ultramarine slot with the lane's radius. */
+.board .drop-slot {
+  display: grid;
+  place-items: center;
+  min-height: 64px;
+  margin-top: 8px;
+  border: 1.5px dashed var(--accent);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--accent-deep);
+  font-size: 13px;
+  font-weight: 750;
+}
+/* A card's company logo at its top right; its name and title take the rest. */
+.kcard-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.co-logo {
+  flex: none;
+  object-fit: contain;
+  border-radius: 8px;
+  background: var(--surface);
+}
+.kcard-foot,
+.prow-pills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.prow-pills {
+  margin-top: 6px;
+}
+/* Small grey pills under a job: its pay, how long since anything happened, and (in ultramarine)
+   something to act on. */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--ink2);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.pill.hot-pill {
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+}
+.prow {
+  align-items: center;
+}
+/* A search field's clear ✕, at its right end. */
+.search-clear {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin-right: -4px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+}
+.search-clear:hover {
+  background: var(--line2);
+}
+.search-in.search-full {
+  max-width: none;
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+/* Search menu (1.0.1): the chosen search is solid ultramarine with white text, so it reads at a
+   glance; the menu's shadow is short and tight, so it doesn't smudge the page under it. */
+.search-menu {
+  box-shadow:
+    0 1px 2px rgb(20 24 40 / 0.08),
+    0 6px 16px rgb(20 24 40 / 0.1);
+  border-color: var(--line2);
+}
+.search-opt[aria-checked='true'] {
+  background: var(--accent);
+}
+.search-opt[aria-checked='true'] strong,
+.search-opt[aria-checked='true'] .sub,
+.search-opt[aria-checked='true'] svg {
+  color: #fff;
+}
+.search-opt[aria-checked='true'] .sub {
+  opacity: 0.9;
+}
+/* Pay's editor: every field in it (Min, Max, Per and Notes on pay) fills its own column exactly,
+   none reaching past the others' edges. */
+.pay-edit .in,
+.pay-edit .sel,
+.pay-edit .sel-btn {
+  width: 100%;
+  margin: 0;
+}
+.pay-edit .in {
+  padding-right: 10px;
+}
+
+/* Company name picker: the typed name, with your companies listed under it. */
+.co-pick {
+  position: relative;
+}
+.co-pick .co-list {
+  top: calc(100% + 6px);
+  left: -10px;
+  right: -10px;
+}
+.co-list .sel-opt .sub {
+  font-size: 13px;
+}
+/* The logo control at the right of the Company card's heading. */
+.co-logo-edit {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+.co-logo-btn {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1.5px solid var(--line2);
+  border-radius: 10px;
+  background: var(--surface);
+  cursor: pointer;
+}
+.co-logo-edit .linkish {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.co-others {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 4px;
+}
+.co-others .pill {
+  color: var(--accent-deep);
+  background: var(--accent-soft);
+  text-decoration: none;
+}
+
+/* Stories grouped by framework: a heading with its count over each group's tiles. */
+.story-group + .story-group {
+  margin-top: 22px;
+}
+.story-group-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 18px 0 10px;
+  font-family: var(--display);
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+/* A one-of choice in the filters (Group by) has a round mark; many-of choices stay square. */
+.check-opt.radio .check-box {
+  border-radius: 50%;
+}
+
+/* ---- Report flow (1.0.1): rounded stage bars, soft bands, quiet ending tones ---- */
+:root {
+  --flow-accepted: #1f9d6b;
+  --flow-rejected: #e0675f;
+  --flow-ghosted: #a9afba;
+  --flow-declined: #7c8391;
+}
+.sankey .sk-label {
+  font-family: var(--sans);
+  font-size: 13px;
+}
+.sankey .sk-name {
+  font-weight: 750;
+  fill: var(--ink);
+}
+.sankey .sk-name.sk-end {
+  font-weight: 650;
+  fill: var(--ink2);
+}
+.sankey .sk-n {
+  font-weight: 600;
+  fill: var(--ink2);
+}
+.legend i {
+  border-radius: 50%;
+}
+
+/* ---- Companies as records ---- */
+/* A company's mark: its logo, or a building icon on grey when it has none. */
+.co-mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--ink2);
+  overflow: hidden;
+}
+.co-mark .co-logo {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+}
+.co-mark.big {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+}
+.co-row {
+  gap: 14px;
+}
+/* The job's Company card: the looked-up company (mark and name) first, what's known under it. */
+.co-lookup {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.co-lookup-kv {
+  flex: 1;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+.co-summary {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.co-facts {
+  margin: 0;
+  font-size: 15px;
+  color: var(--ink);
+}
+.co-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+}
+.co-links .pill {
+  gap: 5px;
+  text-decoration: none;
+  color: var(--ink);
+}
+.co-card .kv-full {
+  margin-top: 14px;
+}
+/* A company's own page. */
+.co-head-top {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.co-head-top .row-text {
+  flex: 1;
+  min-width: 0;
+}
+.co-head-top .title {
+  margin: 0;
+}
+.co-kind {
+  margin: 0 0 2px;
+}
+.co-note {
+  margin: -4px 0 12px;
+}
+/* A company page's logo: a ⋯ over its corner on hover (always on touch) for Replace / Delete. */
+.co-mark.has-logo {
+  position: relative;
+  overflow: visible;
+  background: var(--surface);
+  border: 1.5px solid var(--line2);
+}
+.co-mark.has-logo .co-logo {
+  border-radius: 14px;
+}
+.co-logo-more {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1.5px solid var(--line2);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--sh);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.co-mark.has-logo:hover .co-logo-more,
+.co-logo-more:focus-visible,
+.co-logo-more[aria-expanded='true'] {
+  opacity: 1;
+}
+@media (hover: none) {
+  .co-logo-more {
+    opacity: 1;
+  }
+}
+.co-logo-menu {
+  position: absolute;
+  z-index: 30;
+  top: 22px;
+  left: calc(100% - 10px);
+  display: flex;
+  flex-direction: column;
+  min-width: 140px;
+  padding: 6px;
+  border: 1px solid var(--line2);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 6px 16px rgb(20 24 40 / 0.12);
+}
+.co-logo-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.co-logo-menu button:hover {
+  background: var(--bg);
+}
+.co-logo-menu button.danger {
+  color: var(--bad);
+}
+/* The job's company preview: mark, then the name with its website link beside it. */
+.co-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  min-width: 0;
+}
+.co-name strong {
+  font-size: 18px;
+  font-weight: 800;
+}
+.co-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--accent-deep);
+  font-weight: 600;
+  text-decoration: none;
+}
+.co-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.co-mark.has-img {
+  background: var(--surface);
+  border: 1.5px solid var(--line2);
+}
+.co-kvs {
+  margin-top: 16px;
+}
+.kv .kv-ro,
+.kv .kv-ro a {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+/* Add a Job: the chosen company, or a new company's details in a card of their own. */
+.co-chosen {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.co-chosen strong {
+  flex: 1;
+  min-width: 0;
+  font-size: 16px;
+}
+.co-new {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1.5px solid var(--line2);
+  border-radius: 16px;
+  background: var(--surface);
+}
+.co-new-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.co-new-h strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+}
+.co-new .lbl {
+  display: block;
+  margin-bottom: 6px;
+}
+.co-list .co-add span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent-deep);
+  font-weight: 700;
+}
+.co-pick .search-full {
+  margin-bottom: 0;
+}
+.co-pick:has(.search-full) .co-list {
+  left: 0;
+  right: 0;
+}
+/* Type-to-search lists (company, industry): options sit close, with no rules between them. */
+.co-list .sel-opt {
+  padding: 7px 10px;
+}
+.co-list > div > .sel-opt + .sel-opt {
+  border: 0;
+  margin: 0;
+}
+.co-list .sel-opt[aria-selected='true'] {
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  font-weight: 650;
+}
+.co-list .sel-opt[aria-selected='true'] svg {
+  color: var(--accent-deep);
+}
+.sel-empty {
+  padding: 8px 10px;
+  color: var(--ink2);
+  font-size: 14px;
+}
+.co-name .co-web {
+  gap: 5px;
+  color: var(--ink);
+  text-decoration: none;
+}
+.co-name .co-web:hover {
+  background: var(--line2);
+}
+
+/* Add a Job: section headings over each group of fields. */
+.form-sec {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 26px 0 12px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  font-family: var(--display);
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.form-sec:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+.form-sec svg {
+  color: var(--ink2);
+}
+/* The company chooser's rows shade on hover; Add company too. */
+@media (hover: hover) and (pointer: fine) {
+  .co-list .sel-opt:hover {
+    background: var(--bg);
+  }
+  .co-list .sel-opt.co-add:hover {
+    background: var(--accent-soft);
+  }
+}
+.co-new-h strong {
+  font-family: var(--display);
+  font-size: 17px;
+  font-weight: 800;
+}
+/* A new company's logo (pick one) beside its name. */
+.co-new-name {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+.co-new-name .fg {
+  flex: 1;
+  min-width: 0;
+}
+.co-logo-pick {
+  width: 46px;
+  height: 46px;
+  border: 1.5px dashed var(--line2);
+  cursor: pointer;
+}
+.co-logo-pick:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Every white card on the grey page: a fine outline a shade darker than the page. */
+.card,
+.kpi,
+.story-card,
+.fw-card,
+.side,
+.sheet .card {
+  border: 1px solid #d6dae2;
+}
+.sheet .card.ev-group {
+  border: 0;
+}
+/* The back link row is one height on every record page, with or without a button in it. */
+.app-page .crumbs {
+  min-height: 42px;
+}
+/* Search menu actions: a grey fill with a fine outline on hover, so the row stands out clearly. */
+@media (hover: hover) and (pointer: fine) {
+  .search-act:hover,
+  .search-opt:hover:not([aria-checked='true']) {
+    background: var(--bg);
+    box-shadow: inset 0 0 0 1px var(--line2);
+  }
+}
+/* Adding a person: the people already at the job's company, then New person. */
+.known-people {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.known-people .person {
+  border-radius: 12px;
+  padding: 8px 10px;
+}
+.known-people .person > svg {
+  margin-left: auto;
+  color: var(--accent-deep);
+}
+@media (hover: hover) and (pointer: fine) {
+  .known-people .person:hover {
+    background: var(--bg);
+  }
+}
+.known-people .new-person {
+  align-self: flex-start;
+  margin-top: 10px;
+}
+/* Six tabs on a phone: labels stay on one line, a touch smaller. */
+.glass-tab {
+  font-size: 10px;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+/* Adding a person: a search over the people at the company, each a row, then Add person. */
+.known-people .search-full {
+  margin-bottom: 8px;
+}
+.pick-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pick-list .person {
+  border-radius: 12px;
+  padding: 8px 10px;
+}
+.pick-list .person.hi {
+  background: var(--bg);
+}
+.pick-list .pick-add strong {
+  color: var(--accent-deep);
+}
+.pick-list .pick-add .avatar {
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+}
+@media (hover: hover) and (pointer: fine) {
+  .pick-list .person:hover {
+    background: var(--bg);
+    box-shadow: inset 0 0 0 1px var(--line2);
+  }
+  .pick-list .pick-add:hover {
+    background: var(--accent-soft);
+  }
+}
+/* Phones: Settings as a gear at the right of the top bar. */
+.appbar {
+  position: sticky;
+}
+.appbar-settings {
+  position: absolute;
+  right: 12px;
+  bottom: 8px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: var(--ink);
+}
+.appbar-settings[aria-current] {
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+}
+.appbar-settings:active {
+  background: var(--line2);
+}
+/* Five tabs again: labels back to their normal size. */
+.glass-tab {
+  font-size: 10.5px;
+  letter-spacing: 0;
+}
+/* Phones: logo at the left; the search switch and the Settings gear together at the right,
+   side by side in the bar's flow (nothing overlaps; the switch shrinks first). */
+@media (max-width: 767px) {
+  .appbar .search-pick.compact {
+    margin-left: auto;
+    max-width: calc(100vw - 190px);
+  }
+  .appbar .appbar-settings {
+    position: static;
+    flex: none;
+    margin-left: 2px;
+  }
+}
+
+/* Jobs board lanes (1.1): no outline at rest. While a card is dragged over a lane it can move to,
+   that lane alone shows a dashed ultramarine outline. Lanes keep room from the card's edge and
+   from each other. */
+.board {
+  gap: 12px;
+  padding: 12px;
+}
+.board .col {
+  border: 1.5px dashed transparent;
+  border-radius: var(--radius);
+}
+.board .col.col-over {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+/* Phones: a long press on a board card picks it up rather than opening the link's preview or
+   selecting its text. */
+.kdrag,
+.kdrag .kcard {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+/* At rest, a thin grey line in the gap between lanes. */
+.board .col {
+  position: relative;
+}
+.board .col + .col::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: -8px;
+  width: 1px;
+  background: var(--line2);
+  pointer-events: none;
+}
+/* The lane being dropped on: just its blue dashed outline; no second grey ring around it. */
+.board .col.col-target,
+.board .col.col-over {
+  outline: 0;
+}
+
+/* Dragging (1.1): the lane under the card gets a grey dashed outline and grey fill; the exact
+   spot the card will land (its place among the others, or the slot at a new lane's end) is
+   ultramarine, dashed and lightly filled. */
+.board .col.col-over {
+  border-color: var(--ink3);
+  background: var(--bg);
+}
+.board .drop-slot {
+  border: 1.5px dashed var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+}
+/* The dragged card's place in its lane, as it moves among the others. */
+.board .kdrag.kdrag-away {
+  opacity: 1;
+}
+.board .kdrag.kdrag-away .kcard {
+  border: 1.5px dashed var(--accent);
+  background: var(--accent-soft);
+  box-shadow: none;
+}
+.board .kdrag.kdrag-away .kcard > * {
+  visibility: hidden;
+}
+.board.crossing .kdrag.kdrag-away .kcard {
+  border-color: var(--line2);
+  background: none;
+}

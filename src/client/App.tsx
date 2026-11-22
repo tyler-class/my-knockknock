@@ -12,6 +12,7 @@ import { CallMode } from './routes/CallMode';
 import { Layout } from './routes/Layout';
 import { Pipeline } from './routes/Pipeline';
 import { Reports } from './routes/Reports';
+import { Companies, CompanyPage } from './routes/Companies';
 import { Stories } from './routes/Stories';
 import { Home } from './routes/Home';
 import { Login, SetupNeeded } from './routes/Login';
@@ -57,6 +58,8 @@ const router = createBrowserRouter([
       // Old links, notifications and push URLs.
       { path: '/pipeline', element: <ToJobs /> },
       { path: '/a/:id', element: <ApplicationPage /> },
+      { path: '/companies', element: <Companies /> },
+      { path: '/c/:id', element: <CompanyPage /> },
       { path: '/stories', element: <Stories /> },
       { path: '/reports', element: <Reports /> },
       { path: '/settings', element: <Settings /> },

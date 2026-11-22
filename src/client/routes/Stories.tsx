@@ -5,15 +5,23 @@ import { storyCounts } from '../lib/filters';
 import { useViewState } from '../lib/viewState';
 import { useSheets } from '../sheets/context';
 import { Icon } from '../components/Icon';
-import { FilterButton, FilterGroup, FilterSheet, PageHeader, cx } from '../components/ui';
+import {
+  FilterButton,
+  FilterGroup,
+  FilterSheet,
+  PageHeader,
+  SearchClear,
+  cx,
+} from '../components/ui';
 
 export function Stories() {
   const data = useData();
   const sheets = useSheets();
   const [q, setQ] = useState('');
   const [filters, setFilters] = useState(false);
-  // Remembered on this device and kept in the address (?fw=star&archived=1).
-  const [choice, choose] = useViewState('kk:stories', { fw: 'all', archived: '' });
+  // Remembered on this device and kept in the address (?fw=star,car&group=framework&archived=1).
+  const [choice, choose] = useViewState('kk:stories', { fw: 'all', archived: '', group: '' });
+  const grouped = choice.group === 'framework';
   const archived = choice.archived === '1';
   const stories = useMemo(() => data?.state.stories ?? [], [data]);
   const frameworks = useMemo(() => data?.state.frameworks ?? [], [data]);
@@ -23,12 +31,28 @@ export function Stories() {
   );
   if (!data) return null;
   const used = counts.frameworks;
-  // A framework from an old link that no longer has stories falls back to all.
-  const fw = used.some((f) => f.key === choice.fw) ? choice.fw : 'all';
+  // The frameworks picked (any number; none picked is All). One from an old link that no longer
+  // has stories is dropped.
+  const picked = new Set(choice.fw.split(',').filter((k) => used.some((f) => f.key === k)));
+  const all = picked.size === 0;
+  const pick = (next: Set<string>) => choose({ fw: next.size ? [...next].join(',') : 'all' });
+  const toggle = (key: string) => {
+    const next = new Set(picked);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    pick(next);
+  };
   const pool = stories.filter(
-    (s) => s.archived === archived && (fw === 'all' || s.framework_key === fw),
+    (s) => s.archived === archived && (all || picked.has(s.framework_key)),
   );
   const hits = searchStories(pool, q, frameworks);
+  // Grouped by framework: one section per framework, in the frameworks' own order.
+  const groups = grouped
+    ? frameworks
+        .map((f) => ({ f, items: hits.filter((h) => h.item.framework_key === f.key) }))
+        .filter((g) => g.items.length)
+    : [{ f: null, items: hits }];
+  const on = (all ? 0 : 1) + (grouped ? 1 : 0);
   const custom = frameworks.filter((f) => !f.builtin);
 
   return (
@@ -42,10 +66,6 @@ export function Stories() {
           </button>
         }
       />
-      <p className="sub page-sub">
-        Linking a story to a job gives that job its own copy to tailor. Changing it there doesn’t
-        change it here unless you choose to.
-      </p>
       {/* Current stories, and the archive beside them: two tabs, each with its count. */}
       <div className="tabs" role="tablist" aria-label="Which stories">
         {(
@@ -76,61 +96,101 @@ export function Stories() {
             placeholder="Search, or type a question"
             aria-label="Search stories"
           />
+          <SearchClear value={q} onClear={() => setQ('')} />
         </label>
-        {/* Only the frameworks that have stories, so every choice finds something. */}
-        {used.length > 1 && (
-          <FilterButton count={fw === 'all' ? 0 : 1} onClick={() => setFilters(true)} />
-        )}
+        {/* Filters offer only frameworks that have stories; grouping whenever there are stories. */}
+        {counts.all > 0 && <FilterButton count={on} onClick={() => setFilters(true)} />}
       </div>
       {filters && (
         <FilterSheet
-          count={fw === 'all' ? 0 : 1}
+          count={on}
           onClose={() => setFilters(false)}
-          onClear={() => choose({ fw: 'all' })}
+          onClear={() => choose({ fw: 'all', group: '' })}
         >
+          {/* Any number of frameworks; All clears the others (and is on when none is). */}
           <FilterGroup title="Framework">
-            <div className="check-list" role="radiogroup" aria-label="Framework">
-              {[{ key: 'all', name: 'All', n: counts.all }, ...used].map((f) => (
-                <button
-                  key={f.key}
-                  type="button"
-                  role="radio"
-                  aria-checked={fw === f.key}
-                  className={cx('check-opt', fw === f.key && 'on')}
-                  onClick={() => choose({ fw: f.key })}
-                >
-                  <span className="check-box" aria-hidden="true">
-                    {fw === f.key && <Icon name="check" size={13} />}
-                  </span>
-                  {f.name}
-                  <span className="count">{f.n}</span>
-                </button>
-              ))}
+            <div className="check-list" role="group" aria-label="Framework">
+              {[{ key: 'all', name: 'All', n: counts.all }, ...used].map((f) => {
+                const checked = f.key === 'all' ? all : picked.has(f.key);
+                return (
+                  <button
+                    key={f.key}
+                    type="button"
+                    role="checkbox"
+                    aria-checked={checked}
+                    className={cx('check-opt', checked && 'on')}
+                    onClick={() => (f.key === 'all' ? pick(new Set()) : toggle(f.key))}
+                  >
+                    <span className="check-box" aria-hidden="true">
+                      {checked && <Icon name="check" size={13} />}
+                    </span>
+                    {f.name}
+                    <span className="count">{f.n}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </FilterGroup>
+          <FilterGroup title="Group by">
+            <div className="check-list" role="radiogroup" aria-label="Group by">
+              {(
+                [
+                  ['', 'None'],
+                  ['framework', 'Framework'],
+                ] as const
+              ).map(([v, l]) => {
+                const checked = (choice.group || '') === v;
+                return (
+                  <button
+                    key={l}
+                    type="button"
+                    role="radio"
+                    aria-checked={checked}
+                    className={cx('check-opt radio', checked && 'on')}
+                    onClick={() => choose({ group: v })}
+                  >
+                    <span className="check-box" aria-hidden="true">
+                      {checked && <Icon name="check" size={13} />}
+                    </span>
+                    {l}
+                  </button>
+                );
+              })}
             </div>
           </FilterGroup>
         </FilterSheet>
       )}
-      <div className="story-grid">
-        {hits.map(({ item: s }) => {
-          const copies = data.state.job_stories.filter((j) => j.story_id === s.id);
-          return (
-            <button
-              key={s.id}
-              type="button"
-              className="story-card"
-              onClick={() => sheets.story({ id: s.id })}
-            >
-              <span className="fw-tag">
-                {frameworkOf(s.framework_key, frameworks)?.name ?? s.framework_key}
-              </span>
-              <strong className="story-title">{s.title}</strong>
-              <span className="mono sub">
-                v{s.version} · in {copies.length} {copies.length === 1 ? 'job' : 'jobs'}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      {groups.map((g) => (
+        <section key={g.f?.key ?? 'all'} className={g.f ? 'story-group' : undefined}>
+          {g.f && (
+            <h2 className="story-group-h">
+              {g.f.name}
+              <span className="count">{g.items.length}</span>
+            </h2>
+          )}
+          <div className="story-grid">
+            {g.items.map(({ item: s }) => {
+              const copies = data.state.job_stories.filter((j) => j.story_id === s.id);
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  className="story-card"
+                  onClick={() => sheets.story({ id: s.id })}
+                >
+                  <span className="fw-tag">
+                    {frameworkOf(s.framework_key, frameworks)?.name ?? s.framework_key}
+                  </span>
+                  <strong className="story-title">{s.title}</strong>
+                  <span className="mono sub">
+                    v{s.version} · in {copies.length} {copies.length === 1 ? 'job' : 'jobs'}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      ))}
       {!stories.length && (
         <div className="card empty-state">
           <h2>Your stories, written once.</h2>

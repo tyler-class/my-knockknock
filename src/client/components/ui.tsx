@@ -780,3 +780,24 @@ export function FilterGroup({ title, children }: { title: string; children: Reac
     </section>
   );
 }
+
+/**
+ * The ✕ at the right end of a search field: shown once something is typed; clears it and puts
+ * the cursor back in the field.
+ */
+export function SearchClear({ value, onClear }: { value: string; onClear: () => void }) {
+  if (!value) return null;
+  return (
+    <button
+      type="button"
+      className="search-clear"
+      aria-label="Clear search"
+      onClick={(e) => {
+        onClear();
+        (e.currentTarget.parentElement?.querySelector('input') as HTMLInputElement | null)?.focus();
+      }}
+    >
+      <Icon name="x" size={14} />
+    </button>
+  );
+}

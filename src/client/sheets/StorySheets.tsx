@@ -16,7 +16,15 @@ import {
 import type { Framework, JobStory, Story } from '@shared/types';
 import { useActions, type Data } from '../lib/queries';
 import { useToast } from '../components/Toast';
-import { AutoTextarea, ConfirmButton, Field, Select, Sheet, cx } from '../components/ui';
+import {
+  AutoTextarea,
+  ConfirmButton,
+  Field,
+  SearchClear,
+  Select,
+  Sheet,
+  cx,
+} from '../components/ui';
 import { Icon } from '../components/Icon';
 import { useSheets } from './context';
 
@@ -442,13 +450,17 @@ export function LinkStorySheet({ data, appId }: { data: Data; appId: string }) {
   if (!app) return null;
   return (
     <Sheet title="Link from Stories" icon="link" onClose={sheets.close}>
-      <input
-        className="in"
-        autoFocus
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder="Search, or type a question you expect"
-      />
+      <label className="search-in search-full">
+        <Icon name="search" size={16} />
+        <input
+          autoFocus
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search, or type a question you expect"
+          aria-label="Search stories"
+        />
+        <SearchClear value={q} onClear={() => setQ('')} />
+      </label>
       <div className="link-list">
         {hits.map(({ item: s }) => {
           const on = linked.has(s.id);

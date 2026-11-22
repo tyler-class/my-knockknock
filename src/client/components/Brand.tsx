@@ -46,7 +46,7 @@ export function Mark({ size = 34 }: { size?: number }) {
 
 /** The footer line. */
 export function Joke() {
-  return <p className="joke">Helping job hunting feel like less of a joke.</p>;
+  return <p className="joke">Helping your job hunt feel like less of a joke.</p>;
 }
 
 /**

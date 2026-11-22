@@ -8,36 +8,41 @@ import {
 } from '@shared/logic/report';
 import { useData } from '../lib/queries';
 import { pct } from '../lib/format';
-import { PageHeader } from '../components/ui';
+import { InfoTip, PageHeader } from '../components/ui';
 import { SearchLine } from '../components/SearchLine';
 
+/** Flow colours: the way forward in ultramarine, each ending in its own quiet tone. */
 const COLORS: Record<string, string> = {
-  stage: 'var(--ink)',
-  forward: 'var(--ink)',
-  open: 'var(--flow-open)',
+  stage: 'var(--accent)',
+  forward: 'var(--accent)',
+  accepted: 'var(--flow-accepted)',
   rejected: 'var(--flow-rejected)',
   ghosted: 'var(--flow-ghosted)',
   declined: 'var(--flow-declined)',
-  accepted: 'var(--ink)',
 };
 
-/** The flow from Applied on: forward bands in ink, endings tinted. Built from status history. */
+/**
+ * The flow from Applied on, built from status history: each stage a rounded bar as tall as the
+ * applications that reached it, soft bands between stages, and each ending (rejected, ghosted,
+ * declined) branching off where it happened. Something still in play simply stops at its stage.
+ */
 function Sankey({ nodes, links }: { nodes: FlowNode[]; links: FlowLink[] }) {
   const W = 1000;
-  const colX = (c: number) => 110 + c * 185;
+  const BAR = 10;
+  const colX = (c: number) => 120 + c * 180;
   const max = Math.max(1, ...nodes.filter((n) => n.col === 0).map((n) => n.n));
-  const K = 300 / max;
-  const GAP = 14;
+  const K = 260 / max;
+  const GAP = 18;
   const placed = new Map<string, { x: number; y: number; h: number; out: number; in: number }>();
   const cols = new Map<number, FlowNode[]>();
   for (const n of nodes) cols.set(n.col, [...(cols.get(n.col) ?? []), n]);
   let H = 0;
   for (const [c, list] of cols) {
-    // Stages on top, endings under them.
+    // Stages on top, endings under them (largest first).
     list.sort((a, b) => (a.kind === 'stage' ? -1 : b.kind === 'stage' ? 1 : b.n - a.n));
-    let y = 34;
+    let y = 30;
     for (const n of list) {
-      const h = Math.max(n.n * K, 3);
+      const h = Math.max(n.n * K, 6);
       placed.set(n.id, { x: colX(c), y, h, out: y, in: y });
       y += h + GAP;
     }
@@ -48,7 +53,7 @@ function Sankey({ nodes, links }: { nodes: FlowNode[]; links: FlowLink[] }) {
   );
   return (
     <svg
-      viewBox={`0 0 ${W} ${H + 10}`}
+      viewBox={`0 0 ${W} ${H + 6}`}
       className="sankey"
       role="img"
       aria-label="Where applications went, stage by stage"
@@ -57,8 +62,8 @@ function Sankey({ nodes, links }: { nodes: FlowNode[]; links: FlowLink[] }) {
         const s = placed.get(l.from);
         const t = placed.get(l.to);
         if (!s || !t) return null;
-        const h = l.n * K;
-        const x0 = s.x + 12;
+        const h = Math.max(l.n * K, 2);
+        const x0 = s.x + BAR;
         const x1 = t.x;
         const mx = (x0 + x1) / 2;
         const y0 = s.out;
@@ -68,33 +73,35 @@ function Sankey({ nodes, links }: { nodes: FlowNode[]; links: FlowLink[] }) {
         return (
           <path
             key={`${l.from}>${l.to}`}
+            className="sk-band"
             d={`M${x0},${y0} C${mx},${y0} ${mx},${y1} ${x1},${y1} L${x1},${y1 + h} C${mx},${y1 + h} ${mx},${y0 + h} ${x0},${y0 + h} Z`}
             fill={COLORS[l.kind]}
-            fillOpacity={l.kind === 'forward' ? 0.8 : 0.5}
+            fillOpacity={l.kind === 'forward' ? 0.18 : 0.26}
           />
         );
       })}
       {nodes.map((n) => {
         const p = placed.get(n.id)!;
         const left = n.col === 0;
+        const stage = n.kind === 'stage';
+        // Stage names sit above their bar; endings beside theirs.
+        const tx = left ? p.x - 10 : stage ? p.x : p.x + BAR + 8;
+        const ty = stage && !left ? p.y - 9 : p.y + Math.min(p.h / 2, 26) + 5;
         return (
           <g key={n.id}>
             <rect
               x={p.x}
               y={p.y}
-              width={12}
+              width={BAR}
               height={p.h}
-              fill={COLORS[n.kind] ?? 'var(--ink)'}
-              stroke="var(--ink)"
-              strokeWidth={1.5}
+              rx={BAR / 2}
+              fill={COLORS[n.id === 'accepted' ? 'accepted' : n.kind] ?? 'var(--accent)'}
             />
-            <text
-              x={left ? p.x - 8 : n.kind === 'stage' ? p.x : p.x + 20}
-              y={n.kind === 'stage' && !left ? p.y - 8 : p.y + Math.min(p.h / 2, 30) + 5}
-              textAnchor={left ? 'end' : 'start'}
-              className={n.kind === 'stage' ? 'strong' : ''}
-            >
-              {n.label} {n.n}
+            <text x={tx} y={ty} textAnchor={left ? 'end' : 'start'} className="sk-label">
+              <tspan className={stage ? 'sk-name' : 'sk-name sk-end'}>{n.label}</tspan>
+              <tspan className="sk-n" dx={6}>
+                {n.n}
+              </tspan>
             </text>
           </g>
         );
@@ -166,8 +173,12 @@ export function Reports() {
       </div>
 
       <section className="card sec">
-        <h2 className="sec-title">Where Your Applications Went</h2>
-        <p className="sub">Each application counts in every stage it reached.</p>
+        <h2 className="sec-title">
+          Where Your Applications Went
+          <InfoTip label="About where your applications went">
+            Each application counts in every stage it reached; one still in play stops at its stage.
+          </InfoTip>
+        </h2>
         {report.nodes.length ? (
           <div className="sankey-wrap">
             <Sankey nodes={report.nodes} links={report.links} />
@@ -176,36 +187,31 @@ export function Reports() {
           <p className="empty">Nothing sent yet.</p>
         )}
         <div className="legend">
-          <span>
-            <i style={{ background: 'var(--ink)' }} />
-            Moved forward
-          </span>
-          <span>
-            <i style={{ background: 'var(--flow-open)' }} />
-            Still open
-          </span>
-          <span>
-            <i style={{ background: 'var(--flow-rejected)' }} />
-            Rejected
-          </span>
-          <span>
-            <i style={{ background: 'var(--flow-ghosted)' }} />
-            Ghosted
-          </span>
-          <span>
-            <i style={{ background: 'var(--flow-declined)' }} />
-            Declined
-          </span>
+          {(
+            [
+              ['var(--accent)', 'Moved forward'],
+              ['var(--flow-rejected)', 'Rejected'],
+              ['var(--flow-ghosted)', 'Ghosted'],
+              ['var(--flow-declined)', 'Declined'],
+            ] as const
+          ).map(([c, l]) => (
+            <span key={l}>
+              <i style={{ background: c }} />
+              {l}
+            </span>
+          ))}
         </div>
       </section>
 
       <div className="report-grid">
         <section className="card">
-          <h2 className="sec-title">Response Rate</h2>
-          <p className="sub">
-            Heard back: moved past Applied (Screening or later) or got a rejection, rather than
-            silence.
-          </p>
+          <h2 className="sec-title">
+            Response Rate
+            <InfoTip label="About response rate">
+              Heard back: moved past Applied (Screening or later) or got a rejection, rather than
+              silence.
+            </InfoTip>
+          </h2>
           {report.sent ? (
             <>
               <div className="big-stat">
@@ -223,16 +229,22 @@ export function Reports() {
         </section>
         {report.byResume.length > 0 && (
           <section className="card">
-            <h2 className="sec-title">Which Resume Got Replies</h2>
-            <p className="sub">The resume attached to each application you sent.</p>
+            <h2 className="sec-title">
+              Which Resume Got Replies
+              <InfoTip label="About which resume got replies">
+                The resume attached to each application you sent.
+              </InfoTip>
+            </h2>
             <Bars rows={report.byResume} />
           </section>
         )}
         <section className="card">
-          <h2 className="sec-title">Time to Hear Back</h2>
-          <p className="sub">
-            Median days from applying to the first status change past Applied, or a rejection.
-          </p>
+          <h2 className="sec-title">
+            Time to Hear Back
+            <InfoTip label="About time to hear back">
+              Median days from applying to the first status change past Applied, or a rejection.
+            </InfoTip>
+          </h2>
           {days == null ? (
             <p className="empty">
               Not enough replies yet
@@ -248,8 +260,10 @@ export function Reports() {
           )}
         </section>
         <section className="card">
-          <h2 className="sec-title">Applied per Week</h2>
-          <p className="sub">The last 12 weeks, Monday to Sunday.</p>
+          <h2 className="sec-title">
+            Applied per Week
+            <InfoTip label="About applied per week">The last 12 weeks, Monday to Sunday.</InfoTip>
+          </h2>
           {/* A y axis of counts with gridlines, one rounded bar per week with its count above,
               and each week's Monday under it; this week in full ultramarine. */}
           <div className="wchart">

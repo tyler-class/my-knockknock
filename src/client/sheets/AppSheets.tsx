@@ -14,10 +14,13 @@ import {
   type SalaryPeriod,
   type Status,
   type WorkMode,
+  EMPLOYMENT_TYPES,
+  personRoleLabel,
 } from '@shared/lookups';
-import type { Application, Person, Search, TimelineEvent } from '@shared/types';
-import { api } from '../lib/api';
-import { useActions, type Data } from '../lib/queries';
+import type { Application, Company, Person, Search, TimelineEvent } from '@shared/types';
+import { api, uploadFile } from '../lib/api';
+import { useActions, useData, type Data } from '../lib/queries';
+import { CompanyChooser, type NewCompany } from '../components/CompanyFields';
 import { useToast } from '../components/Toast';
 import { fromLocalInput, toLocalInput } from '../lib/format';
 import {
@@ -28,11 +31,14 @@ import {
   Sheet,
   SlideToggle,
   TagInput,
+  SearchClear,
+  cx,
 } from '../components/ui';
 import { StatusChip, StatusIcon } from '../components/StatusChip';
 import { StageBar } from '../components/StageBar';
-import { DatePicker, DateTimeField } from '../components/DateTimePicker';
+import { DateTimeField } from '../components/DateTimePicker';
 import { useSheets } from './context';
+import { Icon } from '../components/Icon';
 import { useNavigate } from 'react-router';
 import { payRange } from '@shared/logic/pay';
 
@@ -101,6 +107,12 @@ export function ApplicationSheet() {
   const [nice, setNice] = useState<string[]>([]);
   const [status, setStatus] = useState<'saved' | 'applied'>('saved');
   const [busy, setBusy] = useState(false);
+  // The company: one of yours, or a new one filled in here (made when the job is added).
+  const [picked, setPicked] = useState<Company | null>(null);
+  const [fresh, setFresh] = useState<NewCompany | null>(null);
+  const [logo, setLogo] = useState<File | null>(null);
+  const companyName = picked?.name ?? fresh?.name.trim() ?? '';
+  const data = useData();
   const set = (k: keyof Form) => (e: { target: { value: string } }) =>
     setF((p) => ({ ...p, [k]: e.target.value }));
   // Links are plain text fields (the server adds https://), so "fathom.com" is fine.
@@ -115,11 +127,32 @@ export function ApplicationSheet() {
   );
 
   async function save() {
-    if (!f.title.trim() || !f.company.trim()) return;
+    if (!f.title.trim() || !companyName) return;
     setBusy(true);
+    // A new company is added first, then the job is linked to it (or to the one picked).
+    let companyId = picked?.id;
+    if (!companyId && fresh) {
+      const c = await act.post<Company>('/companies', {
+        name: fresh.name.trim(),
+        website: fresh.website || null,
+        linkedin: fresh.linkedin || null,
+        hq: fresh.hq || null,
+        size: fresh.size || null,
+        industry: fresh.industry || null,
+        funding: fresh.funding || null,
+      });
+      if (!c) return setBusy(false);
+      companyId = c.id;
+      // Its logo, if one was chosen (a failed upload leaves the company without one).
+      if (logo) await act.run(() => uploadFile(`/companies/${c.id}/logo`, logo));
+    }
     const [salaryMin, salaryMax] = payRange(f.salary_min, f.salary_max);
+    const job = Object.fromEntries(
+      Object.entries(f).filter(([k]) => !k.startsWith('company')),
+    ) as Partial<Form>;
     const body = {
-      ...f,
+      ...job,
+      company: companyName,
       salary_min: salaryMin,
       salary_max: salaryMax,
       salary_period: salaryMin != null || salaryMax != null ? period : null,
@@ -129,6 +162,8 @@ export function ApplicationSheet() {
       nice_to_haves: nice,
     };
     const r = await act.post<Application>('/applications', { ...body, status }, 'Added');
+    if (r && companyId && r.company_id !== companyId)
+      await act.post(`/applications/${r.id}/company`, { company_id: companyId });
     setBusy(false);
     if (!r) return;
     sheets.close();
@@ -145,7 +180,7 @@ export function ApplicationSheet() {
           <button
             type="button"
             className="btn primary"
-            disabled={busy || !f.title.trim() || !f.company.trim()}
+            disabled={busy || !f.title.trim() || !companyName}
             onClick={save}
           >
             Save application
@@ -153,93 +188,122 @@ export function ApplicationSheet() {
         </>
       }
     >
+      {/* Grouped like a job's page: the job, its pay, the role, what it asks for, the posting. */}
+      <h3 className="form-sec">
+        <Icon name="briefcase" size={16} /> The Job
+      </h3>
+      <Field label="Title">{inp('title')}</Field>
+      <Field label="Company">
+        <CompanyChooser
+          companies={data?.state.companies ?? []}
+          picked={picked}
+          onPick={setPicked}
+          fresh={fresh}
+          onFresh={setFresh}
+          logo={logo}
+          onLogo={setLogo}
+        />
+      </Field>
       <Field label="Job link">{inp('url', 'url')}</Field>
       <div className="two">
-        <Field label="Company">{inp('company')}</Field>
-        <Field label="Title">{inp('title')}</Field>
-      </div>
-      <Field label="Status">
-        <SlideToggle
-          label="Status"
-          value={status}
-          onChange={setStatus}
-          options={[
-            ['saved', 'Saved, not sent'],
-            ['applied', 'Applied today'],
-          ]}
-        />
-      </Field>
-      <Field label="Pay range">
-        <div className="pay-range">
-          <label className="mini-l">
-            Min
-            <input
-              className="in"
-              inputMode="decimal"
-              value={f.salary_min}
-              onChange={set('salary_min')}
-            />
-          </label>
-          <label className="mini-l">
-            Max
-            <input
-              className="in"
-              inputMode="decimal"
-              value={f.salary_max}
-              onChange={set('salary_max')}
-            />
-          </label>
-          <div className="mini-l">
-            Per
-            <Select
-              value={period}
-              onChange={(v) => setPeriod(v as SalaryPeriod)}
-              groups={[{ options: SALARY_PERIODS.map((p) => ({ value: p, label: p })) }]}
-            />
-          </div>
-        </div>
-      </Field>
-      <Field label="Notes on pay (bonus, equity…)">{inp('salary_text')}</Field>
-      <Field label="Work mode">
-        <SlideToggle
-          label="Work mode"
-          value={mode}
-          onChange={setMode}
-          allowClear
-          options={WORK_MODES.map((w) => [w.key, w.label] as const)}
-        />
-      </Field>
-      <div className="two">
-        <Field label="Location">{inp('location')}</Field>
-        <Field label="Seniority">{inp('seniority')}</Field>
-        <Field label="Reports to">{inp('reports_to')}</Field>
-        <Field label="Team">{inp('team')}</Field>
-        <Field label="Type">{inp('employment_type')}</Field>
-        <Field label="Posted">
-          <DatePicker
-            label="Posted"
-            clearable
-            value={f.posted_on || null}
-            onChange={(v) => setF((p) => ({ ...p, posted_on: v ?? '' }))}
+        <Field label="Status">
+          <SlideToggle
+            label="Status"
+            value={status}
+            onChange={setStatus}
+            options={[
+              ['saved', 'Saved, not sent'],
+              ['applied', 'Applied today'],
+            ]}
+          />
+        </Field>
+        <Field label="Source">
+          <Select
+            value={f.source}
+            onChange={(v) => setF((p) => ({ ...p, source: v }))}
+            placeholder="Not set"
+            groups={[
+              {
+                options: [
+                  { value: '', label: 'Not set' },
+                  ...SOURCES.map((s) => ({ value: s, label: s })),
+                ],
+              },
+            ]}
           />
         </Field>
       </div>
-      <Field label="Source">
-        <Select
-          value={f.source}
-          onChange={(v) => setF((p) => ({ ...p, source: v }))}
-          placeholder="Not set"
-          groups={[
-            {
-              options: [
-                { value: '', label: 'Not set' },
-                ...SOURCES.map((s) => ({ value: s, label: s })),
-              ],
-            },
-          ]}
-        />
-      </Field>
-      <Field label="Required">
+
+      <h3 className="form-sec">
+        <Icon name="coin" size={16} /> Pay
+      </h3>
+      <div className="pay-range">
+        <label className="mini-l">
+          Min
+          <input
+            className="in"
+            inputMode="decimal"
+            value={f.salary_min}
+            onChange={set('salary_min')}
+          />
+        </label>
+        <label className="mini-l">
+          Max
+          <input
+            className="in"
+            inputMode="decimal"
+            value={f.salary_max}
+            onChange={set('salary_max')}
+          />
+        </label>
+        <div className="mini-l">
+          Per
+          <Select
+            value={period}
+            onChange={(v) => setPeriod(v as SalaryPeriod)}
+            groups={[{ options: SALARY_PERIODS.map((p) => ({ value: p, label: p })) }]}
+          />
+        </div>
+      </div>
+      <Field label="Notes on pay (bonus, equity…)">{inp('salary_text')}</Field>
+
+      <h3 className="form-sec">
+        <Icon name="user" size={16} /> The Role
+      </h3>
+      <div className="two">
+        <Field label="Employment type">
+          <Select
+            value={f.employment_type}
+            onChange={(v) => setF((p) => ({ ...p, employment_type: v }))}
+            placeholder="Not set"
+            groups={[
+              {
+                options: [
+                  { value: '', label: 'Not set' },
+                  ...EMPLOYMENT_TYPES.map((v) => ({ value: v, label: v })),
+                ],
+              },
+            ]}
+          />
+        </Field>
+        <Field label="Work mode">
+          <SlideToggle
+            label="Work mode"
+            value={mode}
+            onChange={setMode}
+            allowClear
+            options={WORK_MODES.map((w) => [w.key, w.label] as const)}
+          />
+        </Field>
+        <Field label="Location">{inp('location')}</Field>
+        <Field label="Team">{inp('team')}</Field>
+        <Field label="Reports to">{inp('reports_to')}</Field>
+      </div>
+
+      <h3 className="form-sec">
+        <Icon name="check" size={16} /> Qualifications
+      </h3>
+      <Field label="Required qualifications">
         <TagInput
           value={must}
           onChange={setMust}
@@ -247,7 +311,7 @@ export function ApplicationSheet() {
           placeholder="Add one, press Enter"
         />
       </Field>
-      <Field label="Preferred">
+      <Field label="Preferred qualifications">
         <TagInput
           value={nice}
           onChange={setNice}
@@ -255,17 +319,11 @@ export function ApplicationSheet() {
           placeholder="Add one, press Enter"
         />
       </Field>
-      <span className="lbl sheet-sec">Company</span>
-      <div className="two">
-        <Field label="Domain">{inp('company_domain')}</Field>
-        <Field label="Website">{inp('company_website', 'url')}</Field>
-        <Field label="LinkedIn">{inp('company_linkedin', 'url')}</Field>
-        <Field label="HQ">{inp('company_hq')}</Field>
-        <Field label="Size">{inp('company_size')}</Field>
-        <Field label="Industry">{inp('company_industry')}</Field>
-        <Field label="Funding">{inp('company_funding')}</Field>
-      </div>
-      <Field label="Job description" className="mt">
+
+      <h3 className="form-sec">
+        <Icon name="file" size={16} /> Description and Notes
+      </h3>
+      <Field label="Full job description">
         <textarea className="in" rows={6} value={f.description} onChange={set('description')} />
       </Field>
       <Field label="Notes">
@@ -517,7 +575,18 @@ export function StatusSheet({
   );
 }
 
-export function PersonSheet({ data, appId, id }: { data: Data; appId: string; id?: string }) {
+export function PersonSheet({
+  data,
+  appId,
+  id,
+  companyId,
+}: {
+  data: Data;
+  /** The job they're being added to or seen from; null when opened from a company's page. */
+  appId: string | null;
+  id?: string;
+  companyId?: string;
+}) {
   const p: Person | undefined = data.state.people.find((x) => x.id === id);
   const sheets = useSheets();
   const act = useActions();
@@ -528,6 +597,37 @@ export function PersonSheet({ data, appId, id }: { data: Data; appId: string; id
   const [otherRole, setOtherRole] = useState(p?.other_role ?? '');
   const [linkedin, setLinkedin] = useState(p?.linkedin ?? '');
   const [notes, setNotes] = useState(p?.notes ?? '');
+  // Adding someone: first, the people already at this job's company (not yet on this job).
+  const app = appId ? data.appById.get(appId) : undefined;
+  const coId = companyId ?? app?.company_id ?? p?.company_id ?? null;
+  const known =
+    p || !appId
+      ? []
+      : data.state.people.filter(
+          (x) => coId && x.company_id === coId && !x.application_ids.includes(appId),
+        );
+  // From a company's page there's no one to pick: straight to the form.
+  const [creating, setCreating] = useState(!appId);
+  const [q, setQ] = useState('');
+  const [hi, setHi] = useState(0);
+  const ql = q.trim().toLowerCase();
+  const matches = known.filter(
+    (x) => !ql || `${x.name} ${x.title ?? ''} ${x.email ?? ''}`.toLowerCase().includes(ql),
+  );
+  // The list: matching people at the company, then "Add person" (with what's typed as the name).
+  const rows: (Person | null)[] = [...matches, null];
+  const choose = (r: Person | null) => {
+    if (r) void addKnown(r);
+    else {
+      setName(q.trim());
+      setCreating(true);
+    }
+  };
+  const company = data.state.companies.find((c) => c.id === coId);
+  async function addKnown(person: Person) {
+    if (await act.post(`/applications/${appId}/people/${person.id}`, {}, `${person.name} added`))
+      sheets.close();
+  }
   async function save() {
     const body = {
       name,
@@ -540,7 +640,9 @@ export function PersonSheet({ data, appId, id }: { data: Data; appId: string; id
     };
     const ok = p
       ? await act.patch(`/people/${p.id}`, body)
-      : await act.post(`/applications/${appId}/people`, body);
+      : appId
+        ? await act.post(`/applications/${appId}/people`, body)
+        : await act.post(`/companies/${coId}/people`, body);
     if (ok) sheets.close();
   }
   return (
@@ -550,71 +652,168 @@ export function PersonSheet({ data, appId, id }: { data: Data; appId: string; id
       onClose={sheets.close}
       footer={
         <>
-          {p && (
+          {/* Seen from a job: off that job only. From the company's page: gone altogether. */}
+          {p && appId && (
             <ConfirmButton
               className="left"
-              confirm="Remove?"
-              onConfirm={async () => (await act.del(`/people/${p.id}`)) && sheets.close()}
+              confirm="Remove from this job?"
+              onConfirm={async () =>
+                (await act.del(`/applications/${appId}/people/${p.id}`)) && sheets.close()
+              }
             >
-              Remove
+              Remove from job
             </ConfirmButton>
           )}
-          <button type="button" className="btn primary" disabled={!name.trim()} onClick={save}>
-            Save
-          </button>
+          {p && !appId && (
+            <ConfirmButton
+              className="left"
+              confirm={`Delete ${p.name}?`}
+              onConfirm={async () => (await act.del(`/people/${p.id}`)) && sheets.close()}
+            >
+              Delete person
+            </ConfirmButton>
+          )}
+          {(p || creating) && (
+            <button type="button" className="btn primary" disabled={!name.trim()} onClick={save}>
+              {p ? 'Save' : 'Add person'}
+            </button>
+          )}
         </>
       }
     >
-      <div className="two">
-        <Field label="Name">
-          <input className="in" value={name} onChange={(e) => setName(e.target.value)} />
-        </Field>
-        <Field label="Title">
-          <input className="in" value={title} onChange={(e) => setTitle(e.target.value)} />
-        </Field>
-      </div>
-      <Field label="Role">
-        <Select
-          value={role}
-          onChange={(v) => setRole(v as PersonRole)}
-          groups={[{ options: PERSON_ROLES.map((r) => ({ value: r.key, label: r.label })) }]}
-        />
-      </Field>
-      {role === 'other' && (
-        <Field label="Other role">
-          <input className="in" value={otherRole} onChange={(e) => setOtherRole(e.target.value)} />
-        </Field>
+      {/* Adding someone: search the people at this job's company, or add a new person. */}
+      {!p && !creating && (
+        <div className="known-people">
+          <label className="search-in search-full">
+            <Icon name="search" size={16} />
+            <input
+              autoFocus
+              value={q}
+              placeholder={`Search people at ${company?.name ?? app?.company ?? 'this company'}`}
+              aria-label="Person"
+              aria-autocomplete="list"
+              onChange={(e) => {
+                setQ(e.target.value);
+                setHi(0);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  const d = e.key === 'ArrowDown' ? 1 : -1;
+                  setHi((i) => Math.max(0, Math.min(rows.length - 1, i + d)));
+                } else if (e.key === 'Enter') {
+                  e.preventDefault();
+                  choose(rows[hi] ?? null);
+                }
+              }}
+            />
+            <SearchClear value={q} onClear={() => setQ('')} />
+          </label>
+          <div className="pick-list" role="listbox" aria-label="People">
+            {rows.map((x, i) =>
+              x ? (
+                <button
+                  key={x.id}
+                  type="button"
+                  role="option"
+                  aria-selected={i === hi}
+                  className={cx('person', i === hi && 'hi')}
+                  onClick={() => choose(x)}
+                >
+                  <span className="avatar">{initials(x.name)}</span>
+                  <span className="row-text">
+                    <strong>{x.name}</strong>
+                    <span className="sub">
+                      {[personRoleLabel(x), x.title].filter(Boolean).join(' · ')}
+                    </span>
+                  </span>
+                </button>
+              ) : (
+                <button
+                  key="new"
+                  type="button"
+                  role="option"
+                  aria-selected={i === hi}
+                  className={cx('person pick-add', i === hi && 'hi')}
+                  onClick={() => choose(null)}
+                >
+                  <span className="avatar">
+                    <Icon name="plus" size={16} />
+                  </span>
+                  <strong>{q.trim() ? `Add person “${q.trim()}”` : 'Add a new person'}</strong>
+                </button>
+              ),
+            )}
+          </div>
+        </div>
       )}
-      <Field label="Email">
-        <input
-          className="in"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-      </Field>
-      <Field label="LinkedIn">
-        <input
-          className="in"
-          type="text"
-          inputMode="url"
-          autoCapitalize="off"
-          spellCheck={false}
-          value={linkedin}
-          onChange={(e) => setLinkedin(e.target.value)}
-        />
-      </Field>
-      <Field label="Notes">
-        <AutoTextarea
-          className="in"
-          rows={3}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-        />
-      </Field>
+      {(p || creating) && (
+        <>
+          <div className="two">
+            <Field label="Name">
+              <input className="in" value={name} onChange={(e) => setName(e.target.value)} />
+            </Field>
+            <Field label="Title">
+              <input className="in" value={title} onChange={(e) => setTitle(e.target.value)} />
+            </Field>
+          </div>
+          <Field label="Role">
+            <Select
+              value={role}
+              onChange={(v) => setRole(v as PersonRole)}
+              groups={[{ options: PERSON_ROLES.map((r) => ({ value: r.key, label: r.label })) }]}
+            />
+          </Field>
+          {role === 'other' && (
+            <Field label="Other role">
+              <input
+                className="in"
+                value={otherRole}
+                onChange={(e) => setOtherRole(e.target.value)}
+              />
+            </Field>
+          )}
+          <Field label="Email">
+            <input
+              className="in"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </Field>
+          <Field label="LinkedIn">
+            <input
+              className="in"
+              type="text"
+              inputMode="url"
+              autoCapitalize="off"
+              spellCheck={false}
+              value={linkedin}
+              onChange={(e) => setLinkedin(e.target.value)}
+            />
+          </Field>
+          <Field label="Notes">
+            <AutoTextarea
+              className="in"
+              rows={3}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </Field>
+        </>
+      )}
     </Sheet>
   );
 }
+
+/** "Priya Shah" → "PS". */
+const initials = (name: string) =>
+  name
+    .split(/\s+/)
+    .map((w) => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
 
 export function SearchSheet({ data, id }: { data: Data; id?: string }) {
   const s: Search | undefined = data.state.searches.find((x) => x.id === id);

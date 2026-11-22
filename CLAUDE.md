@@ -122,11 +122,34 @@ Don't bring in styling from the sibling apps; match this app's look for anything
   two-tap confirm only where undo isn't possible. Status changes undo by deleting the status
   events they wrote (status is derived from the timeline), and archiving a story undoes by
   unarchiving. Deleting an application, event, story or search is still a hard delete (it
-  cascades to timelines, notes, copies and files), so those ask first until the API can restore
+  cascades to timelines, notes, copies and files; a job's people stay at its company), so those ask first until the API can restore
   them: jobs and timeline entries in the popup above, stories and searches with the two-tap
   confirm.
 - A filter shows the same choices and counts everywhere the same data appears: count in
   `src/client/lib/filters.ts`, not inline.
+- Companies are their own records (`companies`; `src/worker/companies.ts`): several jobs can be
+  at one company. A job points at it (`company_id`) and keeps a copy of its name and details in
+  its `company_*` columns, kept in step on every change, so lists, search and assistants that read
+  the job still see them. A company name or detail written to a job (the job page, an assistant)
+  goes to its company: a name links the job to the company of that name (ignoring case) or makes
+  one, except that a job alone at its company renames it. Website replaces Domain in the UI (the
+  domain is derived from it). A logo is optional and shows on Jobs cards and rows.
+  Companies have their own list (`/companies`, in the sidebar) and page (`/c/:id`), where their
+  details and logo are edited. A job's Company card is a lookup: pick or type the company, see a
+  summary (facts, website, LinkedIn, other jobs there), and Open company to change it.
+- People work at a company (`people.company_id`) and can be on several of its jobs
+  (`job_people`). Adding someone to a job first offers the people already at its company; New
+  person makes one there. A company's page lists its people and can add someone on no job yet.
+  Remove from job takes them off that job only; deleting a job leaves its people at the company
+  (only someone at no company goes with it).
+- The Jobs board opens on a computer and the list on a phone (not remembered). Cards can be
+  dragged within a lane into your own order (`board_position`, saved straight away and put back if
+  saving fails); a card not yet placed sits at the top; moving to another lane clears its place.
+  Under each job: grey pills for pay and "Last activity 3d ago", an ultramarine one only when
+  there's something to act on.
+- Search fields have a ✕ to clear them (`SearchClear`).
+- Stories filters: frameworks are many-of (All clears the rest), and Group by None or Framework.
+- The report's flow: something still in play stops at its stage (no "still at" branch).
 - An application, event or story is changed the same way wherever it appears: one shared sheet
   (`useSheets()`), as now.
 - After a save, everything on screen updates straight away; nothing needs a reload.

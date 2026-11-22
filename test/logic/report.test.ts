@@ -39,7 +39,9 @@ describe('report', () => {
     expect(link('screening', 'interviewing')).toBe(1);
     expect(link('screening', 'rejected@screening')).toBe(1);
     expect(link('applied', 'ghosted@applied')).toBe(1);
-    expect(link('interviewing', 'open@interviewing')).toBe(1);
+    // Still interviewing: the flow stops there, with no "still at" branch.
+    expect(link('interviewing', 'open@interviewing')).toBeUndefined();
+    expect(r.nodes.some((n) => n.kind === 'open')).toBe(false);
     expect(r.bySource).toEqual([
       { name: 'LinkedIn', applied: 2, heardBack: 1, rate: 0.5 },
       { name: 'Referral', applied: 1, heardBack: 1, rate: 1 },

@@ -186,7 +186,9 @@ export function buildReport(
     for (const s of reached) nodeN.set(s, (nodeN.get(s) ?? 0) + 1);
     for (let i = 1; i < reached.length; i++) bump(reached[i - 1]!, reached[i]!, 'forward');
     const last = reached[reached.length - 1]!;
-    if (outcome !== 'accepted') {
+    // Still in play: its flow just stops at the stage it's at (no "still at" branch). An ending
+    // (rejected, ghosted, declined) branches off to its own node; Accepted is its own stage.
+    if (outcome !== 'accepted' && outcome !== 'open') {
       const id = `${outcome}@${last}`;
       nodeN.set(id, (nodeN.get(id) ?? 0) + 1);
       bump(last, id, outcome);

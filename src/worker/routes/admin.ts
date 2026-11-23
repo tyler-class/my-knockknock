@@ -4,6 +4,7 @@ import { settingsPatch } from '@shared/schemas';
 import {
   EXPORT_FORMAT,
   EXPORT_VERSION,
+  upgradeExport,
   PRIVATE_SETTINGS,
   TABLE_ORDER,
   isKnockKnockExport,
@@ -22,8 +23,8 @@ admin.get('/state', async (c) => c.json(await loadState(c.env.DB)));
 admin.patch('/settings', async (c) => {
   const { telemetry, updates_set_up, ...input } = await body(c, settingsPatch);
   if (
-    input.current_search_id &&
-    !(await first(c.env.DB, 'SELECT id FROM searches WHERE id = ?', input.current_search_id))
+    input.current_round_id &&
+    !(await first(c.env.DB, 'SELECT id FROM rounds WHERE id = ?', input.current_round_id))
   )
     throw new ApiError(400, 'invalid', 'That search no longer exists.');
   // These two live in the Selfhost Kit's own table, not in settings.
@@ -105,7 +106,7 @@ admin.post('/import', async (c) => {
       'That backup is from a newer version of Knock Knock. Update this instance first.',
     );
   try {
-    await importAll(c.env.DB, raw);
+    await importAll(c.env.DB, upgradeExport(raw));
   } catch (e) {
     throw new ApiError(400, 'invalid', `Could not restore that backup: ${(e as Error).message}`);
   }

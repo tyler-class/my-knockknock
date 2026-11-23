@@ -70,10 +70,10 @@ export function Stories() {
       <div className="tabs" role="tablist" aria-label="Which stories">
         {(
           [
-            ['', 'Current', stories.filter((x) => !x.archived).length],
-            ['1', 'Archived', stories.filter((x) => x.archived).length],
+            ['', 'Current', 'book', stories.filter((x) => !x.archived).length],
+            ['1', 'Archive', 'archive', stories.filter((x) => x.archived).length],
           ] as const
-        ).map(([v, l, n]) => (
+        ).map(([v, l, icon, n]) => (
           <button
             key={l}
             type="button"
@@ -82,6 +82,7 @@ export function Stories() {
             className="tab"
             onClick={() => choose({ archived: v })}
           >
+            <Icon name={icon} size={16} />
             {l}
             <span className="count">{n}</span>
           </button>

@@ -1,29 +1,28 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 import { GlassTabBar, type GlassTab } from '../components/GlassTabBar';
+import { TRACKER, TRACKER_ITEMS, trackerPage } from '../lib/tracker';
 import { Icon } from '../components/Icon';
-import { Asterisk, Joke, Spinner, Wordmark } from '../components/Brand';
+import { Asterisk, Spinner, Wordmark } from '../components/Brand';
 import { useIsFetching, useIsMutating } from '@tanstack/react-query';
 import { useSheets } from '../sheets/context';
 import { useTabSwipe } from '../lib/tabSwipe';
 import { useActions, useData, type Data } from '../lib/queries';
 import { cx } from '../components/ui';
-import type { Search } from '@shared/types';
+import type { Round } from '@shared/types';
 import { onPushOpen, syncBadge } from '../kit/push';
 
+/** The main sections. Tracker opens on Jobs; on a computer its four pages are listed under it. */
 const TABS: GlassTab[] = [
   ['/', 'Home', 'home'],
-  ['/jobs', 'Jobs', 'briefcase'],
-  ['/companies', 'Companies', 'building'],
-  ['/people', 'People', 'user'],
-  ['/files', 'Files', 'paperclip'],
+  ['/jobs', TRACKER, 'search'],
   ['/stories', 'Stories', 'quote'],
   ['/reports', 'Report', 'chart'],
   ['/settings', 'Settings', 'settings'],
 ];
 
-/** Phones: Settings is the gear in the top bar, so five tabs share the bar's width. */
-const PHONE_TABS = TABS.filter(([to]) => !['/settings', '/people', '/files'].includes(to));
+/** Phones: Settings is the gear in the top bar, so four tabs share the bar's width. */
+const PHONE_TABS = TABS.filter(([to]) => to !== '/settings');
 const TAB_PATHS = PHONE_TABS.map(([to]) => to);
 
 function tabRoot(path: string): string | null {
@@ -31,23 +30,21 @@ function tabRoot(path: string): string | null {
   return TAB_PATHS.includes(p) ? p : null;
 }
 
+/** The main section an address is in: anything in Tracker counts as Tracker (/jobs). */
 function activeTab(path: string): string {
-  if (path.startsWith('/a/')) return '/jobs';
-  if (path.startsWith('/c/') || path.startsWith('/companies')) return '/companies';
-  if (path.startsWith('/people')) return '/people';
-  if (path.startsWith('/files')) return '/files';
+  if (trackerPage(path)) return '/jobs';
   for (const [p] of TABS.slice(1)) if (path.startsWith(p)) return p;
   return '/';
 }
 
-const searchStatus = (s: Search) =>
+const roundStatus = (s: Round) =>
   s.status === 'active' ? 'Active' : s.status === 'accepted' ? 'Accepted' : 'Ended';
 
 /**
  * The search everything (but Stories) is about. Tapping it lists every search to pick
  * from, with Edit for the chosen one and New search at the bottom.
  */
-function SearchSwitch({ data, compact }: { data: Data | null; compact?: boolean }) {
+function RoundSwitch({ data, compact }: { data: Data | null; compact?: boolean }) {
   const sheets = useSheets();
   const act = useActions();
   const [open, setOpen] = useState(false);
@@ -65,9 +62,9 @@ function SearchSwitch({ data, compact }: { data: Data | null; compact?: boolean 
       document.removeEventListener('keydown', esc);
     };
   }, [open]);
-  const search = data?.search;
+  const search = data?.round;
   const count = (id: string) =>
-    data?.state.applications.filter((a) => a.search_id === id).length ?? 0;
+    data?.state.applications.filter((a) => a.round_id === id).length ?? 0;
   const go = (fn: () => void) => {
     setOpen(false);
     fn();
@@ -83,35 +80,35 @@ function SearchSwitch({ data, compact }: { data: Data | null; compact?: boolean 
       >
         {!compact && (
           <span className="lbl search-lbl">
-            <Icon name="search" size={14} />
-            Search
+            <Icon name="layers" size={14} />
+            Round
           </span>
         )}
         <span className="search-switch-name">
-          <strong>{search?.name ?? 'No search yet'}</strong>
+          <strong>{search?.name ?? 'No round yet'}</strong>
           <Icon name="chevDown" size={16} />
         </span>
         {search && !compact && (
           <span className="sub">
-            {searchStatus(search)} · {jobsLabel(count(search.id))}
+            {roundStatus(search)} · {jobsLabel(count(search.id))}
           </span>
         )}
       </button>
       {open && (
-        <div className="search-menu" role="menu" aria-label="Searches">
-          {data?.state.searches.map((s) => (
+        <div className="search-menu" role="menu" aria-label="Rounds">
+          {data?.state.rounds.map((s) => (
             <button
               key={s.id}
               type="button"
               role="menuitemradio"
               aria-checked={s.id === search?.id}
               className="search-opt"
-              onClick={() => go(() => s.id !== search?.id && void act.chooseSearch(s.id))}
+              onClick={() => go(() => s.id !== search?.id && void act.chooseRound(s.id))}
             >
               <span className="row-text">
                 <strong>{s.name}</strong>
                 <span className="sub">
-                  {searchStatus(s)} · {jobsLabel(count(s.id))}
+                  {roundStatus(s)} · {jobsLabel(count(s.id))}
                 </span>
               </span>
               {s.id === search?.id && <Icon name="check" size={16} />}
@@ -124,18 +121,18 @@ function SearchSwitch({ data, compact }: { data: Data | null; compact?: boolean 
                 type="button"
                 role="menuitem"
                 className="search-act"
-                onClick={() => go(() => sheets.search(search.id))}
+                onClick={() => go(() => sheets.round(search.id))}
               >
-                <Icon name="edit" size={16} /> Edit this search
+                <Icon name="edit" size={16} /> Edit this round
               </button>
             )}
             <button
               type="button"
               role="menuitem"
               className="search-act"
-              onClick={() => go(() => sheets.search())}
+              onClick={() => go(() => sheets.round())}
             >
-              <Icon name="plus" size={16} /> New search
+              <Icon name="plus" size={16} /> New round
             </button>
           </div>
         </div>
@@ -200,23 +197,45 @@ export function Layout() {
         <Link to="/" className="side-brand" aria-label="Knock Knock home">
           <Brand />
         </Link>
-        <SearchSwitch data={data} />
+        <RoundSwitch data={data} />
         <button type="button" className="btn primary" onClick={sheets.addJob}>
           <Icon name="plus" size={18} /> Add job
         </button>
-        <nav aria-label="Main">{TABS.map(tab)}</nav>
+        <nav aria-label="Main">
+          {TABS.map((t) =>
+            t[1] === TRACKER ? (
+              // Tracker, with its four pages listed under it.
+              <div key={t[0]} className="nav-group">
+                {tab(t)}
+                <div className="nav-sub">
+                  {TRACKER_ITEMS.map(([to, label, icon]) => (
+                    <Link
+                      key={to}
+                      to={to}
+                      aria-current={trackerPage(pathname) === to ? 'page' : undefined}
+                    >
+                      <Icon name={icon} size={16} />
+                      {label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              tab(t)
+            ),
+          )}
+        </nav>
         <div className="side-foot">
           <button type="button" className="side-about" onClick={sheets.about}>
             <Icon name="info" size={18} /> About Knock Knock
           </button>
-          <Joke />
         </div>
       </aside>
       <header className="appbar">
         <Link to="/" aria-label="Knock Knock home" className="appbar-home">
           <Brand />
         </Link>
-        <SearchSwitch data={data} compact />
+        <RoundSwitch data={data} compact />
         <Link
           to="/settings"
           className="appbar-settings"
@@ -235,11 +254,7 @@ export function Layout() {
           </div>
         )}
       </main>
-      {/* Phones: People and Files sit under the Companies tab (tabs at the top of each). */}
-      <GlassTabBar
-        tabs={PHONE_TABS}
-        active={active === '/people' || active === '/files' ? '/companies' : active}
-      />
+      <GlassTabBar tabs={PHONE_TABS} active={active} />
     </div>
   );
 }

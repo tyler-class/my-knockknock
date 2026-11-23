@@ -39,7 +39,7 @@ export const created = (to: Status, at: string, extra: Partial<TimelineEvent> = 
 export function app(o: Partial<Application> = {}): Application {
   return {
     id: 'a1',
-    search_id: 's1',
+    round_id: 's1',
     status: 'saved',
     closed_from: null,
     title: 'Principal CRM Architect',

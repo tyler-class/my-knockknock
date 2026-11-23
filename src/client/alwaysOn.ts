@@ -17,7 +17,7 @@ WHAT TO WATCH
 - Ignore everything that isn't about my job search.
 
 EACH TIME SOMETHING NEW TURNS UP
-1. Call search_overview (once per check) for my applications, their companies and people. Use find_applications to match by company, web domain, posting URL or a person's email.
+1. Call round_overview (once per check) for my applications, their companies and people. Use find_applications to match by company, web domain, posting URL or a person's email.
 2. Decide which application it belongs to:
    - Exactly one application it can belong to: go ahead.
    - More than one (two roles at the same company), or no clear match: do NOT log it. Message me what it is (who, subject, date) and the applications it could belong to, and wait for my answer.

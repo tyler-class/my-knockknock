@@ -7,6 +7,7 @@ import {
   type ReactNode,
   type TextareaHTMLAttributes,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon, type IconName } from './Icon';
 
 export function cx(...c: (string | false | null | undefined)[]) {
@@ -591,8 +592,25 @@ export function InfoTip({ label, children }: { label: string; children: ReactNod
   const [pinned, setPinned] = useState(false);
   const [hover, setHover] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
+  const pop = useRef<HTMLSpanElement>(null);
   const id = useId();
   const open = pinned || hover;
+  // Where the pop-out sits: under the icon, in page coordinates, so it scrolls with the page and
+  // nothing (a card's clipped edge) can cut it off. Kept inside the window's width.
+  const [at, setAt] = useState<{ top: number; left: number } | null>(null);
+  useLayoutEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const b = ref.current?.getBoundingClientRect();
+      if (!b) return;
+      const w = Math.min(352, window.innerWidth - 32);
+      const left = Math.min(Math.max(16, b.left + b.width / 2 - w / 2), window.innerWidth - w - 16);
+      setAt({ top: b.bottom + window.scrollY + 6, left: left + window.scrollX });
+    };
+    place();
+    window.addEventListener('resize', place);
+    return () => window.removeEventListener('resize', place);
+  }, [open]);
   useEffect(() => {
     if (!open) return;
     const close = () => {
@@ -600,7 +618,8 @@ export function InfoTip({ label, children }: { label: string; children: ReactNod
       setHover(false);
     };
     const away = (e: PointerEvent) => {
-      if (!ref.current?.contains(e.target as Node)) close();
+      const t = e.target as Node;
+      if (!ref.current?.contains(t) && !pop.current?.contains(t)) close();
     };
     const esc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') close();
@@ -629,12 +648,23 @@ export function InfoTip({ label, children }: { label: string; children: ReactNod
       >
         <Icon name="info" size={16} />
       </button>
-      {open && (
-        // The top padding bridges the gap, so a mouse can move from the icon into it.
-        <span id={id} role="note" className="infotip-pop">
-          <span>{children}</span>
-        </span>
-      )}
+      {open &&
+        at &&
+        createPortal(
+          <span
+            ref={pop}
+            id={id}
+            role="note"
+            className="infotip-pop"
+            style={{ top: at.top, left: at.left }}
+            // The mouse can move from the icon onto the pop-out without it closing.
+            onPointerEnter={(e) => e.pointerType === 'mouse' && setHover(true)}
+            onPointerLeave={(e) => e.pointerType === 'mouse' && setHover(false)}
+          >
+            <span>{children}</span>
+          </span>,
+          document.body,
+        )}
     </span>
   );
 }

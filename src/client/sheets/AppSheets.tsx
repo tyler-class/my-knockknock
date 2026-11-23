@@ -1,4 +1,4 @@
-// Adding and editing applications, changing status, people, and searches.
+// Adding and editing applications, changing status, people, and rounds.
 import { useState } from 'react';
 import { burst } from '../components/Brand';
 import {
@@ -17,7 +17,7 @@ import {
   EMPLOYMENT_TYPES,
   personRoleLabel,
 } from '@shared/lookups';
-import type { Application, Company, Person, Search, TimelineEvent } from '@shared/types';
+import type { Application, Company, Person, Round, TimelineEvent } from '@shared/types';
 import { api, uploadFile } from '../lib/api';
 import { useActions, useData, type Data } from '../lib/queries';
 import { CompanyChooser, type NewCompany } from '../components/CompanyFields';
@@ -363,12 +363,12 @@ export function StatusSheet({
   const [when, setWhen] = useState(toLocalInput(new Date().toISOString()));
   const [reason, setReason] = useState('');
   const others = data.state.applications.filter(
-    (x) => a && x.search_id === a.search_id && x.id !== a.id && isOpen(x.status),
+    (x) => a && x.round_id === a.round_id && x.id !== a.id && isOpen(x.status),
   );
   const [decline, setDecline] = useState<string[]>(others.map((o) => o.id));
-  const search = a ? data.state.searches.find((x) => x.id === a.search_id) : undefined;
+  const search = a ? data.state.rounds.find((x) => x.id === a.round_id) : undefined;
   // After accepting: ask whether to mark the whole search Accepted too.
-  const [askSearch, setAskSearch] = useState(false);
+  const [askRound, setAskRound] = useState(false);
   const [busy, setBusy] = useState(false);
   if (!a) return null;
 
@@ -379,7 +379,7 @@ export function StatusSheet({
     // wrote (the status is recomputed from what's left), plus the applied date and the search's
     // state if this change set them.
     const appliedBefore = a.applied_on;
-    const searchBefore = search && { status: search.status, ended_on: search.ended_on };
+    const roundBefore = search && { status: search.status, ended_on: search.ended_on };
     const written: { appId: string; eventId: string; applied_on: string | null }[] = [];
     const ok = await act.post<Written>(`/applications/${a.id}/status`, {
       status: next,
@@ -401,7 +401,7 @@ export function StatusSheet({
     // Good news gets a small burst of asterisks, from the stage bar on the page if it's there.
     if (next === 'offer' || next === 'accepted')
       burst(document.querySelector('.app-page .stepper'));
-    if (next === 'accepted' && search && search.status !== 'accepted') setAskSearch(true);
+    if (next === 'accepted' && search && search.status !== 'accepted') setAskRound(true);
     else sheets.close();
     if (!written.length) return;
     const moved = next;
@@ -417,14 +417,14 @@ export function StatusSheet({
               if (w.applied_on !== now.applied_on)
                 await api.patch(`/applications/${w.appId}`, { applied_on: w.applied_on });
             }
-            if (moved === 'accepted' && search && searchBefore)
-              await api.patch(`/searches/${search.id}`, searchBefore);
+            if (moved === 'accepted' && search && roundBefore)
+              await api.patch(`/rounds/${search.id}`, roundBefore);
           }, 'Status put back'),
       },
     });
   }
 
-  if (askSearch && search)
+  if (askRound && search)
     return (
       <Sheet
         title="Congratulations!"
@@ -443,7 +443,7 @@ export function StatusSheet({
                 setBusy(true);
                 const ok = await act.post(
                   `/applications/${a.id}/status`,
-                  { status: 'accepted', close_search: true },
+                  { status: 'accepted', close_round: true },
                   `“${search.name}” marked Accepted`,
                 );
                 setBusy(false);
@@ -456,10 +456,9 @@ export function StatusSheet({
         }
       >
         <p>
-          You accepted {a.company}. Move the search <strong>“{search.name}”</strong> to Accepted
-          too?
+          You accepted {a.company}. Move the round <strong>“{search.name}”</strong> to Accepted too?
         </p>
-        <p className="sub">It ends the search; you can reopen it from the search menu.</p>
+        <p className="sub">It ends the round; you can reopen it from the round menu.</p>
       </Sheet>
     );
 
@@ -556,7 +555,7 @@ export function StatusSheet({
       {next === 'accepted' && others.length > 0 && (
         <div className="callout">
           <strong>You’re in. Close the other doors?</strong>
-          <p className="sub">These are still open in this search. Checked ones become Declined.</p>
+          <p className="sub">These are still open in this round. Checked ones become Declined.</p>
           {others.map((o) => (
             <label key={o.id} className="check">
               <input
@@ -819,27 +818,27 @@ const initials = (name: string) =>
     .slice(0, 2)
     .toUpperCase();
 
-export function SearchSheet({ data, id }: { data: Data; id?: string }) {
-  const s: Search | undefined = data.state.searches.find((x) => x.id === id);
+export function RoundSheet({ data, id }: { data: Data; id?: string }) {
+  const s: Round | undefined = data.state.rounds.find((x) => x.id === id);
   const sheets = useSheets();
   const act = useActions();
   const [name, setName] = useState(s?.name ?? '');
-  const [status, setStatus] = useState<Search['status']>(s?.status ?? 'active');
+  const [status, setStatus] = useState<Round['status']>(s?.status ?? 'active');
   const [notes, setNotes] = useState(s?.notes ?? '');
-  const count = data.state.applications.filter((a) => a.search_id === id).length;
+  const count = data.state.applications.filter((a) => a.round_id === id).length;
   async function save() {
     const body = { name, status, notes };
     const ok = s
-      ? await act.patch<Search>(`/searches/${s.id}`, body)
-      : await act.post<Search>('/searches', body);
+      ? await act.patch<Round>(`/rounds/${s.id}`, body)
+      : await act.post<Round>('/rounds', body);
     if (!ok) return;
     // A new search becomes the one this device (and the server) is on.
-    if (!s) await act.chooseSearch(ok.id);
+    if (!s) await act.chooseRound(ok.id);
     sheets.close();
   }
   return (
     <Sheet
-      title={s ? 'Edit Search' : 'Start a Search'}
+      title={s ? 'Edit Round' : 'Start a Round'}
       icon="search"
       onClose={sheets.close}
       footer={
@@ -849,18 +848,18 @@ export function SearchSheet({ data, id }: { data: Data; id?: string }) {
               className="left"
               confirm={`Delete it and ${count} applications?`}
               onConfirm={async () =>
-                (await act.del(`/searches/${s.id}`, 'Deleted')) && sheets.close()
+                (await act.del(`/rounds/${s.id}`, 'Deleted')) && sheets.close()
               }
             >
               Delete
             </ConfirmButton>
           )}
-          {s && data.search?.id !== s.id && (
+          {s && data.round?.id !== s.id && (
             <button
               type="button"
               className="btn"
               onClick={async () => {
-                await act.chooseSearch(s.id);
+                await act.chooseRound(s.id);
                 sheets.close();
               }}
             >
@@ -879,7 +878,7 @@ export function SearchSheet({ data, id }: { data: Data; id?: string }) {
       {s && (
         <Field label="Status">
           <SlideToggle
-            label="Search status"
+            label="Round status"
             value={status}
             onChange={setStatus}
             options={[

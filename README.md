@@ -8,15 +8,15 @@ The app only stores and shows. Your assistant does the reading and the judging o
 
 ![Knock Knock on a laptop and a phone: the Jobs board with each job's logo, pay and what needs doing, and a job's timeline with the panel interview coming up](docs/screenshots/hero.png)
 
-One deployment is one person's job search (or many, one after another: searches keep each stretch separate). It runs on your own Cloudflare account, and the free plan is plenty.
+One deployment is one person's job search (or many, one after another: rounds keep each stretch separate). It runs on your own Cloudflare account, and the free plan is plenty.
 
 ## What it does
 
 ### Home
 
-Counts for the search you're in (applications, open, applied this week, interviews this week), what's coming up in the next two weeks, and recent activity across every job. Tap an activity to jump to it on that job's timeline.
+Counts for the round you're in (applications, open, applied this week, interviews this week), what's coming up in the next two weeks, and recent activity across every job. Tap an activity to jump to it on that job's timeline.
 
-![Home: counts for the search, interviews coming up, and recent activity](docs/screenshots/home.png)
+![Home: counts for the round, interviews coming up, and recent activity](docs/screenshots/home.png)
 
 ### Jobs
 
@@ -46,7 +46,7 @@ A company is its own record with its website, LinkedIn, headquarters, size, indu
 
 A company's page holds its details, the jobs you have there across every search, and its people. Its logo shows here, on the jobs there and in every list. A company can be deleted from its page; the popup says how many jobs and people go with it.
 
-![A company's page: its logo, details, the jobs there across searches and the people who work there](docs/screenshots/company.png)
+![A company's page: its logo, details, the jobs there across rounds and the people who work there](docs/screenshots/company.png)
 
 A company without a logo gets a monogram: the first letter of its name (skipping a leading "The" or "A") on an ultramarine tile. Pick another of ten colors from the ⋯ menu on its page, or upload a logo there. Your assistant can also find a company's logo on the web and attach it, and match the monogram to the brand's color.
 
@@ -85,7 +85,7 @@ Install it to your home screen and it works like an app, with notifications for 
 ### And
 
 - **Files.** Resumes, cover letters, transcripts and offer letters in your own private R2 bucket, with a SHA-256 of exactly what you sent. Adding one puts it on the timeline, and the Files page lists every file across your jobs. Transcripts and other text files stay readable for your assistant.
-- **Searches.** Each stretch of job hunting is its own search. Pick it from the menu at the top of the sidebar; everything but Stories and Companies follows it.
+- **Rounds.** Each stretch of job hunting is its own round. Pick it from the menu at the top of the sidebar; everything but Stories and Companies follows it.
 - **Yours.** It runs on your own Cloudflare account, and your data stays in your own database and storage.
 
 <!-- kit:readme:start -->
@@ -209,7 +209,7 @@ If you connected an AI assistant, connect it again with the new address.
 
 ## Anonymous usage counts
 
-Once a day your copy tells Knock Knock's developer that it exists: a random id it made for itself, its version, how many searches, applications, timeline events, stories and files it has (counts only), how many files it stores, and whether automatic updates are on. Never names, contents or anything you type, and no IP address is kept. It shows how many copies are in use. Turn it off in **Settings → Updates → Share anonymous usage counts**: your copy sends one last message saying it's off, then nothing.
+Once a day your copy tells Knock Knock's developer that it exists: a random id it made for itself, its version, how many rounds, applications, timeline events, stories and files it has (counts only), how many files it stores, and whether automatic updates are on. Never names, contents or anything you type, and no IP address is kept. It shows how many copies are in use. Turn it off in **Settings → Updates → Share anonymous usage counts**: your copy sends one last message saying it's off, then nothing.
 
 <!-- kit:readme:end -->
 
@@ -223,7 +223,7 @@ Knock Knock includes an [MCP](https://modelcontextprotocol.io) server at `https:
 
 The app never reads your email. Your assistant does (Claude with Gmail and Calendar connected, on a schedule if you like), decides what happened and to which application, and writes it here:
 
-1. **Bulk intake.** Paste a dozen links. For each, the assistant checks `find_applications` by URL, reads the posting, and calls `create_application` with every field it can find (it lists the ones it inferred, like reports-to). They land as **Saved** in the current search, each linked to its company (made if it's new).
+1. **Bulk intake.** Paste a dozen links. For each, the assistant checks `find_applications` by URL, reads the posting with `read_posting`, and calls `create_application` with every field it can find (it lists the ones it inferred, like reports-to). They land as **Saved** in the current round, each linked to its company (made if it's new).
 2. **"Thanks for applying."** The assistant finds the application (`find_applications` by company, domain, URL or a person's email), reads `get_timeline` around that date, logs the email with its Gmail message id as `external_ref`, and calls `set_status` to **Applied** with `caused_by` pointing at the email.
 3. **Interview scheduled.** An email and a calendar invite. If you already typed the meeting in, `get_timeline` shows it and the assistant uses `update_meeting` to add the join link and attendees instead of adding a second card.
 
@@ -231,26 +231,27 @@ The app never reads your email. Your assistant does (Claude with Gmail and Calen
 
 ### Tools
 
-| Tool                                            | What it does                                                                                                            |
-| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `search_overview`                               | The current search: counts by status, open applications, upcoming meetings, follow-ups due, maybe-ghosted, debriefs due |
-| `get_started`                                   | The search's state plus example requests and ready-made prompts                                                         |
-| `find_applications`                             | Look up by company, title, domain, posting URL or a person's email, in the current search unless `all_searches` is set  |
-| `get_application`                               | Everything about one: posting and company fields, people, timeline, stories, files                                      |
-| `get_timeline`                                  | Events, optionally only around a date and of some types: read this before logging                                       |
-| `create_application`, `update_application`      | Add a job (returns the existing one for a known posting URL); change its fields, including the company's details        |
-| `set_company_logo`                              | Attach a company's logo from an image on the web, set its monogram's color (closest to the brand), or remove the logo   |
-| `set_status`                                    | Change status by writing a status event; on Accepted, lists the other open applications                                 |
-| `log_meeting`, `update_meeting`                 | An interview or call: time, kind, state, join link, attendees, topics                                                   |
-| `log_email`                                     | An email as a summary, with direction, category and key points                                                          |
-| `add_note`                                      | A note, optionally under a meeting (a debrief)                                                                          |
-| `update_event`, `delete_event`                  | Fix or remove an event (deleting a status event recomputes the status)                                                  |
-| `add_person`                                    | A recruiter, hiring manager, interviewer, referrer or someone else on a job, at its company                             |
-| `list_frameworks`, `list_stories`, `get_story`  | Story frameworks; search Stories by the question being asked                                                            |
-| `list_archived_stories`                         | Archived stories, which the other tools leave out, and how to bring one back                                            |
-| `create_story`, `update_story`                  | Add or change a story (or archive and unarchive it)                                                                     |
-| `link_story`, `update_job_story`                | Copy a story to a job with an angle for it; tailor the job's copy                                                       |
-| `upload_link`, `add_text_file`, `get_file_text` | A one-time upload link; save a transcript you have as text; read one                                                    |
+| Tool                                            | What it does                                                                                                                                                           |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `round_overview`                                | The current round: counts by status, open applications, upcoming meetings, follow-ups due, maybe-ghosted, debriefs due                                                 |
+| `get_started`                                   | The round's state plus example requests and ready-made prompts                                                                                                         |
+| `find_applications`                             | Look up by company, title, domain, posting URL or a person's email, in the current search unless `all_searches` is set                                                 |
+| `get_application`                               | Everything about one: posting and company fields, people, timeline, stories, files                                                                                     |
+| `get_timeline`                                  | Events, optionally only around a date and of some types: read this before logging                                                                                      |
+| `read_posting`                                  | The whole posting from its link: the job board's own data (Greenhouse, Lever, Ashby, SmartRecruiters, Workday), the page's job data, or the page as a browser loads it |
+| `create_application`, `update_application`      | Add a job (returns the existing one for a known posting URL); change its fields, including the company's details                                                       |
+| `set_company_logo`                              | Attach a company's logo from an image on the web, set its monogram's color (closest to the brand), or remove the logo                                                  |
+| `set_status`                                    | Change status by writing a status event; on Accepted, lists the other open applications                                                                                |
+| `log_meeting`, `update_meeting`                 | An interview or call: time, kind, state, join link, attendees, topics                                                                                                  |
+| `log_email`                                     | An email as a summary, with direction, category and key points                                                                                                         |
+| `add_note`                                      | A note, optionally under a meeting (a debrief)                                                                                                                         |
+| `update_event`, `delete_event`                  | Fix or remove an event (deleting a status event recomputes the status)                                                                                                 |
+| `add_person`                                    | A recruiter, hiring manager, interviewer, referrer or someone else on a job, at its company                                                                            |
+| `list_frameworks`, `list_stories`, `get_story`  | Story frameworks; search Stories by the question being asked                                                                                                           |
+| `list_archived_stories`                         | Archived stories, which the other tools leave out, and how to bring one back                                                                                           |
+| `create_story`, `update_story`                  | Add or change a story (or archive and unarchive it)                                                                                                                    |
+| `link_story`, `update_job_story`                | Copy a story to a job with an angle for it; tailor the job's copy                                                                                                      |
+| `upload_link`, `add_text_file`, `get_file_text` | A one-time upload link; save a transcript you have as text; read one                                                                                                   |
 
 Ready-made prompts (in Claude, from the **+** menu):
 

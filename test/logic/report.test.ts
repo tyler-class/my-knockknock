@@ -161,13 +161,13 @@ describe('notifications', () => {
     const state = {
       settings: {
         time_zone: 'America/New_York',
-        current_search_id: null,
+        current_round_id: null,
         follow_up_days: 10,
         ghost_days: 30,
         telemetry: false,
         updates_set_up: false,
       },
-      searches: [],
+      rounds: [],
       applications: [
         app({
           id: 'a1',

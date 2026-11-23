@@ -16,7 +16,7 @@ export interface Settings {
   /** IANA zone the app last reported, so assistants see local dates and times. */
   time_zone: string;
   /** The search the app shows and new applications join. */
-  current_search_id: string | null;
+  current_round_id: string | null;
   /** An open application with no activity for this many days is due a follow-up. */
   follow_up_days: number;
   /** After this many quiet days, it counts as maybe ghosted (you or an assistant confirm). */
@@ -28,7 +28,7 @@ export interface Settings {
 }
 
 /** A stretch of looking for work. Applications belong to one. */
-export interface Search {
+export interface Round {
   id: string;
   name: string;
   status: SearchStatus;
@@ -40,7 +40,7 @@ export interface Search {
 
 export interface Application {
   id: string;
-  search_id: string;
+  round_id: string;
   /** Cached from the timeline: the latest status event wins. Change it with a status event. */
   status: Status;
   /** For Rejected, Declined and Ghosted: the open stage it closed from. */
@@ -260,7 +260,7 @@ export interface FileRef {
 
 export interface AppState {
   settings: Settings;
-  searches: Search[];
+  rounds: Round[];
   applications: Application[];
   companies: Company[];
   people: Person[];

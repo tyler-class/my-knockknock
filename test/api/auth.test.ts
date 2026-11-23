@@ -76,7 +76,7 @@ describe('auth', () => {
   it('blocks cross-site and non-JSON writes', async () => {
     const res = await login();
     const cookie = cookieFrom(res);
-    const cross = await SELF.fetch(`${ORIGIN}/api/searches`, {
+    const cross = await SELF.fetch(`${ORIGIN}/api/rounds`, {
       method: 'POST',
       headers: {
         Cookie: cookie,
@@ -86,7 +86,7 @@ describe('auth', () => {
       body: JSON.stringify({ name: 'X' }),
     });
     expect(cross.status).toBe(403);
-    const form = await SELF.fetch(`${ORIGIN}/api/searches`, {
+    const form = await SELF.fetch(`${ORIGIN}/api/rounds`, {
       method: 'POST',
       headers: { Cookie: cookie, Origin: ORIGIN, 'Content-Type': 'text/plain' },
       body: JSON.stringify({ name: 'X' }),

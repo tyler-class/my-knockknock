@@ -42,7 +42,7 @@ import { useSheets } from '../sheets/context';
 import { StatusChip, StatusIcon } from '../components/StatusChip';
 import { Icon } from '../components/Icon';
 import { PageHeader, SearchClear, SlideToggle } from '../components/ui';
-import { SearchLine } from '../components/SearchLine';
+import { TrackerTabs } from './Directory';
 
 type View = 'board' | 'list';
 
@@ -311,7 +311,7 @@ export function Pipeline() {
           </button>
         }
       />
-      <SearchLine />
+      <TrackerTabs />
       <div className="toolbar">
         <label className="search-in">
           <Icon name="search" size={16} />
@@ -502,7 +502,7 @@ export function Pipeline() {
             })}
             {!apps.length ? (
               <p className="empty">
-                {ql ? 'Nothing matches.' : 'No applications in this search yet.'}
+                {ql ? 'Nothing matches.' : 'No applications in this round yet.'}
               </p>
             ) : (
               !counts.count(stage) && <p className="empty">Nothing here right now.</p>

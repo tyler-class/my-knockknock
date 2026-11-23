@@ -14,14 +14,7 @@ import { buildFlags } from '../shared/kit/build';
 import { version } from '../../package.json';
 
 /** Tables whose row counts are sent in the anonymous daily check-in (counts only). */
-export const USAGE_TABLES = [
-  'searches',
-  'applications',
-  'events',
-  'stories',
-  'job_stories',
-  'files',
-];
+export const USAGE_TABLES = ['rounds', 'applications', 'events', 'stories', 'job_stories', 'files'];
 
 const defaultHandler = {
   fetch(

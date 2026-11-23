@@ -12,7 +12,7 @@ import type {
   Framework,
   JobStory,
   Person,
-  Search,
+  Round,
   Settings,
   Story,
   TimelineEvent,
@@ -104,10 +104,10 @@ export function encode<T extends Record<string, unknown>>(fields: T): Record<str
   );
 }
 
-export const toSearch = (r: Row): Search => ({
+export const toRound = (r: Row): Round => ({
   id: String(r.id),
   name: String(r.name),
-  status: String(r.status) as Search['status'],
+  status: String(r.status) as Round['status'],
   started_on: s(r.started_on),
   ended_on: s(r.ended_on),
   notes: s(r.notes),
@@ -116,7 +116,7 @@ export const toSearch = (r: Row): Search => ({
 
 export const toApplication = (r: Row): Application => ({
   id: String(r.id),
-  search_id: String(r.search_id),
+  round_id: String(r.round_id),
   status: String(r.status) as Status,
   closed_from: (s(r.closed_from) as Status | null) ?? null,
   title: String(r.title),
@@ -266,7 +266,7 @@ const FILE_COLS =
 
 export const DEFAULT_SETTINGS: Settings = {
   time_zone: 'UTC',
-  current_search_id: null,
+  current_round_id: null,
   follow_up_days: 10,
   ghost_days: 30,
   telemetry: true,
@@ -283,10 +283,10 @@ export async function loadSettings(db: D1Database): Promise<Settings> {
     const v = Number.parseInt(m.get(k) ?? '', 10);
     return Number.isFinite(v) ? v : d;
   };
-  const cur = m.get('current_search_id');
+  const cur = m.get('current_round_id');
   return {
     time_zone: m.get('time_zone') ?? DEFAULT_SETTINGS.time_zone,
-    current_search_id: cur && cur !== 'null' ? cur.replace(/^"|"$/g, '') : null,
+    current_round_id: cur && cur !== 'null' ? cur.replace(/^"|"$/g, '') : null,
     follow_up_days: int('follow_up_days', DEFAULT_SETTINGS.follow_up_days),
     ghost_days: int('ghost_days', DEFAULT_SETTINGS.ghost_days),
     telemetry: kit.telemetry,
@@ -303,8 +303,8 @@ export async function saveSetting(db: D1Database, key: string, value: string) {
     .run();
 }
 
-export const loadSearches = async (db: D1Database) =>
-  (await all(db, 'SELECT * FROM searches ORDER BY created_at DESC')).map(toSearch);
+export const loadRounds = async (db: D1Database) =>
+  (await all(db, 'SELECT * FROM rounds ORDER BY created_at DESC')).map(toRound);
 
 export async function loadApplications(db: D1Database, id?: string) {
   return (
@@ -359,7 +359,7 @@ export async function loadFile(db: D1Database, id: string) {
 export async function loadState(db: D1Database): Promise<AppState> {
   const [
     settings,
-    searches,
+    rounds,
     applications,
     companies,
     people,
@@ -370,7 +370,7 @@ export async function loadState(db: D1Database): Promise<AppState> {
     files,
   ] = await Promise.all([
     loadSettings(db),
-    loadSearches(db),
+    loadRounds(db),
     loadApplications(db),
     all(db, 'SELECT * FROM companies ORDER BY name COLLATE NOCASE').then((r) => r.map(toCompany)),
     loadPeople(db),
@@ -384,7 +384,7 @@ export async function loadState(db: D1Database): Promise<AppState> {
   ]);
   return {
     settings,
-    searches,
+    rounds,
     applications,
     companies,
     people,
@@ -445,20 +445,20 @@ export async function refreshApplication(db: D1Database, id: string): Promise<vo
     .run();
 }
 
-/** The current search, making a first one if there are none. */
-export async function currentSearchId(db: D1Database): Promise<string> {
+/** The current round, making a first one if there are none. */
+export async function currentRoundId(db: D1Database): Promise<string> {
   const s = await loadSettings(db);
   if (
-    s.current_search_id &&
-    (await first(db, 'SELECT id FROM searches WHERE id = ?', s.current_search_id))
+    s.current_round_id &&
+    (await first(db, 'SELECT id FROM rounds WHERE id = ?', s.current_round_id))
   )
-    return s.current_search_id;
+    return s.current_round_id;
   const open = await first<{ id: string }>(
     db,
-    "SELECT id FROM searches WHERE status = 'active' ORDER BY created_at DESC LIMIT 1",
+    "SELECT id FROM rounds WHERE status = 'active' ORDER BY created_at DESC LIMIT 1",
   );
   if (open) {
-    await saveSetting(db, 'current_search_id', open.id);
+    await saveSetting(db, 'current_round_id', open.id);
     return open.id;
   }
   const id = newId();
@@ -466,14 +466,14 @@ export async function currentSearchId(db: D1Database): Promise<string> {
   const month = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(
     new Date(),
   );
-  await insertStmt(db, 'searches', {
+  await insertStmt(db, 'rounds', {
     id,
-    name: `Search · ${month}`,
+    name: `Round · ${month}`,
     status: 'active',
     started_on: now.slice(0, 10),
     created_at: now,
     updated_at: now,
   }).run();
-  await saveSetting(db, 'current_search_id', id);
+  await saveSetting(db, 'current_round_id', id);
   return id;
 }

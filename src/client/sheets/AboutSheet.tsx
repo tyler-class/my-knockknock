@@ -1,7 +1,7 @@
 import { ABOUT_ICONS, aboutLinks, BUILT_BY, type AboutLinkKind } from '../kit/about';
 import { Icon } from '../components/Icon';
 import { Sheet } from '../components/ui';
-import { Joke, Wordmark } from '../components/Brand';
+import { Wordmark } from '../components/Brand';
 import { useSheets } from './context';
 
 const LINKS = aboutLinks({
@@ -43,11 +43,11 @@ export function AboutSheet() {
         <Wordmark pop />
       </div>
       <p style={{ marginTop: 0 }}>
-        Knock Knock is a free, open-source job search tracker: every application as a timeline, a a
-        story bank for interviews, and an MCP server so your AI assistant keeps it all up to date.
-        It runs on your own Cloudflare account, so your search stays yours.
+        Job hunting can feel like a joke. Knock Knock is here to make it feel like less of one: a
+        free, open-source job search tracker with every application as a timeline, a story bank for
+        interviews, and an MCP server so your AI assistant keeps it all up to date. It runs on your
+        own Cloudflare account, so your search stays yours.
       </p>
-      <Joke />
       <p className="sub">{BUILT_BY}</p>
       <div style={{ marginTop: 8 }}>
         {LINKS.map((l) => (

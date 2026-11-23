@@ -20,7 +20,7 @@ Don't bring in styling from the sibling apps; match this app's look for anything
   Meeting"); buttons and body text stay in sentence case.
 - Tabs (a job's Details, Timeline, Stories, Files; the Jobs list's stages; Stories' Current and
   Archived): an icon (the Jobs list's stages use their `StatusIcon` badge) and text, the open one
-  bold with an ink underline; counts sit in small circles, the open tab's in ultramarine.
+  bold with an ink underline; counts sit in small grey circles; the open tab's count is bold with it, not coloured.
 - The stage bar is a row of rounded segments with the stage name under each: done stages light
   ultramarine, the current one solid, the rest grey.
 - Statuses show their icon (`STATUS_ICON`) in white on a small solid round badge (`StatusIcon`):
@@ -30,6 +30,7 @@ Don't bring in styling from the sibling apps; match this app's look for anything
   icon buttons are ink on a visible grey disc; letter badges (story parts, initials) are white on
   solid ultramarine; danger buttons are white with a red outline, filled red on hover (only the
   confirm popup's final Delete is solid red). No soft red on grey.
+- The loading spinner is the mark: the tilted ultramarine tile with its white asterisk turning.
 - Every sheet carries an icon left of its title (`Sheet icon=`) and no subtitle under it. The
   exceptions are About's version line and Call Mode's "How Did It Go?" ("Your call notes are
   already saved."). Files use the paperclip everywhere.
@@ -64,7 +65,7 @@ Don't bring in styling from the sibling apps; match this app's look for anything
 - Verify with typecheck, lint, tests and `curl`; don't open a browser unless the owner asks.
 - Push to `main` only when the owner says so. Deploying (`npm run deploy`) is a separate step,
   also only when asked.
-- Files headed "Selfhost Kit" and marked as synced from tyler-class/selfhost-kit (`src/*/kit/*`,
+- Files headed "Selfhost Kit" and marked as synced from tyler-class/tally (`src/*/kit/*`,
   `scripts/kit/*`, `test/api/kit/*`, `scripts/release.ts`, `.github/workflows/update.yml`, and the
   README's `kit:readme` block) are overwritten by the kit's sync: make those changes in the kit,
   not here.
@@ -75,7 +76,7 @@ Don't bring in styling from the sibling apps; match this app's look for anything
   activity. The search menu at the top of the sidebar (top bar on phones) picks the search;
   everything but Stories and Companies follows it (Companies count and list jobs from every
   search, with the search's name on each job when there are several). The pick is remembered on the device
-  (`lib/currentSearch.ts`) and also saved as the server's `current_search_id`, which is what new
+  (`lib/currentRound.ts`) and also saved as the server's `current_round_id`, which is what new
   applications and assistants use.
 - Every detail of an application (title, company, pay, links, dates, company facts,
   requirements (Required / Preferred), notes, the job posting) is edited in place on its page: each field, or small
@@ -159,9 +160,15 @@ Don't bring in styling from the sibling apps; match this app's look for anything
   ("today", "yesterday" when it can) and an ultramarine one only when there's something to act
   on (an interview coming up, an offer to decide, gone quiet).
 - Search fields have a ✕ to clear them (`SearchClear`).
-- People (`/people`) and Files (`/files`) list everyone and every file across companies and jobs.
-  With Companies they share a row of tabs (`DirectoryTabs`); the sidebar lists all three, and on
-  phones People and Files sit under the Companies tab.
+- **Search** is the main section for the job search itself: Jobs, Companies, People (`/people`)
+  and Files (`/files`), with one row of tabs across the top of each (`TrackerTabs`; the list is in
+  `lib/tracker.ts`) and a search box on each. In the sidebar Search lists its four pages under
+  it; on phones it's one tab (Home, Search, Stories, Report; Settings is the gear in the top bar).
+- One stretch of job hunting is a **round**, everywhere: the interface ("Round: Fall 2026", New
+  round, Rounds in Settings), the data (`rounds`, `round_id`, `current_round_id`), the API
+  (`/rounds`) and the assistant tools (`round_overview`, `all_rounds`, `round` on
+  create_application). "Search" is the main section (Jobs, Companies, People, Files) and the text
+  search boxes. Migration 0006 renamed the old names; backups from before import (upgradeExport).
 - A company can be deleted from its page (the popup says how many jobs and people go with it);
   a person from their sheet (Delete; from a job, Remove from job takes them off just that one).
 - A status change's comment sits on its own line under the change and edits in place. A note
@@ -205,6 +212,17 @@ Don't bring in styling from the sibling apps; match this app's look for anything
   PNG, JPEG, WebP, GIF or SVG, up to 2 MB. The same tool sets the monogram's color: the tool and
   server instructions tell assistants they may pick the color closest to the company's brand,
   otherwise leave the default. `get_application` shows the company's mark (`company_mark`).
+
+## Reading postings
+
+- `read_posting` (MCP; `POST /api/postings/read`; `src/worker/posting.ts`) gets a posting's full
+  text from its link: the job board's own JSON first (Greenhouse, Lever, Ashby, SmartRecruiters,
+  Workday), then the page's schema.org JobPosting, then Browser Run (the `BROWSER` binding renders
+  the page and returns Markdown). The assistant still reads it and fills the fields. The binding
+  needs nothing created, works on the Workers Free plan (10 browser minutes a day), reaches new
+  installs through the Deploy button and existing ones through the update workflow's wrangler
+  merge. `wrangler dev` can't run it (the local stub lacks quickAction), so it only works deployed;
+  locally it falls back to the first two steps and then says to paste the posting.
 
 ## Statuses and stories
 

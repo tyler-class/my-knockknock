@@ -31,6 +31,11 @@
       "migrations_dir": "migrations",
     },
   ],
+  // A browser to read job postings that only fill in with JavaScript (read_posting). Nothing to
+  // create: the binding is all it takes, and it works on the Workers Free plan.
+  "browser": {
+    "binding": "BROWSER"
+  },
   "r2_buckets": [
     {
       // Resumes, cover letters, transcripts and offer letters. Private: served only through

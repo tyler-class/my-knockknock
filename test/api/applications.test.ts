@@ -29,8 +29,8 @@ describe('applications and their timelines', () => {
       inferred: ['seniority'],
     });
     const state = (await api.get<AppState>('/state')).data;
-    expect(state.searches.length).toBeGreaterThanOrEqual(1);
-    expect(state.settings.current_search_id).toBe(a.search_id);
+    expect(state.rounds.length).toBeGreaterThanOrEqual(1);
+    expect(state.settings.current_round_id).toBe(a.round_id);
     expect(state.events.filter((e) => e.application_id === a.id).map((e) => e.type)).toEqual([
       'created',
     ]);
@@ -172,13 +172,13 @@ describe('applications and their timelines', () => {
 
   it('accepting closes the search only when asked, and lists the other open applications', async () => {
     const api = await session();
-    const search = (await api.post<{ id: string }>('/searches', { name: 'Accept test' })).data;
+    const search = (await api.post<{ id: string }>('/rounds', { name: 'Accept test' })).data;
     const one = (
       await api.post<Application>('/applications', {
         title: 'A',
         company: 'One',
         status: 'applied',
-        search_id: search.id,
+        round_id: search.id,
       })
     ).data;
     const two = (
@@ -186,16 +186,16 @@ describe('applications and their timelines', () => {
         title: 'B',
         company: 'Two',
         status: 'applied',
-        search_id: search.id,
+        round_id: search.id,
       })
     ).data;
     await api.post(`/applications/${one.id}/status`, { status: 'accepted' });
     let state = (await api.get<AppState>('/state')).data;
-    expect(state.searches.find((s) => s.id === search.id)).toMatchObject({ status: 'active' });
+    expect(state.rounds.find((s) => s.id === search.id)).toMatchObject({ status: 'active' });
     // The owner said yes: mark the search Accepted too (already Accepted, so no new event).
-    await api.post(`/applications/${one.id}/status`, { status: 'accepted', close_search: true });
+    await api.post(`/applications/${one.id}/status`, { status: 'accepted', close_round: true });
     state = (await api.get<AppState>('/state')).data;
-    expect(state.searches.find((s) => s.id === search.id)).toMatchObject({ status: 'accepted' });
+    expect(state.rounds.find((s) => s.id === search.id)).toMatchObject({ status: 'accepted' });
     const others = await api.get<{ applications: Application[] }>(
       `/applications/${one.id}/others-open`,
     );

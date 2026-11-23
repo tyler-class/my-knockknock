@@ -10,7 +10,7 @@ export interface SheetApi {
   log: (appId: string, o?: { type?: LogType; eventId?: string; parentId?: string }) => void;
   /** A person on a job (appId), or at a company with no job in view (appId null, companyId). */
   person: (appId: string | null, personId?: string, companyId?: string) => void;
-  search: (id?: string) => void;
+  round: (id?: string) => void;
   /** A bank story: edit one, or a new one in a framework. */
   story: (o: { id?: string; framework?: string }) => void;
   /** Pick a framework, then open a new story in it (bank, or job-only on an application). */
@@ -28,7 +28,7 @@ export const SheetCtx = createContext<SheetApi>({
   status: noop,
   log: noop,
   person: noop,
-  search: noop,
+  round: noop,
   story: noop,
   newStory: noop,
   jobStory: noop,

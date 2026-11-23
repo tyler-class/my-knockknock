@@ -14,7 +14,7 @@ import { EVENT_ICON } from '../sheets/EventSheet';
 import { Asterisk, StatusArrow } from '../components/Brand';
 import { Icon, type IconName } from '../components/Icon';
 import { PageHeader } from '../components/ui';
-import { SearchLine } from '../components/SearchLine';
+import { RoundLine } from '../components/RoundLine';
 
 /** A job's Timeline tab, scrolled to one entry (which flashes briefly). */
 const eventHref = (e: Pick<TimelineEvent, 'application_id' | 'id'>) =>
@@ -79,7 +79,7 @@ export function Home() {
   return (
     <>
       {header}
-      <SearchLine />
+      <RoundLine />
       <div className="kpis home-kpis">
         {tiles.map(([l, v]) => (
           <div key={l} className="kpi">

@@ -8270,3 +8270,208 @@ textarea.in.angle {
   display: flex;
   width: fit-content;
 }
+
+/* Sidebar: Tracker with its four pages listed under it, indented. Tracker reads as the section
+   heading; the page you're on is the one marked. */
+.nav-group {
+  display: flex;
+  flex-direction: column;
+}
+.nav-group > a[aria-current] {
+  background: none;
+  box-shadow: none;
+  color: var(--ink);
+}
+.nav-sub {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 2px 0 6px 18px;
+  padding-left: 10px;
+  border-left: 1.5px solid var(--line2);
+}
+.side nav .nav-sub a {
+  font-size: 14px;
+  padding-top: 7px;
+  padding-bottom: 7px;
+}
+
+/* Report → Stage by Stage: a funnel of centred ultramarine bars, one per stage, with how many
+   moved on between each. */
+.funnel {
+  display: flex;
+  flex-direction: column;
+  margin-top: 14px;
+}
+.funnel-row {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr) 48px;
+  align-items: center;
+  gap: 12px;
+}
+.funnel-l {
+  font-weight: 750;
+  font-size: 14px;
+  color: var(--ink);
+}
+.funnel-track {
+  display: flex;
+  justify-content: center;
+}
+.funnel-bar {
+  display: grid;
+  place-items: center;
+  min-width: 34px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 800;
+  font-size: 15px;
+  transition: width 0.3s ease;
+}
+.funnel-pct {
+  text-align: right;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink2);
+}
+.funnel-step {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0;
+  padding-left: 116px;
+  padding-right: 60px;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--ink2);
+}
+.funnel-step svg {
+  color: var(--accent);
+}
+@media (max-width: 600px) {
+  .funnel-row {
+    grid-template-columns: 84px minmax(0, 1fr) 40px;
+    gap: 8px;
+  }
+  .funnel-step {
+    padding-left: 92px;
+    padding-right: 48px;
+  }
+}
+/* The loading spinner: the mark's tile, sized by the spinner, corners in proportion. */
+.spinner-mark {
+  border-radius: 30%;
+}
+/* A chosen tab's count: the same grey circle, its number bold with the rest of the tab (not
+   turned blue). */
+.tabs .tab[aria-selected='true'] .count {
+  background: #dfe2e8;
+  color: var(--ink);
+  font-weight: 900;
+}
+
+/* ---- Round switch and menu (lighter) ----
+   The switch: a white card with a fine grey outline, like the app's other cards. The chosen round
+   in the menu: a pale ultramarine row with ink text and a blue check, not a solid blue block. */
+.search-switch,
+.search-pick .search-switch {
+  background: var(--surface);
+  border: 1px solid #d6dae2;
+  border-radius: 16px;
+  box-shadow: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .search-pick .search-switch:hover {
+    border-color: var(--line2);
+    background: #fafbfc;
+  }
+}
+.search-switch .lbl {
+  color: var(--ink2);
+}
+.search-opt[aria-checked='true'] {
+  background: #eef1fd;
+  box-shadow: inset 0 0 0 1px #d5dcfa;
+}
+.search-opt[aria-checked='true'] strong {
+  color: var(--ink);
+}
+.search-opt[aria-checked='true'] .sub {
+  color: var(--ink2);
+  opacity: 1;
+  font-weight: 600;
+}
+.search-opt[aria-checked='true'] svg {
+  color: var(--accent);
+}
+/* A tab icon's disc is its own rounded background: the drawing inside isn't clipped to it (that
+   cut the corners off wide icons like the open book). */
+.tabs .tab > svg {
+  overflow: visible;
+}
+/* The filter button is the search box's height (42px), so the row is the same height with or
+   without it and nothing below shifts when it comes and goes. */
+.filter-btn {
+  width: 42px;
+  height: 42px;
+}
+.toolbar {
+  min-height: 42px;
+}
+
+/* Report → Application Funnel: stacked ultramarine bands narrowing down, labels on leader lines
+   at the left, conversions at the right. */
+svg.funnel {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: 12px;
+  overflow: visible;
+}
+.funnel .fn-in {
+  fill: #fff;
+  font-family: var(--sans);
+  font-size: 16px;
+  font-weight: 800;
+}
+.funnel .fn-lead {
+  stroke: var(--line2);
+  stroke-width: 1;
+}
+.funnel .fn-name {
+  fill: var(--ink);
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 750;
+}
+.funnel .fn-share {
+  fill: var(--ink2);
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+}
+.funnel .fn-step {
+  fill: var(--accent-deep);
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 800;
+}
+.funnel .fn-step-sub {
+  fill: var(--ink2);
+  font-family: var(--sans);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+/* The "i" pop-out: placed on the page under its icon (InfoTip works out where), above everything. */
+.infotip-pop {
+  position: absolute;
+  right: auto;
+  z-index: 200;
+  padding-top: 0;
+}
+.infotip-pop > span {
+  width: min(22rem, calc(100vw - 2rem));
+}

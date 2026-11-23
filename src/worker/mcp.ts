@@ -248,21 +248,21 @@ const WRITE_NOTE =
 
 const GETTING_STARTED = `
 
-When someone asks what you can do with Knock Knock (or seems unsure where to start), call get_started: it returns their search's current state and example requests to offer. Suggest two or three that fit, rather than listing tools. Examples:
+When someone asks what you can do with Knock Knock (or seems unsure where to start), call get_started: it returns their round's current state and example requests to offer. Suggest two or three that fit, rather than listing tools. Examples:
 ${EXAMPLE_PROMPTS.map((e) => `- "${e.prompt}"`).join('\n')}`;
 
 const INSTRUCTIONS =
   [
-    'Knock Knock is a personal job search tracker: searches → applications → a timeline per application (created, status changes, meetings, emails, notes), plus Stories, the owner’s bank of interview stories (call it Stories).',
-    'Start with search_overview to see the current search, what is upcoming and what needs attention. The current search is the one last picked in the app; search_overview lists the others, and creating or finding applications in another search takes its name.',
-    'You do the reading and judging; Knock Knock only stores. When you read a job posting, pull out every field you can (title, company, comp, location, work mode, seniority, reports-to, team, must-haves, company basics) and list the ones you inferred rather than read in `inferred`.',
+    'Knock Knock is a personal job search tracker: rounds (stretches of job hunting) → applications → a timeline per application (created, status changes, meetings, emails, notes), plus Stories, the owner’s bank of interview stories (call it Stories).',
+    'Start with round_overview to see the current round, what is upcoming and what needs attention. The current round is the one last picked in the app; round_overview lists the others, and creating or finding applications in another round takes its name.',
+    'You do the reading and judging; Knock Knock only stores. To read a job posting, call read_posting with its link (it gets the full text even from pages built with JavaScript) rather than fetching the page yourself. Pull out every field you can (title, company, comp, location, work mode, seniority, reports-to, team, must-haves, company basics) and list the ones you inferred rather than read in `inferred`.',
     'Applications can be named loosely ("Fathom", "fathom principal") or by id. Use find_applications to look one up from an email: by company, domain, URL or a person’s email.',
     'Status only changes through set_status, which writes a status event. Point caused_by at the email event that caused it.',
     'Before logging an email, meeting or note, call get_timeline with around set to its date (days 3, the same type) and read what is there. Same type, same people, within the window: it is probably the same thing, so update it instead of adding another. Pass external_ref (the Gmail message id or calendar event id) whenever you have one; the app refuses an exact repeat. If unsure, add a note saying what you saw instead of guessing.',
     'Log emails as summaries of what happened, not the whole email. For negotiation, put the numbers in key_points.',
     'Times without an offset are the owner’s local time.',
-    'Stories: a story is just its framework’s parts (no hook, tags or probable questions). list_stories searches the bank by the question being asked, matching titles, frameworks and the parts’ text. link_story copies a bank story to an application; edits to the copy stay with that job.',
-    'Archived stories are left out of list_stories, search_overview and get_started. To find one, use list_archived_stories; if the owner asks to bring one back, call update_story with archived: false.',
+    'Stories: a story is just its framework’s parts (no hook, tags or probable questions). list_stories rounds the bank by the question being asked, matching titles, frameworks and the parts’ text. link_story copies a bank story to an application; edits to the copy stay with that job.',
+    'Archived stories are left out of list_stories, round_overview and get_started. To find one, use list_archived_stories; if the owner asks to bring one back, call update_story with archived: false.',
     'To attach a file the person has (resume, transcript), call upload_link and give them the link; a file seen in the chat cannot be passed to a tool. For a transcript you already have as text, use add_text_file. Adding a file puts a "File added" note on the timeline (with file_id); change its time with update_event if the file belongs to an earlier moment.',
     'People have a role (recruiter, hiring_manager, interviewer, referrer or other); for other, put their actual role in other_role.',
     'Companies show their logo, or without one a monogram (their initial) on an ultramarine tile. set_company_logo attaches a logo from an image on the web (find the company’s own logo and pass the image’s address) and sets the monogram’s color: if you know the brand color you may pick the closest of the ten, otherwise leave the default.',
@@ -386,19 +386,19 @@ function buildServer(call: Call) {
     {
       title: 'What can I do here?',
       description:
-        'Call when someone asks what you can do with Knock Knock or how to start. Returns the search’s current state and example requests that fit it, plus the ready-made prompts.',
+        'Call when someone asks what you can do with Knock Knock or how to start. Returns the round’s current state and example requests that fit it, plus the ready-made prompts.',
       inputSchema: z.object({}),
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     safe(async () => {
       const c = await load();
       const s = c.state;
-      const cur = s.searches.find((x) => x.id === s.settings.current_search_id);
-      const apps = s.applications.filter((a) => !cur || a.search_id === cur.id);
+      const cur = s.rounds.find((x) => x.id === s.settings.current_round_id);
+      const apps = s.applications.filter((a) => !cur || a.round_id === cur.id);
       const count = (st: string) => apps.filter((a) => a.status === st).length;
       const state = apps.length
         ? [
-            `Current search: ${cur?.name ?? 'none'}. ${apps.length} applications: ${OPEN_STATUSES.map((st) => `${count(st)} ${statusLabel(st).toLowerCase()}`).join(', ')}; ${count('rejected')} rejected, ${count('ghosted')} ghosted.`,
+            `Current round: ${cur?.name ?? 'none'}. ${apps.length} applications: ${OPEN_STATUSES.map((st) => `${count(st)} ${statusLabel(st).toLowerCase()}`).join(', ')}; ${count('rejected')} rejected, ${count('ghosted')} ghosted.`,
             `Story bank: ${s.stories.filter((x) => !x.archived).length} stories.`,
           ].join('\n')
         : 'Nothing tracked yet. A good first step is pasting a few job links to add as Saved applications.';
@@ -409,29 +409,29 @@ function buildServer(call: Call) {
   );
 
   server.registerTool(
-    'search_overview',
+    'round_overview',
     {
       title: 'Search overview',
       description:
-        'Start here. The current search, applications by status, interviews coming up, applications due a follow-up or that look ghosted, meetings still waiting for a debrief, and today’s date and time zone.',
+        'Start here. The current round, applications by status, interviews coming up, applications due a follow-up or that look ghosted, meetings still waiting for a debrief, and today’s date and time zone.',
       inputSchema: z.object({}),
       annotations: { readOnlyHint: true },
     },
     safe(async () => {
       const c = await load();
       const s = c.state;
-      const cur = s.searches.find((x) => x.id === s.settings.current_search_id) ?? null;
-      const apps = s.applications.filter((a) => !cur || a.search_id === cur.id);
+      const cur = s.rounds.find((x) => x.id === s.settings.current_round_id) ?? null;
+      const apps = s.applications.filter((a) => !cur || a.round_id === cur.id);
       const byId = new Map(s.applications.map((a) => [a.id, a]));
       const upcoming = s.events
-        .filter((e) => isUpcoming(e, c.now) && byId.get(e.application_id)?.search_id === cur?.id)
+        .filter((e) => isUpcoming(e, c.now) && byId.get(e.application_id)?.round_id === cur?.id)
         .sort((a, b) => a.occurred_at.localeCompare(b.occurred_at))
         .slice(0, 15);
       return {
         today: c.today,
         time_zone: c.tz,
-        search: cur,
-        other_searches: s.searches
+        round: cur,
+        other_rounds: s.rounds
           .filter((x) => x.id !== cur?.id)
           .map((x) => ({ id: x.id, name: x.name, status: x.status })),
         by_status: Object.fromEntries(
@@ -473,18 +473,18 @@ function buildServer(call: Call) {
           .array(z.enum([...STATUS_KEYS, 'open'] as [string, ...string[]]))
           .optional()
           .describe('Only these statuses; "open" means any of Saved through Offer.'),
-        all_searches: z
+        all_rounds: z
           .boolean()
           .optional()
           .describe(
-            'Also look in past searches (default false: only the current search). Turn it on when nothing in the current search fits.',
+            'Also look in past rounds (default false: only the current round). Turn it on when nothing in the current round fits.',
           ),
       }),
       annotations: { readOnlyHint: true },
     },
-    safe(async ({ query, url, status, all_searches }) => {
+    safe(async ({ query, url, status, all_rounds }) => {
       const c = await load();
-      const cur = c.state.settings.current_search_id;
+      const cur = c.state.settings.current_round_id;
       const p = new URLSearchParams();
       if (query) p.set('q', query);
       if (url) p.set('url', url);
@@ -494,14 +494,14 @@ function buildServer(call: Call) {
         `/applications?${p}`,
       );
       const inScope =
-        all_searches || !cur ? applications : applications.filter((a) => a.search_id === cur);
+        all_rounds || !cur ? applications : applications.filter((a) => a.round_id === cur);
       const elsewhere = applications.length - inScope.length;
       return {
         count: inScope.length,
         ...(elsewhere
           ? {
-              in_past_searches: elsewhere,
-              note: `${elsewhere} more in past searches; pass all_searches: true to see them.`,
+              in_past_rounds: elsewhere,
+              note: `${elsewhere} more in past rounds; pass all_rounds: true to see them.`,
             }
           : {}),
         applications: inScope.slice(0, 50).map((a) => ({
@@ -547,14 +547,14 @@ function buildServer(call: Call) {
           ? { notes: view.children.get(e.id)!.map((n) => eventOut(n, c)) }
           : {}),
       });
-      const search = c.state.searches.find((s) => s.id === a.search_id);
+      const round = c.state.rounds.find((s) => s.id === a.round_id);
       const js = c.state.job_stories.filter((j) => j.application_id === a.id);
       const files = c.state.files.filter((f) => f.application_id === a.id);
       const { description, ...fields } = a;
       return {
         ...fields,
         ...(include_description === false ? {} : { description }),
-        search: search?.name,
+        round: round?.name,
         comp: comp(a),
         ...(() => {
           const co = c.state.companies.find((x) => x.id === a.company_id);
@@ -678,11 +678,22 @@ function buildServer(call: Call) {
   };
 
   server.registerTool(
+    'read_posting',
+    {
+      title: 'Read a job posting',
+      description:
+        "Reads a job posting from its link, the whole of it, including pages that only fill in with JavaScript (Workday, iCIMS and the like). Call it before create_application whenever you have a posting link, instead of fetching the page yourself. It returns the posting text and any fields the job board or page states outright (title, company, location, work mode, employment type, pay, date posted, department): use those as read, and pull the rest (seniority, reports-to, team, must-haves, nice-to-haves) from the text. If it can't read the page (a sign-in wall), ask the owner to paste the posting.",
+      inputSchema: z.object({ url: z.string().describe('The posting’s link.') }),
+    },
+    safe(async ({ url }) => call('POST', '/postings/read', { url })),
+  );
+
+  server.registerTool(
     'create_application',
     {
       title: 'Add an application',
       description:
-        'Adds a job to the current search, as Saved unless you say it was already sent. Pull every field you can from the posting. If an application with the same posting URL exists, it is returned instead of a duplicate (pass force to add anyway).',
+        'Adds a job to the current round, as Saved unless you say it was already sent. Pull every field you can from the posting. If an application with the same posting URL exists, it is returned instead of a duplicate (pass force to add anyway).',
       inputSchema: z.object({
         ...appFields,
         status: z
@@ -690,14 +701,11 @@ function buildServer(call: Call) {
           .optional()
           .describe('Default saved. Use applied (with occurred_at) when logging one already sent.'),
         occurred_at: z.string().optional().describe('When it was saved or sent, for backfills.'),
-        search: z
-          .string()
-          .optional()
-          .describe('A search name or id (default: the current search).'),
+        round: z.string().optional().describe('A round name or id (default: the current round).'),
         force: z.boolean().optional(),
       }),
     },
-    safe(async ({ search, force, occurred_at, ...input }) => {
+    safe(async ({ round, force, occurred_at, ...input }) => {
       const c = await load();
       if (input.url && !force) {
         const { applications } = await call<{ applications: Application[] }>(
@@ -711,12 +719,12 @@ function buildServer(call: Call) {
             note: 'Already tracked; nothing added. Use update_application to fill in fields.',
           };
       }
-      const search_id = search
+      const round_id = round
         ? pick(
-            c.state.searches,
-            search,
+            c.state.rounds,
+            round,
             (s) => [s.name],
-            'search',
+            'round',
             (s) => `${s.name} [id ${s.id}]`,
           ).id
         : undefined;
@@ -724,7 +732,7 @@ function buildServer(call: Call) {
         ...input,
         salary_currency:
           input.salary_currency ?? (input.salary_min || input.salary_max ? 'USD' : undefined),
-        search_id,
+        round_id,
         occurred_at: when(c, occurred_at),
       });
       return { created: appLine(a, c) };
@@ -803,7 +811,7 @@ function buildServer(call: Call) {
     {
       title: 'Change status',
       description:
-        'Moves an application along (or closes it) by writing a status event at occurred_at (default now). Point caused_by at the event (usually the email you just logged) that caused it. Rejected/Declined/Ghosted remember the stage they closed from. Accepting an offer lists the other open applications: ask before declining them. It does not close the search: ask the owner whether to mark the search Accepted, and if they say yes, call set_status again with close_search: true.',
+        'Moves an application along (or closes it) by writing a status event at occurred_at (default now). Point caused_by at the event (usually the email you just logged) that caused it. Rejected/Declined/Ghosted remember the stage they closed from. Accepting an offer lists the other open applications: ask before declining them. It does not close the round: ask the owner whether to mark the round Accepted, and if they say yes, call set_status again with close_round: true.',
       inputSchema: z.object({
         application: z.string(),
         status: z.enum(STATUS_KEYS),
@@ -811,10 +819,10 @@ function buildServer(call: Call) {
         reason: z.string().optional(),
         caused_by: z.string().optional().describe('Event id that caused it.'),
         external_ref: z.string().optional(),
-        close_search: z
+        close_round: z
           .boolean()
           .optional()
-          .describe('With accepted: also mark the search Accepted. Only after the owner says yes.'),
+          .describe('With accepted: also mark the round Accepted. Only after the owner says yes.'),
       }),
     },
     safe(
@@ -825,7 +833,7 @@ function buildServer(call: Call) {
         reason,
         caused_by,
         external_ref,
-        close_search,
+        close_round,
       }) => {
         const c = await load();
         const a = findApp(c, application);
@@ -835,7 +843,7 @@ function buildServer(call: Call) {
           reason,
           caused_by,
           external_ref,
-          close_search,
+          close_round,
         });
         const res: Record<string, unknown> = writtenOut(w, c);
         if (!w.event) res.note = `Already ${statusLabel(status)}; nothing written.`;
@@ -845,9 +853,9 @@ function buildServer(call: Call) {
             `/applications/${a.id}/others-open`,
           );
           res.others_open = applications.map((x) => appLine(x, c));
-          res.note = close_search
+          res.note = close_round
             ? 'Search marked Accepted. Ask before declining the others_open applications (set_status declined).'
-            : 'Ask the owner whether to mark this search Accepted (set_status again with close_search: true), and ask before declining the others_open applications (set_status declined).';
+            : 'Ask the owner whether to mark this round Accepted (set_status again with close_round: true), and ask before declining the others_open applications (set_status declined).';
         }
         return res;
       },
@@ -1411,7 +1419,7 @@ function buildServer(call: Call) {
     ({ links }) =>
       ask(`Add these jobs to Knock Knock:\n${links}\n\nFor each link:
 1. find_applications with the url. If it's already tracked, say so and skip it.
-2. Open the posting (if the site blocks you, ask me to paste the text). Pull out title, company, comp (min, max, currency, period, or salary_text), location and work mode, seniority, reports-to, team, employment type, posted date, must-haves and nice-to-haves, and the full description text.
+2. read_posting with its link (it reads the full posting, even pages built with JavaScript; if it can't, ask me to paste the text). Use the fields it states as read, and pull out title, company, comp (min, max, currency, period, or salary_text), location and work mode, seniority, reports-to, team, employment type, posted date, must-haves and nice-to-haves, and the full description text.
 3. Fill in company basics you can find quickly and reliably: domain, website, HQ, size band, industry, funding stage. Don't guess; leave out what you can't find. If the company has no logo in Knock Knock yet and you can find its logo image quickly (its own site is best), attach it with set_company_logo; if you know its brand color, set the closest color too.
 4. create_application with status saved and source set to where the link came from. List anything you inferred (not read) in inferred.
 Finish with a one-line summary per job: company, title, comp, work mode.`),
@@ -1430,7 +1438,7 @@ Finish with a one-line summary per job: company, title, comp, work mode.`),
     ({ since }) =>
       ask(`Check my email and calendar from the last ${since || '24 hours'} for anything about my job applications, and log it in Knock Knock.
 
-1. search_overview for the open applications, their companies and people.
+1. round_overview for the open applications, their companies and people.
 2. Search my email for those companies, their domains and people, and for applications in general (confirmations, scheduling, rejections, offers). Hiring-site senders (greenhouse, lever, ashby, workday) don't show the company in the address: read the subject and body.
 3. For each relevant email or invite, find_applications to pick the application. If it doesn't clearly match one, list it for me at the end instead of guessing.
 4. Before writing, get_timeline around its date (days 3, same type). If it's already there, update it (add the join link, attendees, external_ref) rather than adding another.
@@ -1487,7 +1495,7 @@ Ask before linking new stories (link_story) or saving angles (update_job_story).
     () =>
       ask(`Give me a review of my job search this week from Knock Knock.
 
-1. search_overview. Count what was added, sent, and moved forward or closed in the last 7 days (get_application on the ones that moved).
+1. round_overview. Count what was added, sent, and moved forward or closed in the last 7 days (get_application on the ones that moved).
 2. List what's gone quiet (follow_up and maybe_ghosted) with a one-line suggested nudge for each.
 3. Note anything waiting for a debrief and any interviews next week.
 4. End with one concrete thing to change next week, with the reason. Don't change any data.`),

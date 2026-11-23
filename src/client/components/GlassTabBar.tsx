@@ -41,10 +41,10 @@ export function GlassTabBar({ tabs, active }: { tabs: GlassTab[]; active: string
   const placed = useRef(false);
   /** The tab under the lens mid-drag, coloured as the current one. */
   const [over, setOver] = useState<number | null>(null);
-  const activeIndex = Math.max(
-    0,
-    tabs.findIndex(([to]) => to === active),
-  );
+  // A page with no tab of its own (Settings, reached from the top bar's gear): no tab is lit and
+  // the lens hides, rather than falling back to Home.
+  const found = tabs.findIndex(([to]) => to === active);
+  const activeIndex = Math.max(0, found);
 
   const links = useCallback(
     () => Array.from(bar.current?.querySelectorAll<HTMLElement>(':scope > a') ?? []),
@@ -194,7 +194,7 @@ export function GlassTabBar({ tabs, active }: { tabs: GlassTab[]; active: string
 
   useEffect(() => () => cancelAnimationFrame(drag.current?.frame ?? 0), []);
 
-  const lit = over ?? activeIndex;
+  const lit = over ?? (found < 0 ? -1 : activeIndex);
   return (
     <nav className="glass-bar" aria-label="Main" data-no-tab-swipe>
       <div
@@ -207,7 +207,12 @@ export function GlassTabBar({ tabs, active }: { tabs: GlassTab[]; active: string
         onPointerCancel={(e) => finish(e, true)}
         onClickCapture={onClickCapture}
       >
-        <span ref={lens} aria-hidden="true" className="glass-lens" />
+        <span
+          ref={lens}
+          aria-hidden="true"
+          className="glass-lens"
+          style={found < 0 && over == null ? { opacity: 0 } : undefined}
+        />
         {tabs.map(([to, label, icon], i) => (
           <NavLink
             key={to}

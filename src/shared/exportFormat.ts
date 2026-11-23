@@ -3,11 +3,12 @@
 // them attached.
 
 export const EXPORT_FORMAT = 'knockknock';
-export const EXPORT_VERSION = 1;
+/** 2: "searches" became "rounds" (the table, round_id, current_round_id). */
+export const EXPORT_VERSION = 2;
 
 export const TABLE_COLUMNS = {
   settings: ['key', 'value'],
-  searches: ['id', 'name', 'status', 'started_on', 'ended_on', 'notes', 'created_at', 'updated_at'],
+  rounds: ['id', 'name', 'status', 'started_on', 'ended_on', 'notes', 'created_at', 'updated_at'],
   companies: [
     'id',
     'name',
@@ -25,7 +26,7 @@ export const TABLE_COLUMNS = {
   ],
   applications: [
     'id',
-    'search_id',
+    'round_id',
     'status',
     'closed_from',
     'title',
@@ -186,4 +187,22 @@ export function rowValues(table: TableName, row: ExportRow): { cols: string[]; v
     }
   }
   return { cols, vals };
+}
+
+/**
+ * An older backup in today's shape: version 1 called rounds "searches" (its table, the
+ * applications' search_id and the current_search_id setting). Newer ones pass through as they are.
+ */
+export function upgradeExport(data: KnockKnockExport): KnockKnockExport {
+  if (data.version >= 2) return data;
+  const t = { ...data.tables } as Record<string, ExportRow[] | undefined>;
+  if (t.searches && !t.rounds) t.rounds = t.searches;
+  delete t.searches;
+  t.applications = t.applications?.map(({ search_id, ...r }) =>
+    'round_id' in r ? r : { ...r, round_id: search_id },
+  );
+  t.settings = t.settings?.map((r) =>
+    r.key === 'current_search_id' ? { ...r, key: 'current_round_id' } : r,
+  );
+  return { ...data, version: EXPORT_VERSION, tables: t as KnockKnockExport['tables'] };
 }

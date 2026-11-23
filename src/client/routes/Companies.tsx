@@ -14,20 +14,30 @@ import { CompanyLogoEdit, LogoMark } from '../components/CompanyFields';
 import { StatusChip } from '../components/StatusChip';
 import { ConfirmButton, PageHeader } from '../components/ui';
 import { companyFacts } from '../lib/company';
-import { DirectoryTabs } from './Directory';
+import { SearchBox, TrackerTabs } from './Directory';
+import { useState } from 'react';
 
 const jobsAt = (data: Data, id: string) =>
   data.state.applications.filter((a) => a.company_id === id);
 
-/** Every company, with how many jobs you have at each (across all searches). */
+/** Every company, with how many jobs you have at each (across all rounds). */
 export function Companies() {
   const data = useData();
+  const [q, setQ] = useState('');
   if (!data) return null;
-  const list = [...data.state.companies].sort((a, b) => a.name.localeCompare(b.name));
+  const ql = q.trim().toLowerCase();
+  const list = [...data.state.companies]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .filter(
+      (c) =>
+        !ql ||
+        [c.name, c.website, c.hq, c.industry].filter(Boolean).join(' ').toLowerCase().includes(ql),
+    );
   return (
     <>
       <PageHeader title="Companies" icon="building" />
-      <DirectoryTabs />
+      <TrackerTabs />
+      <SearchBox q={q} setQ={setQ} placeholder="Search companies" />
       <div className="card list">
         {list.map((c) => {
           const n = jobsAt(data, c.id).length;
@@ -48,7 +58,9 @@ export function Companies() {
           );
         })}
         {!list.length && (
-          <p className="empty">No companies yet. Add a job and its company appears here.</p>
+          <p className="empty">
+            {ql ? 'Nothing matches.' : 'No companies yet. Add a job and its company appears here.'}
+          </p>
         )}
       </div>
     </>
@@ -131,9 +143,9 @@ export function CompanyPage() {
                   <span className="prow-pills">
                     <StatusChip status={a.status} small />
                     {compLabel(a) && <span className="pill">{compLabel(a)}</span>}
-                    {data.state.searches.length > 1 && (
+                    {data.state.rounds.length > 1 && (
                       <span className="pill">
-                        {data.state.searches.find((s) => s.id === a.search_id)?.name}
+                        {data.state.rounds.find((s) => s.id === a.round_id)?.name}
                       </span>
                     )}
                   </span>

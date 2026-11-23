@@ -66,7 +66,7 @@ export const loginInput = z.object({ password: z.string().min(1).max(500) });
 export const settingsPatch = z
   .object({
     time_zone: z.string().min(1).max(100),
-    current_search_id: z.string().max(100).nullable(),
+    current_round_id: z.string().max(100).nullable(),
     follow_up_days: z.number().int().min(1).max(90),
     ghost_days: z.number().int().min(7).max(365),
     telemetry: z.boolean(),
@@ -74,16 +74,16 @@ export const settingsPatch = z
   })
   .partial();
 
-// ---------- searches ----------
+// ---------- rounds ----------
 
-export const searchInput = z.object({
+export const roundInput = z.object({
   name: name(120),
   status: z.enum(SEARCH_STATUSES).default('active'),
   started_on: day,
   ended_on: day,
   notes: text(4000),
 });
-export const searchPatch = searchInput.partial();
+export const roundPatch = roundInput.partial();
 
 // ---------- applications ----------
 
@@ -136,14 +136,14 @@ export const applicationInput = z.object({
   nice_to_haves: applicationFields.nice_to_haves.default([]),
   inferred: applicationFields.inferred.default([]),
   /** Defaults to the current search. */
-  search_id: z.string().max(100).optional(),
+  round_id: z.string().max(100).optional(),
   /** Where it starts. Saved unless you're logging one you already sent. */
   status: z.enum(STATUS_KEYS).default('saved'),
   /** When the created event happened (defaults to now; backfills can set it). */
   occurred_at: instant.optional(),
 });
 export const applicationPatch = z
-  .object({ ...applicationFields, search_id: z.string().max(100) })
+  .object({ ...applicationFields, round_id: z.string().max(100) })
   .partial();
 
 export const statusInput = z.object({
@@ -153,7 +153,7 @@ export const statusInput = z.object({
   caused_by: z.string().max(100).nullish(),
   external_ref: externalRef,
   /** With Accepted: also mark the search Accepted. Only when the owner said yes. */
-  close_search: z.boolean().optional(),
+  close_round: z.boolean().optional(),
 });
 
 // ---------- timeline ----------

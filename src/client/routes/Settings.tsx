@@ -38,7 +38,7 @@ import { NOTIFY_KINDS } from '@shared/logic/notify';
 const BADGE_MEANS = undefined;
 
 /** What the usage counts count, in words (matches USAGE_TABLES in the worker). */
-const USAGE_COUNTED = 'searches, applications, timeline events, stories and files';
+const USAGE_COUNTED = 'rounds, applications, timeline events, stories and files';
 
 function Section({
   title,
@@ -81,28 +81,28 @@ export function Settings() {
         }
       />
       <Section
-        title="Searches"
+        title="Rounds"
         trailing={
-          <button type="button" className="more" onClick={() => sheets.search()}>
-            + New search
+          <button type="button" className="more" onClick={() => sheets.round()}>
+            + New round
           </button>
         }
       >
         <div className="list">
-          {data.state.searches.map((x) => (
-            <button key={x.id} type="button" className="recent" onClick={() => sheets.search(x.id)}>
+          {data.state.rounds.map((x) => (
+            <button key={x.id} type="button" className="recent" onClick={() => sheets.round(x.id)}>
               <strong>
                 {x.name}
-                {x.id === data.search?.id ? ' · current' : ''}
+                {x.id === data.round?.id ? ' · current' : ''}
               </strong>
               <span className="sub">
                 {x.status === 'active' ? 'Active' : x.status === 'accepted' ? 'Accepted' : 'Ended'}{' '}
-                · {data.state.applications.filter((a) => a.search_id === x.id).length} applications
+                · {data.state.applications.filter((a) => a.round_id === x.id).length} applications
               </span>
             </button>
           ))}
-          {!data.state.searches.length && (
-            <p className="sub">Your first search starts when you add your first job.</p>
+          {!data.state.rounds.length && (
+            <p className="sub">Your first round starts when you add your first job.</p>
           )}
         </div>
       </Section>

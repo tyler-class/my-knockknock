@@ -1,36 +1,47 @@
 // Everyone and every file in one place: People (at your companies, on your jobs) and Files (sent
-// with or kept for your jobs), beside Companies. On phones the three share the Companies tab, as
-// tabs at the top of each.
-import { useState } from 'react';
+// with or kept for your jobs). With Jobs and Companies they make up Tracker, one row of tabs
+// across the top of each.
+import { useLayoutEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router';
 import { fileKindLabel, personRoleLabel } from '@shared/lookups';
 import { fileUrl } from '../lib/api';
 import { bytes, dayLabel } from '../lib/format';
 import { useData } from '../lib/queries';
 import { useSheets } from '../sheets/context';
-import { Icon, type IconName } from '../components/Icon';
+import { Icon } from '../components/Icon';
+import { TRACKER, TRACKER_ITEMS, trackerPage } from '../lib/tracker';
 import { PageHeader, SearchClear } from '../components/ui';
 
-const DIR: [string, string, IconName][] = [
-  ['/companies', 'Companies', 'building'],
-  ['/people', 'People', 'user'],
-  ['/files', 'Files', 'paperclip'],
-];
-
-/** Companies · People · Files, as tabs with their counts. */
-export function DirectoryTabs() {
+/** Tracker's pages (Jobs · Companies · People · Files) as tabs with their counts. */
+export function TrackerTabs() {
   const data = useData();
   const { pathname } = useLocation();
+  // On a narrow screen the row scrolls sideways: bring the chosen tab into view (each page has
+  // its own row, so it would otherwise start scrolled to the left).
+  const row = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = row.current;
+    const on = el?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (!el || !on) return;
+    el.scrollLeft = on.offsetLeft - (el.clientWidth - on.offsetWidth) / 2;
+  }, [pathname]);
   if (!data) return null;
   const n: Record<string, number> = {
+    '/jobs': data.apps.length,
     '/companies': data.state.companies.length,
     '/people': data.state.people.length,
     '/files': data.state.files.length,
   };
   return (
-    <div className="tabs dir-tabs" role="tablist" aria-label="Directory">
-      {DIR.map(([to, label, icon]) => (
-        <Link key={to} to={to} role="tab" aria-selected={pathname === to} className="tab">
+    <div ref={row} className="tabs dir-tabs" role="tablist" aria-label={TRACKER}>
+      {TRACKER_ITEMS.map(([to, label, icon]) => (
+        <Link
+          key={to}
+          to={to}
+          role="tab"
+          aria-selected={trackerPage(pathname) === to}
+          className="tab"
+        >
           <Icon name={icon} size={16} />
           {label}
           <span className="count">{n[to]}</span>
@@ -40,7 +51,7 @@ export function DirectoryTabs() {
   );
 }
 
-function Search({
+export function SearchBox({
   q,
   setQ,
   placeholder,
@@ -95,8 +106,8 @@ export function People() {
   return (
     <>
       <PageHeader title="People" icon="user" />
-      <DirectoryTabs />
-      <Search q={q} setQ={setQ} placeholder="Search people" />
+      <TrackerTabs />
+      <SearchBox q={q} setQ={setQ} placeholder="Search people" />
       <div className="card list">
         {list.map((p) => {
           const c = co(p.company_id);
@@ -158,8 +169,8 @@ export function Files() {
   return (
     <>
       <PageHeader title="Files" icon="paperclip" />
-      <DirectoryTabs />
-      <Search q={q} setQ={setQ} placeholder="Search files" />
+      <TrackerTabs />
+      <SearchBox q={q} setQ={setQ} placeholder="Search files" />
       <div className="card list">
         {list.map((f) => {
           const a = f.application_id ? data.appById.get(f.application_id) : undefined;

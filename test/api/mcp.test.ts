@@ -155,7 +155,7 @@ describe('MCP', () => {
     const names = list.data.result!.tools!.map((t) => t.name);
     expect(names).toEqual(
       expect.arrayContaining([
-        'search_overview',
+        'round_overview',
         'find_applications',
         'get_application',
         'get_timeline',
@@ -361,7 +361,7 @@ describe('MCP', () => {
     const overview = await tool<{
       by_status: Record<string, number>;
       upcoming_meetings: unknown[];
-    }>(token, 'search_overview');
+    }>(token, 'round_overview');
     expect(overview.data.by_status.applied).toBeGreaterThanOrEqual(1);
     expect(overview.data.upcoming_meetings.length).toBeGreaterThanOrEqual(1);
 
@@ -381,26 +381,26 @@ describe('MCP', () => {
     expect(info).toEqual({ name: 'knockknock', version: pkg.version });
   });
 
-  it('find_applications looks in the current search unless all_searches is on', async () => {
+  it('find_applications looks in the current search unless all_rounds is on', async () => {
     const api = await session();
-    await api.post('/searches', { name: 'Past search' });
+    await api.post('/rounds', { name: 'Past search' });
     const old = await api.post<{ id: string }>('/applications', {
       title: 'Ops lead',
       company: 'Zephyrine Freight',
     });
     expect(old.status).toBe(201);
-    await api.post('/searches', { name: 'Now search' });
+    await api.post('/rounds', { name: 'Now search' });
     const { token } = (await connect()) as { token: string };
-    const here = await tool<{ count: number; in_past_searches?: number }>(
+    const here = await tool<{ count: number; in_past_rounds?: number }>(
       token,
       'find_applications',
       { query: 'zephyrine' },
     );
-    expect(here.data).toMatchObject({ count: 0, in_past_searches: 1 });
+    expect(here.data).toMatchObject({ count: 0, in_past_rounds: 1 });
     const everywhere = await tool<{ count: number; applications: { id: string }[] }>(
       token,
       'find_applications',
-      { query: 'zephyrine', all_searches: true },
+      { query: 'zephyrine', all_rounds: true },
     );
     expect(everywhere.data.count).toBe(1);
     expect(everywhere.data.applications.map((a) => a.id)).toEqual([old.data.id]);

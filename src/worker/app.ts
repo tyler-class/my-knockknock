@@ -19,6 +19,7 @@ import { admin } from './routes/admin';
 import { connections } from './routes/connections';
 import { applications } from './routes/applications';
 import { companies } from './routes/companies';
+import { postings } from './routes/postings';
 import { files } from './routes/files';
 import { stories } from './routes/stories';
 import { push } from './notifications';
@@ -65,6 +66,7 @@ app.post('/logout', (c) => {
 
 app.route('/', admin);
 app.route('/', companies);
+app.route('/', postings);
 app.route('/', applications);
 app.route('/', stories);
 app.route('/', files);

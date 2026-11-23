@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { Status } from '@shared/lookups';
 import { keys, useData } from '../lib/queries';
 import { AboutSheet } from './AboutSheet';
-import { ApplicationSheet, PersonSheet, SearchSheet, StatusSheet } from './AppSheets';
+import { ApplicationSheet, PersonSheet, RoundSheet, StatusSheet } from './AppSheets';
 import { EventSheet } from './EventSheet';
 import { EventView } from './EventView';
 import {
@@ -27,7 +27,7 @@ type Open =
       n: number;
     }
   | { type: 'person'; appId: string | null; id?: string; companyId?: string; n: number }
-  | { type: 'search'; id?: string; n: number }
+  | { type: 'round'; id?: string; n: number }
   | { type: 'story'; id?: string; framework?: string; n: number }
   | { type: 'pick'; appId?: string; n: number }
   | { type: 'jobStory'; id?: string; appId?: string; framework?: string; n: number }
@@ -64,7 +64,7 @@ export function SheetProvider({ children }: { children: ReactNode }) {
           n: ++n,
         }),
       person: (appId, id, companyId) => setOpen({ type: 'person', appId, id, companyId, n: ++n }),
-      search: (id) => setOpen({ type: 'search', id, n: ++n }),
+      round: (id) => setOpen({ type: 'round', id, n: ++n }),
       story: (o) => setOpen({ type: 'story', ...o, n: ++n }),
       newStory: (appId) => setOpen({ type: 'pick', appId, n: ++n }),
       jobStory: (o) => setOpen({ type: 'jobStory', ...o, n: ++n }),
@@ -112,7 +112,7 @@ export function SheetProvider({ children }: { children: ReactNode }) {
         />
       ) : null;
     }
-    if (open.type === 'search') sheet = <SearchSheet key={k} data={data} id={open.id} />;
+    if (open.type === 'round') sheet = <RoundSheet key={k} data={data} id={open.id} />;
     if (open.type === 'story')
       sheet = <StorySheet key={k} data={data} id={open.id} framework={open.framework} />;
     if (open.type === 'pick')

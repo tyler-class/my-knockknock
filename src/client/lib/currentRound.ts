@@ -16,7 +16,7 @@ function read(): string | null {
 
 let current = read();
 
-export function setDeviceSearch(id: string | null) {
+export function setDeviceRound(id: string | null) {
   current = id;
   try {
     if (id) localStorage.setItem(KEY, id);
@@ -34,7 +34,7 @@ function subscribe(fn: () => void) {
   };
 }
 
-export const useDeviceSearch = () =>
+export const useDeviceRound = () =>
   useSyncExternalStore(
     subscribe,
     () => current,

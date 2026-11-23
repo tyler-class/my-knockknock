@@ -1,4 +1,4 @@
-// Searches, applications, their timelines and the people on them.
+// Rounds, applications, their timelines and the people on them.
 //
 // Status is never a plain field: changing it writes a status event, and the application's
 // status column is recomputed from the timeline (db.ts refreshApplication). Every timeline write
@@ -19,8 +19,8 @@ import {
   notePatch,
   personInput,
   personPatch,
-  searchInput,
-  searchPatch,
+  roundInput,
+  roundPatch,
   statusInput,
 } from '@shared/schemas';
 import { deriveStatus } from '@shared/logic/status';
@@ -30,7 +30,7 @@ import type { EmailData, MeetingData, StatusData, TimelineEvent } from '@shared/
 import { agentName, isInternal } from '../auth';
 import {
   all,
-  currentSearchId,
+  currentRoundId,
   encode,
   first,
   insertStmt,
@@ -43,7 +43,7 @@ import {
   refreshApplication,
   saveSetting,
   loadPeople,
-  toSearch,
+  toRound,
   updateStmt,
 } from '../db';
 import { ApiError, body, defined, notFound, type AppEnv, type Ctx } from './util';
@@ -59,38 +59,38 @@ const by = (c: Ctx) =>
     ? { source: 'agent', source_name: agentName(c.env) }
     : { source: 'manual', source_name: null };
 
-// ---------- searches ----------
+// ---------- rounds ----------
 
-applications.post('/searches', async (c) => {
-  const input = await body(c, searchInput);
+applications.post('/rounds', async (c) => {
+  const input = await body(c, roundInput);
   const id = newId();
   const now = nowIso();
-  await insertStmt(c.env.DB, 'searches', {
+  await insertStmt(c.env.DB, 'rounds', {
     id,
     ...input,
     started_on: input.started_on ?? now.slice(0, 10),
     created_at: now,
     updated_at: now,
   }).run();
-  await saveSetting(c.env.DB, 'current_search_id', id);
-  return c.json(toSearch((await first(c.env.DB, 'SELECT * FROM searches WHERE id = ?', id))!), 201);
+  await saveSetting(c.env.DB, 'current_round_id', id);
+  return c.json(toRound((await first(c.env.DB, 'SELECT * FROM rounds WHERE id = ?', id))!), 201);
 });
 
-applications.patch('/searches/:id', async (c) => {
+applications.patch('/rounds/:id', async (c) => {
   const id = c.req.param('id');
-  const input = defined(await body(c, searchPatch));
-  if (!(await exists(c.env.DB, 'searches', id))) throw notFound('Search');
+  const input = defined(await body(c, roundPatch));
+  if (!(await exists(c.env.DB, 'rounds', id))) throw notFound('Search');
   if (input.status && input.status !== 'active' && !('ended_on' in input))
     input.ended_on = nowIso().slice(0, 10);
-  if (Object.keys(input).length) await updateStmt(c.env.DB, 'searches', id, input).run();
-  return c.json(toSearch((await first(c.env.DB, 'SELECT * FROM searches WHERE id = ?', id))!));
+  if (Object.keys(input).length) await updateStmt(c.env.DB, 'rounds', id, input).run();
+  return c.json(toRound((await first(c.env.DB, 'SELECT * FROM rounds WHERE id = ?', id))!));
 });
 
-applications.delete('/searches/:id', async (c) => {
+applications.delete('/rounds/:id', async (c) => {
   const id = c.req.param('id');
-  if (!(await exists(c.env.DB, 'searches', id))) throw notFound('Search');
+  if (!(await exists(c.env.DB, 'rounds', id))) throw notFound('Search');
   // Its applications (and their timelines) go too; the app confirms first.
-  await c.env.DB.prepare('DELETE FROM searches WHERE id = ?').bind(id).run();
+  await c.env.DB.prepare('DELETE FROM rounds WHERE id = ?').bind(id).run();
   return c.json({ ok: true });
 });
 
@@ -152,10 +152,10 @@ applications.get('/applications/:id', async (c) => {
 });
 
 applications.post('/applications', async (c) => {
-  const { status, occurred_at, search_id, ...input } = await body(c, applicationInput);
+  const { status, occurred_at, round_id, ...input } = await body(c, applicationInput);
   const db = c.env.DB;
-  const sid = search_id ?? (await currentSearchId(db));
-  if (!(await exists(db, 'searches', sid)))
+  const sid = round_id ?? (await currentRoundId(db));
+  if (!(await exists(db, 'rounds', sid)))
     throw new ApiError(400, 'invalid', 'That search no longer exists.');
   const id = newId();
   const now = nowIso();
@@ -164,7 +164,7 @@ applications.post('/applications', async (c) => {
   await db.batch([
     insertStmt(db, 'applications', {
       id,
-      search_id: sid,
+      round_id: sid,
       status,
       ...encode({ ...input, url: input.url }),
       applied_on: input.applied_on ?? (status !== 'saved' ? at.slice(0, 10) : null),
@@ -194,7 +194,7 @@ applications.patch('/applications/:id', async (c) => {
   const id = c.req.param('id');
   const input = defined(await body(c, applicationPatch));
   if (!(await exists(c.env.DB, 'applications', id))) throw notFound('Application');
-  if (input.search_id && !(await exists(c.env.DB, 'searches', input.search_id)))
+  if (input.round_id && !(await exists(c.env.DB, 'rounds', input.round_id)))
     throw new ApiError(400, 'invalid', 'That search no longer exists.');
   if (Object.keys(input).length)
     await updateStmt(c.env.DB, 'applications', id, encode(input)).run();
@@ -335,15 +335,15 @@ applications.post('/applications/:id/status', async (c) => {
   const events = await loadEvents(db, id);
   const before = deriveStatus(events.filter((e) => e.occurred_at <= at)).status;
   const current = deriveStatus(events).status;
-  // Marking the search Accepted (when asked) works even if the job is already Accepted.
+  // Marking the round Accepted (when asked) works even if the job is already Accepted.
   const closeSearch = async () => {
-    if (input.status !== 'accepted' || !input.close_search) return;
+    if (input.status !== 'accepted' || !input.close_round) return;
     const app = await loadApplication(db, id);
     await db
       .prepare(
-        "UPDATE searches SET status = 'accepted', ended_on = COALESCE(ended_on, ?), updated_at = ? WHERE id = ?",
+        "UPDATE rounds SET status = 'accepted', ended_on = COALESCE(ended_on, ?), updated_at = ? WHERE id = ?",
       )
-      .bind(at.slice(0, 10), nowIso(), app!.search_id)
+      .bind(at.slice(0, 10), nowIso(), app!.round_id)
       .run();
   };
   if (current === input.status && !input.occurred_at) {
@@ -367,19 +367,19 @@ applications.post('/applications/:id/status', async (c) => {
       .bind(at.slice(0, 10), id)
       .run();
   }
-  // Accepting doesn't close the search by itself: the app (or an assistant) asks first, then
-  // passes close_search. Other open applications are listed so you can decline them; nothing is
+  // Accepting doesn't close the round by itself: the app (or an assistant) asks first, then
+  // passes close_round. Other open applications are listed so you can decline them; nothing is
   // declined without asking.
   await closeSearch();
   return written(c, event, id, 201);
 });
 
-/** Other open applications in the same search: what accepting an offer leaves to decline. */
+/** Other open applications in the same round: what accepting an offer leaves to decline. */
 applications.get('/applications/:id/others-open', async (c) => {
   const app = await loadApplication(c.env.DB, c.req.param('id'));
   if (!app) throw notFound('Application');
   const others = (await loadApplications(c.env.DB)).filter(
-    (a) => a.search_id === app.search_id && a.id !== app.id && isOpen(a.status),
+    (a) => a.round_id === app.round_id && a.id !== app.id && isOpen(a.status),
   );
   return c.json({ applications: others });
 });

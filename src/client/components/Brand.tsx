@@ -44,11 +44,6 @@ export function Mark({ size = 34 }: { size?: number }) {
   );
 }
 
-/** The footer line. */
-export function Joke() {
-  return <p className="joke">Helping your job hunt feel like less of a joke.</p>;
-}
-
 /**
  * A status change on the timeline: an arrow built like the asterisk, from thick square-ended
  * bars (a shaft and two angled bars for the head), never a block arrow.
@@ -71,11 +66,14 @@ export function StatusArrow({ size = 18 }: { size?: number }) {
   );
 }
 
-/** The asterisk as the loading spinner: it turns while the app loads. */
+/** The loading spinner: the app's mark (the tilted tile) with its asterisk turning. */
 export function Spinner({ size = 40, label = 'Loading' }: { size?: number; label?: string }) {
   return (
     <span className="spinner" role="status" aria-label={label}>
-      <Asterisk size={size} className="spinning" />
+      {/* The app's mark: the tilted ultramarine tile, its white asterisk turning. */}
+      <span className="mark spinner-mark" style={{ width: size, height: size }}>
+        <Asterisk size={Math.round(size * 0.56)} className="spinning" />
+      </span>
     </span>
   );
 }

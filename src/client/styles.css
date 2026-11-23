@@ -8204,3 +8204,69 @@ textarea.in.angle {
 .dir-tabs .tab {
   text-decoration: none;
 }
+
+/* Settings → Always-on agent prompts: a row per prompt, opening to its text and Copy. */
+.ao-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ao {
+  border: 1px solid var(--line2);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.ao-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ao-row .row-text {
+  flex: 1;
+  min-width: 0;
+}
+.ao-chev {
+  flex: none;
+  color: var(--ink2);
+  transition: transform 0.15s ease;
+}
+.ao-chev.open {
+  transform: rotate(180deg);
+}
+.ao-body {
+  padding: 0 14px 14px;
+}
+.ao-prompt {
+  max-height: 320px;
+  overflow: auto;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--bg);
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  color: var(--ink);
+}
+.ao-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+}
+/* Collapsed sections in Settings (Example prompts, Always-on agent prompts): each on its own
+   line, one under the other. */
+.fold {
+  display: flex;
+  width: fit-content;
+}

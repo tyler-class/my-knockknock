@@ -4,7 +4,17 @@
 // job's copies come first, then the whole bank. The notepad saves itself into one note on
 // the job's timeline (on the meeting, if there is one) and stays on screen; ending the call
 // asks how it went and saves that as its own note.
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { meetingKindLabel } from '@shared/lookups';
 import { frameworkOf, searchStories } from '@shared/logic/stories';
@@ -467,32 +477,27 @@ export function CallMode() {
             {meeting ? ` · ${whenLabel(meeting.occurred_at)}` : ''}
           </span>
         </div>
-        {/* Who's in the room and the topics, behind an "i" beside the title (hover or focus). */}
+        {/* Who's in the room and the topics, behind an "i" beside the title (hover, focus or tap). */}
         {((meeting && attendees.length > 0) || md?.agenda) && (
-          <span className="cmv-infotip">
-            <button type="button" className="cmv-i" aria-label="Who's in the room and the topics">
-              <Icon name="info" size={18} />
-            </button>
-            <span className="cmv-infopop" role="tooltip">
-              {meeting && attendees.length > 0 && (
-                <span className="cmv-infosec">
-                  <strong className="cmv-h">In the Room</strong>
-                  {md!.attendees.map((p) => (
-                    <span key={p.name} className="cmv-person">
-                      <strong>{p.name}</strong>
-                      {p.title && <span> · {p.title}</span>}
-                    </span>
-                  ))}
-                </span>
-              )}
-              {md?.agenda && (
-                <span className="cmv-infosec">
-                  <strong className="cmv-h">Topics</strong>
-                  <span className="cmv-pre">{md.agenda}</span>
-                </span>
-              )}
-            </span>
-          </span>
+          <InfoTip label="Who's in the room and the topics">
+            {meeting && attendees.length > 0 && (
+              <span className="cmv-infosec">
+                <strong className="cmv-h">In the Room</strong>
+                {md!.attendees.map((p) => (
+                  <span key={p.name} className="cmv-person">
+                    <strong>{p.name}</strong>
+                    {p.title && <span> · {p.title}</span>}
+                  </span>
+                ))}
+              </span>
+            )}
+            {md?.agenda && (
+              <span className="cmv-infosec">
+                <strong className="cmv-h">Topics</strong>
+                <span className="cmv-pre">{md.agenda}</span>
+              </span>
+            )}
+          </InfoTip>
         )}
         <button type="button" className="btn sm" onClick={() => setKeys(true)}>
           <Icon name="keyboard" size={16} /> Shortcuts
@@ -726,5 +731,88 @@ export function CallMode() {
         </Sheet>
       )}
     </div>
+  );
+}
+
+/**
+ * The "i" beside Call Mode's title: who's in the room and the topics. Opens on hover or focus
+ * on a computer and on tap on a phone (Safari doesn't focus a tapped button), and closes on a
+ * tap elsewhere or Escape. It's placed under the button but kept inside the window, so it never
+ * runs off either edge wherever the header puts the button.
+ */
+function InfoTip({ label, children }: { label: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const wrap = useRef<HTMLSpanElement>(null);
+  const btn = useRef<HTMLButtonElement>(null);
+  const pop = useRef<HTMLSpanElement>(null);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const b = btn.current?.getBoundingClientRect();
+      const w = pop.current?.offsetWidth ?? 0;
+      if (!b) return;
+      const gap = 12;
+      const left = Math.max(gap, Math.min(b.left, window.innerWidth - w - gap));
+      setPos({ top: b.bottom + 8, left });
+    };
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: PointerEvent) => {
+      if (!wrap.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const esc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('pointerdown', away);
+    document.addEventListener('keydown', esc);
+    return () => {
+      document.removeEventListener('pointerdown', away);
+      document.removeEventListener('keydown', esc);
+    };
+  }, [open]);
+
+  return (
+    <span
+      ref={wrap}
+      className="cmv-infotip"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      onFocus={() => setOpen(true)}
+      onBlur={(e) => {
+        if (!wrap.current?.contains(e.relatedTarget as Node)) setOpen(false);
+      }}
+    >
+      <button
+        ref={btn}
+        type="button"
+        className="cmv-i"
+        aria-label={label}
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <Icon name="info" size={18} />
+      </button>
+      {open && (
+        <span
+          ref={pop}
+          className="cmv-infopop"
+          role="tooltip"
+          style={pos ? { top: pos.top, left: pos.left } : { visibility: 'hidden' }}
+        >
+          {children}
+        </span>
+      )}
+    </span>
   );
 }

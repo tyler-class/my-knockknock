@@ -351,3 +351,139 @@ export function CompanyChooser({
     </div>
   );
 }
+
+/** Where someone works, as a person's sheet picks it: one of yours, a new one by name, or none. */
+export type CompanyPick = { id: string | null } | { name: string };
+
+/**
+ * A person's company: shows the one they're at with Change; changing searches your companies,
+ * offers "Add company" for a name that's new, and "No company" to take them off theirs.
+ */
+export function CompanyLookup({
+  companies,
+  value,
+  onChange,
+}: {
+  companies: Company[];
+  value: CompanyPick;
+  onChange: (v: CompanyPick) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [q, setQ] = useState('');
+  const [hi, setHi] = useState(0);
+  const current = 'id' in value ? companies.find((c) => c.id === value.id) : undefined;
+  if (!editing)
+    return (
+      <div className="co-chosen">
+        {'name' in value ? (
+          <>
+            <span className="co-mark">
+              <Icon name="building" size={18} />
+            </span>
+            <strong>{value.name}</strong>
+            <span className="sub">New company</span>
+          </>
+        ) : current ? (
+          <>
+            <span className={current.has_logo ? 'co-mark has-img' : 'co-mark'}>
+              <CompanyLogo company={current} size={40} />
+            </span>
+            <strong>{current.name}</strong>
+          </>
+        ) : (
+          <strong className="co-none">No company</strong>
+        )}
+        <button
+          type="button"
+          className="btn sm"
+          onClick={() => {
+            setQ('');
+            setHi(0);
+            setEditing(true);
+          }}
+        >
+          Change
+        </button>
+      </div>
+    );
+  const ql = q.trim().toLowerCase();
+  const hits = companies
+    .filter((c) => !ql || c.name.toLowerCase().includes(ql))
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .slice(0, 8);
+  const exact = companies.some((c) => c.name.trim().toLowerCase() === ql);
+  type Choice = { kind: 'co'; c: Company } | { kind: 'add' } | { kind: 'none' };
+  const choices: Choice[] = [
+    ...hits.map((c) => ({ kind: 'co' as const, c })),
+    ...(ql && !exact ? [{ kind: 'add' as const }] : []),
+    ...(!ql ? [{ kind: 'none' as const }] : []),
+  ];
+  const choose = (ch: Choice | undefined) => {
+    if (!ch) return;
+    onChange(
+      ch.kind === 'co' ? { id: ch.c.id } : ch.kind === 'add' ? { name: q.trim() } : { id: null },
+    );
+    setEditing(false);
+  };
+  return (
+    <div className="co-pick">
+      <label className="search-in search-full">
+        <Icon name="search" size={16} />
+        <input
+          autoFocus
+          value={q}
+          placeholder="Search companies"
+          aria-label="Company"
+          aria-autocomplete="list"
+          onChange={(e) => {
+            setQ(e.target.value);
+            setHi(0);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+              e.preventDefault();
+              const d = e.key === 'ArrowDown' ? 1 : -1;
+              setHi((i) => Math.max(0, Math.min(choices.length - 1, i + d)));
+            } else if (e.key === 'Enter') {
+              e.preventDefault();
+              choose(choices[hi]);
+            } else if (e.key === 'Escape') {
+              e.preventDefault();
+              e.stopPropagation();
+              setEditing(false);
+            }
+          }}
+        />
+        <button type="button" className="linkish" onClick={() => setEditing(false)}>
+          Cancel
+        </button>
+      </label>
+      <div className="sel-list co-list" role="listbox" aria-label="Companies">
+        <div>
+          {choices.map((ch, i) => (
+            <div
+              key={ch.kind === 'co' ? ch.c.id : ch.kind}
+              role="option"
+              aria-selected={i === hi}
+              className={cx('sel-opt', i === hi && 'hi', ch.kind !== 'co' && 'co-add')}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                choose(ch);
+              }}
+            >
+              {ch.kind === 'co' ? (
+                ch.c.name
+              ) : ch.kind === 'add' ? (
+                <span>
+                  <Icon name="plus" size={14} /> Add company “{q.trim()}”
+                </span>
+              ) : (
+                <span>No company</span>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}

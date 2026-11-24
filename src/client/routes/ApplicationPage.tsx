@@ -20,7 +20,7 @@ import {
 } from '@shared/lookups';
 import { payRange } from '@shared/logic/pay';
 import { withScheme } from '@shared/url';
-import { SYNC_LABEL, frameworkOf, syncState } from '@shared/logic/stories';
+import { frameworkOf } from '@shared/logic/stories';
 import type { Application, FileRef, JobStory } from '@shared/types';
 import { useActions, useData, type Data } from '../lib/queries';
 import { api, fileUrl, uploadFile } from '../lib/api';
@@ -732,8 +732,6 @@ function StoriesSection({ a, data }: { a: Application; data: Data }) {
       <div className="card list">
         <SortableRows items={list} onReorder={reorder}>
           {(j, grip) => {
-            const bank = data.state.stories.find((s) => s.id === j.story_id);
-            const st = syncState(j, bank);
             return (
               <div className="story-line">
                 {grip}
@@ -747,9 +745,9 @@ function StoriesSection({ a, data }: { a: Application; data: Data }) {
                 >
                   {j.title}
                 </button>
-                {/* A story only on this job offers Save to bank (as a question does); the others
-                    say how they stand against the bank, if anything's different. */}
-                {st === 'job_only' ? (
+                {/* A story only on this job offers Save to bank (as a question does). One from
+                    the bank follows it: editing it here makes it this job's own. */}
+                {!j.story_id && (
                   <button
                     type="button"
                     className="cmq-tag cmq-tag-btn cmq-tag-grey sync"
@@ -763,10 +761,6 @@ function StoriesSection({ a, data }: { a: Application; data: Data }) {
                   >
                     Save to bank
                   </button>
-                ) : (
-                  SYNC_LABEL[st] && (
-                    <span className={cx('sync', `sync-${st}`)}>{SYNC_LABEL[st]}</span>
-                  )
                 )}
                 <RemoveFromJob
                   fromBank={!!j.story_id}

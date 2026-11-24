@@ -7790,6 +7790,11 @@ textarea.in.angle {
   min-width: 0;
   font-size: 16px;
 }
+/* A person's company: none yet, in quiet text. */
+.co-chosen .co-none {
+  color: var(--ink3);
+  font-weight: 500;
+}
 .co-new {
   display: flex;
   flex-direction: column;

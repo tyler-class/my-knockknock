@@ -681,24 +681,18 @@ body.cmv-dragging {
   color: var(--ink, #1a1d24);
 }
 .cmv-infopop {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
+  position: fixed;
   z-index: 30;
-  display: none;
+  display: flex;
   flex-direction: column;
   gap: 14px;
   width: max-content;
-  max-width: min(420px, 80vw);
+  max-width: min(420px, calc(100vw - 24px));
   padding: 14px 16px;
   border: 1px solid #d9dce3;
   border-radius: 14px;
   background: #fff;
   box-shadow: 0 10px 30px rgb(20 30 50 / 0.16);
-}
-.cmv-infotip:hover .cmv-infopop,
-.cmv-infotip:focus-within .cmv-infopop {
-  display: flex;
 }
 .cmv-infosec {
   display: flex;

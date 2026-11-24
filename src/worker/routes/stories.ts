@@ -1,8 +1,10 @@
 // The story bank (templates), custom frameworks, and stories copied to jobs.
 //
-// Linking a bank story to a job copies it (job_stories). The copy is edited freely; the bank
-// only changes on push. Pull replaces the copy with the bank's current version; "save as new"
-// turns the copy into a new bank story. See src/shared/logic/stories.ts for the sync states.
+// Linking a bank story to a job copies it (job_stories). While the copy is unchanged it follows
+// the bank story: saving the bank story updates its linked copies (each keeps its angle and
+// place). Editing the copy's content on the job makes it the job's own: the link to the bank is
+// dropped and the bank story never changes. "Save as new" (Save to bank) puts a job's own story
+// in the bank and links the copy to it.
 import { Hono } from 'hono';
 import {
   frameworkInput,
@@ -15,7 +17,7 @@ import {
 } from '@shared/schemas';
 import { BUILTIN_KEYS } from '@shared/frameworks';
 import { contentHash, frameworkOf, switchFramework } from '@shared/logic/stories';
-import type { Framework, Story } from '@shared/types';
+import type { Framework, JobStory, Story } from '@shared/types';
 import {
   encode,
   first,
@@ -156,8 +158,30 @@ stories.patch('/stories/:id', async (c) => {
   if (contentHash(next) !== contentHash(prev) || next.framework_key !== prev.framework_key)
     fields.version = prev.version + 1;
   if (Object.keys(fields).length) await updateStmt(c.env.DB, 'stories', id, encode(fields)).run();
-  return c.json(await loadStory(c.env.DB, id));
+  const saved = (await loadStory(c.env.DB, id))!;
+  if (saved.version !== prev.version || (saved.notes ?? '') !== (prev.notes ?? ''))
+    await followBank(c.env.DB, saved);
+  return c.json(saved);
 });
+
+/** Whether a copy still holds what it was given: nothing in it was changed on the job. */
+const unedited = (js: JobStory) => contentHash(js) === js.base_hash;
+
+/** The jobs' unchanged copies of a bank story take its new version (angle and place stay). */
+async function followBank(db: D1Database, s: Story) {
+  const { results } = await db
+    .prepare('SELECT id FROM job_stories WHERE story_id = ?')
+    .bind(s.id)
+    .all<{ id: string }>();
+  if (!results.length) return;
+  const f = await framework(db, s.framework_key).catch(() => null);
+  if (!f) return;
+  for (const r of results) {
+    const js = await loadJobStory(db, r.id);
+    if (js && unedited(js))
+      await updateStmt(db, 'job_stories', js.id, encode(copyFields(s, f))).run();
+  }
+}
 
 stories.delete('/stories/:id', async (c) => {
   const id = c.req.param('id');
@@ -273,6 +297,18 @@ stories.patch('/job-stories/:id', async (c) => {
   } else if (input.sections) {
     fields.sections = clean(input.sections, { sections: prev.section_defs });
   }
+  // Changing what the story says (not its angle or place) makes it this job's own: the bank
+  // story stays as it is, and this one stops following it.
+  const next = { ...prev, ...(fields as Partial<JobStory>) };
+  const changed =
+    contentHash(next) !== contentHash(prev) ||
+    next.framework_key !== prev.framework_key ||
+    (next.notes ?? '') !== (prev.notes ?? '');
+  if (changed) {
+    fields.base_hash = contentHash(next);
+    if (prev.story_id || prev.source_version != null)
+      Object.assign(fields, { story_id: null, source_version: null });
+  }
   if (Object.keys(fields).length)
     await updateStmt(c.env.DB, 'job_stories', id, encode(fields)).run();
   return c.json(await loadJobStory(c.env.DB, id));
@@ -283,52 +319,6 @@ stories.delete('/job-stories/:id', async (c) => {
   if (!(await loadJobStory(c.env.DB, id))) throw notFound('Story');
   await c.env.DB.prepare('DELETE FROM job_stories WHERE id = ?').bind(id).run();
   return c.json({ ok: true });
-});
-
-/** Replace the copy with the bank's current version (the angle stays). */
-stories.post('/job-stories/:id/pull', async (c) => {
-  const js = await loadJobStory(c.env.DB, c.req.param('id'));
-  if (!js) throw notFound('Story');
-  const s = js.story_id ? await loadStory(c.env.DB, js.story_id) : null;
-  if (!s) throw new ApiError(409, 'conflict', 'This copy has no bank story to pull from.');
-  const f = await framework(c.env.DB, s.framework_key);
-  await updateStmt(c.env.DB, 'job_stories', js.id, encode(copyFields(s, f))).run();
-  return c.json({ job_story: await loadJobStory(c.env.DB, js.id), story: s });
-});
-
-/** Make the bank story match this copy (a new version). Other jobs' copies don't change. */
-stories.post('/job-stories/:id/push', async (c) => {
-  const db = c.env.DB;
-  const js = await loadJobStory(db, c.req.param('id'));
-  if (!js) throw notFound('Story');
-  const s = js.story_id ? await loadStory(db, js.story_id) : null;
-  if (!s)
-    throw new ApiError(
-      409,
-      'conflict',
-      'This copy has no bank story. Save it as a new story instead.',
-    );
-  const version = s.version + 1;
-  await updateStmt(
-    db,
-    'stories',
-    s.id,
-    encode({
-      framework_key: js.framework_key,
-      title: js.title,
-      hook: js.hook,
-      tags: js.tags,
-      sections: js.sections,
-      questions: js.questions,
-      notes: js.notes,
-      version,
-    }),
-  ).run();
-  await updateStmt(db, 'job_stories', js.id, {
-    source_version: version,
-    base_hash: contentHash(js),
-  }).run();
-  return c.json({ job_story: await loadJobStory(db, js.id), story: await loadStory(db, s.id) });
 });
 
 /** Turn this copy into a new bank story, and link the copy to it. */

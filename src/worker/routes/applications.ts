@@ -19,6 +19,7 @@ import {
   notePatch,
   personAt,
   personInput,
+  personMove,
   personPatch,
   roundInput,
   roundPatch,
@@ -600,7 +601,19 @@ applications.patch('/people/:id', async (c) => {
   if (!(await exists(c.env.DB, 'people', id))) throw notFound('Person');
   // Only "other" carries its own words.
   if (input.role && input.role !== 'other') input.other_role = null;
-  if (Object.keys(input).length) await updateStmt(c.env.DB, 'people', id, input).run();
+  const fields: Record<string, unknown> = { ...input };
+  const move = await body(c, personMove);
+  if (move.company_name) {
+    const found = await findCompanyByName(c.env.DB, move.company_name);
+    fields.company_id = (found ?? (await createCompany(c.env.DB, { name: move.company_name }))).id;
+  } else if (move.company_id === null) {
+    fields.company_id = null;
+  } else if (move.company_id) {
+    if (!(await first(c.env.DB, 'SELECT id FROM companies WHERE id = ?', move.company_id)))
+      throw notFound('Company');
+    fields.company_id = move.company_id;
+  }
+  if (Object.keys(fields).length) await updateStmt(c.env.DB, 'people', id, fields).run();
   return c.json((await loadPeople(c.env.DB, id))[0]);
 });
 

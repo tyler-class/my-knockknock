@@ -21,7 +21,12 @@ import {
 import type { Application, Company, Person, Round, TimelineEvent } from '@shared/types';
 import { api, uploadFile } from '../lib/api';
 import { useActions, useData, type Data } from '../lib/queries';
-import { CompanyChooser, type NewCompany } from '../components/CompanyFields';
+import {
+  CompanyChooser,
+  CompanyLookup,
+  type CompanyPick,
+  type NewCompany,
+} from '../components/CompanyFields';
 import { useToast } from '../components/Toast';
 import { fromLocalInput, toLocalInput } from '../lib/format';
 import {
@@ -597,6 +602,8 @@ export function PersonSheet({
   const [otherRole, setOtherRole] = useState(p?.other_role ?? '');
   const [linkedin, setLinkedin] = useState(p?.linkedin ?? '');
   const [notes, setNotes] = useState(p?.notes ?? '');
+  // Where they work: editing someone, their company can be changed (or taken off).
+  const [company, setCompany] = useState<CompanyPick>({ id: p?.company_id ?? null });
   // Adding someone: anyone you have who isn't on this job yet, grouped (at its company, then
   // everyone else: a third-party recruiter, say).
   const app = appId ? data.appById.get(appId) : undefined;
@@ -629,6 +636,13 @@ export function PersonSheet({
       other_role: role === 'other' ? otherRole : null,
       linkedin,
       notes,
+      ...(!p
+        ? {}
+        : 'name' in company
+          ? { company_name: company.name }
+          : company.id !== (p.company_id ?? null)
+            ? { company_id: company.id }
+            : {}),
     };
     const ok = p
       ? await act.patch(`/people/${p.id}`, body)
@@ -760,6 +774,15 @@ export function PersonSheet({
               <input className="in" value={title} onChange={(e) => setTitle(e.target.value)} />
             </Field>
           </div>
+          {p && (
+            <Field label="Company">
+              <CompanyLookup
+                companies={data.state.companies}
+                value={company}
+                onChange={setCompany}
+              />
+            </Field>
+          )}
           <Field label="Role">
             <Select
               value={role}

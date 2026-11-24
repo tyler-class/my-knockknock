@@ -1,12 +1,12 @@
 # Knock Knock
 
-A job search tracker you host yourself, built for doing the search with an AI assistant. Paste a pile of job links to Claude and they land as jobs with the pay, level, reports-to and must-haves filled in. Let it read your inbox and calendar, and each confirmation, scheduling email, rejection and interview invite lands on the right job's timeline, without duplicates. Then, on the call itself, your stories are one search away.
+A job search tracker you host yourself, built for doing the search with an AI assistant. Paste a pile of job links to Claude and they land as jobs with the pay, level, reports-to and must-haves filled in. Let it read your inbox and calendar, and each confirmation, scheduling email, rejection and interview invite lands on the right job's timeline, without duplicates. Then, on the call itself, your stories are one search away and your questions for them are a tab over.
 
 The app only stores and shows. Your assistant does the reading and the judging over MCP, so there's no AI bill inside the app and nothing scans your mail behind your back.
 
 [![Deploy to Cloudflare](docs/deploy-to-cloudflare.svg)](https://deploy.workers.cloudflare.com/?url=https://github.com/tyler-class/knockknock)
 
-![Knock Knock on a laptop and a phone: the Jobs board with each job's logo, pay and what needs doing, and a job's timeline with the panel interview coming up](docs/screenshots/hero.png)
+![Knock Knock on a laptop and a phone: the Jobs board with each job's logo, pay, work mode and last activity, and a job's timeline with today's panel interview on top](docs/screenshots/hero.png)
 
 One deployment is one person's job search (or many, one after another: rounds keep each stretch separate). It runs on your own Cloudflare account, and the free plan is plenty.
 
@@ -20,15 +20,17 @@ Counts for the round you're in (applications, open, applied this week, interview
 
 ### Jobs
 
-A board with a lane per stage on a computer, a list with stage tabs on a phone. Drag cards into your own order within a lane, or onto another lane to change the status. Each card shows the company's logo, pay, work mode and source, how long since anything happened, and a highlighted pill only when there's something to act on: an interview coming up, an offer to decide on, a job gone quiet.
+A board with a lane per stage on a computer, a list with stage tabs on a phone, opening on the furthest stage you've reached. Drag cards into your own order within a lane, or onto another lane to change the status. Each card shows the company's logo, pay, work mode and how long since anything happened. The list adds a highlighted pill only when there's something to act on: a meeting coming up, an offer to decide on, a job gone quiet.
 
-![The Jobs board: Applied, Screening, Interviewing and Offer lanes, each card with its company's logo or monogram, pay, work mode, source and what needs doing](docs/screenshots/jobs.png)
+Jobs sits under **Search** with Companies, People and Files: one row of tabs, and a search box on each.
+
+![The Jobs board: Applied, Screening, Interviewing and Offer lanes, each card with its company's logo or monogram, pay, work mode and last activity](docs/screenshots/jobs.png)
 
 ### A page for every job
 
-A header with the title, company, work mode, location, applied date and pay, and a stage bar: Saved → Applied → Screening → Interviewing → Offer → Closed (Accepted, Rejected, Declined or Ghosted). Tap a stage to move the job there. Tabs for Details, Timeline, Stories, Questions and Files. Every detail (title, pay, links, requirements, notes, the pasted posting) edits in place where it's shown: tap it, type, and it saves when you press Enter or click away.
+A header with the title, company, work mode, location, applied date and pay, and a stage bar: Saved → Applied → Screening → Interviewing → Offer → Closed (Accepted, Rejected, Declined or Ghosted). Tap a stage to move the job there. Tabs for Details, Timeline, Stories, Questions and Files. Every detail (title, pay, links, requirements, notes, the pasted posting) edits in place where it's shown: tap it, type, and it saves when you press Enter or click away. Fields with nothing in them wait behind **Show more**.
 
-![A job's Details tab: The Job card with every field editable in place, the Company card with the company's logo and its other jobs, and the people on the job](docs/screenshots/job.png)
+![A job's Details tab: the header with pills for work mode, location, applied date and pay, The Job card with every field editable in place, the Company card with the company's logo and its other jobs, and the people on the job as cards](docs/screenshots/job.png)
 
 ### The timeline
 
@@ -44,7 +46,7 @@ A company is its own record with its website, LinkedIn, headquarters, size, indu
 
 ![Companies: each company with its logo, or its monogram in the color picked for it](docs/screenshots/companies.png)
 
-A company's page holds its details, the jobs you have there across every search, and its people. Its logo shows here, on the jobs there and in every list. A company can be deleted from its page; the popup says how many jobs and people go with it.
+A company's page holds its details, the jobs you have there across every round, and its people. Its logo shows here, on the jobs there and in every list. A company can be deleted from its page; the popup says how many jobs and people go with it.
 
 ![A company's page: its logo, details, the jobs there across rounds and the people who work there](docs/screenshots/company.png)
 
@@ -52,37 +54,53 @@ A company without a logo gets a monogram: the first letter of its name (skipping
 
 ![A company without a logo: its monogram, and the logo menu with Upload logo and ten colors to choose from](docs/screenshots/company-monogram.png)
 
-**People** and **Files** list everyone and every file across your companies and jobs, beside Companies under one set of tabs. Tap someone to edit them, take them off a job, or delete them.
+**People** and **Files** list everyone and every file across your companies and jobs, beside Jobs and Companies under one row of tabs. Tap someone to edit them, move them to another company (or add one), take them off a job, or delete them. A file can be on several jobs: upload it from Files, then link it to each job it went with.
 
 ![People: everyone at your companies, with their role, title, the jobs they're on and their company](docs/screenshots/people.png)
 
 ### Prepare: Stories and Questions
 
-Stories to tell and questions to ask live together under **Prepare**.
+Stories to tell and questions to ask live together under **Prepare**. Each is a bank you keep once and link to jobs, and a job can have its own as well.
 
 #### Stories
 
-STAR, CAR, SOAR, Introduction, Why this job, Why I'm looking, Failure, Weakness, Design decision, or a framework of your own. A story is its framework's parts. Search by the question you were asked and the stories whose words match come up first.
+STAR, CAR, SOAR, Introduction, Why this job, Why I'm looking, Failure, Weakness, Design decision, or a framework of your own (**Custom framework**). A story is its framework's parts. Search by the question you were asked and the stories whose words match come up first.
 
-**A copy for each job.** Linking a story to a job copies it, so you can tailor it and add how to angle it for this company without touching the original. The copy says in plain words when you've changed it for this job or the original in Stories has changed since, and offers the one or two actions that fit.
+![Stories: each story with its framework, including a custom one, and how many jobs use it](docs/screenshots/stories.png)
 
-![Stories: each story with its framework, how many jobs use it, and custom frameworks](docs/screenshots/stories.png)
+**Linked or just for this job.** Link a story to a job and add how to angle it for this company. While you leave it as it is, it follows the story in Stories. Change it on the job and it becomes that job's own version; the original in Stories stays as it was. Or write a story just for the job, and **Save to bank** later if it's worth keeping. Questions work the same way. A job's stories sit as rows in one card: drag them into the order you'd tell them, and take one off the job with its ✕.
+
+![A job's Stories tab: three stories linked from Stories and one written just for this job, with Save to bank](docs/screenshots/job-stories.png)
 
 #### Questions
 
-A bank of questions to ask in interviews, reused like stories. Link them to a job (they come up on every call for it), or write ones just for that job or just for one meeting; a job's own can be saved to the bank later. A meeting's **Prepare questions** gathers the job's and the meeting's own ahead of the call.
+A bank of questions to ask in interviews: what success looks like in 90 days, how on-call works, the biggest bet on the roadmap. Search it, see how many jobs use each one, and delete the ones you've outgrown.
+
+![Questions: the bank of questions to ask, each with how many jobs use it](docs/screenshots/questions.png)
+
+On a job, **Link from Questions** adds one from the bank, and **New question for this job** writes one just for it. Job questions come up on every call for that job; **Save to bank** keeps a good one for next time. A meeting can have its own questions too, and its **Prepare questions** gathers them with the job's ahead of the call.
+
+![A job's Questions tab: four questions linked from the bank and two written just for this job, in the order you'll ask them](docs/screenshots/job-questions.png)
 
 ### Call Mode
 
-A full-screen view to keep beside the video call: who's in the room and the topics (behind the "i" by the title), call notes that save themselves to the meeting as you type, the meeting's questions with a place to jot each answer, and a search box. Start a line with `Q:` to add a question as it comes up. Option+/ (Alt+/ on a PC) moves between the notes and the search, Option+N and Option+Q between notes and questions; **Shortcuts** lists them all. Type the question you just heard and the job's stories, then the rest of Stories, come up with each part in big type and the angle for this job. **End call** asks how it went and saves your reflections as their own note.
+A full-screen view to keep beside the video call, with a handset button on every job and meeting. On the left, **Notes** and **Questions**; on the right, Stories. Drag the divider between them to give either more room. Who's in the room and the topics sit behind the "i" by the title.
 
-![Call Mode: who's in the room, the topics, call notes, and a story found by the question just asked, shown part by part with the angle for this job](docs/screenshots/call-mode.png)
+**Notes** save themselves to the meeting as you type, and come back when you reopen it. Start a line with `Q:` and it turns into a question badge and joins the meeting's questions. Type the question you just heard into the search and the job's stories, then the rest of Stories, come up with each part in big type and the angle for this job.
+
+![Call Mode on the Notes tab: call notes with a question marked Q:, and a story found by the question just asked, shown part by part with the angle for this job](docs/screenshots/call-mode.png)
+
+**Questions** lists the job's questions and the meeting's own, with a place to jot each answer and a tick for the ones you've asked. Answers are kept per meeting, so the same question can get a different answer from each interviewer. Drag them into the order you want to ask them.
+
+![Call Mode on the Questions tab: three questions ticked with what was said, the rest still to ask, including one added from the notes](docs/screenshots/call-mode-questions.png)
+
+Option+/ (Alt+/ on a PC) moves between the notes and the search, Option+N and Option+Q between notes and questions, and Escape clears the search; **Shortcuts** lists them all. **End call** asks how it went and saves your reflections as their own note.
 
 ### Report
 
-Where every application went (a Sankey built from status history), how many heard back and how many reached interviews and offers, response rate by where you found the job and by which resume you sent, median time to hear back, and how many you applied to each week.
+For the round you're in: how many you applied to, heard back from and reached interviews and offers with; an Application Funnel of how far they got and how many moved on at each stage; Paths and Outcomes, where every application went, built from status history; response rate by where you found the job and by which resume you sent; median time to hear back; and how many you applied to each week.
 
-![The report: applied, heard back, interviews and offers, a Sankey of where applications went, response rate by where you found the job and by resume, time to hear back, and applications per week](docs/screenshots/report.png)
+![The report: applied, heard back, interviews and offers, the Application Funnel, Paths and Outcomes, response rate by where you found the job and by resume, time to hear back, and applications per week](docs/screenshots/report.png)
 
 ### Built for phones
 
@@ -92,8 +110,8 @@ Install it to your home screen and it works like an app, with notifications for 
 
 ### And
 
-- **Files.** Resumes, cover letters, transcripts and offer letters in your own private R2 bucket, with a SHA-256 of exactly what you sent. Adding one puts it on the timeline, and the Files page lists every file across your jobs. Transcripts and other text files stay readable for your assistant.
-- **Rounds.** Each stretch of job hunting is its own round. Pick it from the menu at the top of the sidebar; everything but Stories and Companies follows it.
+- **Files.** Resumes, cover letters, transcripts and offer letters in your own private R2 bucket, with a SHA-256 of exactly what you sent. Adding one puts it on the timeline, one file can be on several jobs, and the Files page lists every file across your jobs. Transcripts and other text files stay readable for your assistant.
+- **Rounds.** Each stretch of job hunting is its own round. Pick it from the menu at the top of the sidebar; everything but Prepare and Companies follows it.
 - **Yours.** It runs on your own Cloudflare account, and your data stays in your own database and storage.
 
 <!-- kit:readme:start -->
@@ -225,7 +243,7 @@ Once a day your copy tells Knock Knock's developer that it exists: a random id i
 
 Knock Knock includes an [MCP](https://modelcontextprotocol.io) server at `https://<your-knock-knock>/mcp`. Open **Settings → Connect an AI assistant** to copy your URL and see steps for Claude, ChatGPT, Claude Code and others. When an assistant connects, Knock Knock shows a sign-in page; enter your password to approve it. **Settings → Connect an AI assistant** also lists what's connected and can sign them all out.
 
-![An AI assistant connected to Knock Knock: on a laptop it logs the day's emails, moves Lumen Health to Screening and adds a technical interview, then preps a Tessellate panel with the people in the room and two matching STAR stories; on a phone it says what's on today and which applications have gone quiet](docs/screenshots/ai-chat.png)
+![An AI assistant connected to Knock Knock: on a laptop it logs the day's emails, moves Lumen Health to Screening and adds a technical interview, then preps a Tessellate panel with the people in the room, two stories to bring and a question from the job's list for each interviewer; on a phone it says what's on today and which applications have gone quiet](docs/screenshots/ai-chat.png)
 
 ### How the agent flows work
 
@@ -239,27 +257,39 @@ The app never reads your email. Your assistant does (Claude with Gmail and Calen
 
 ### Tools
 
-| Tool                                            | What it does                                                                                                                                                           |
-| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `round_overview`                                | The current round: counts by status, open applications, upcoming meetings, follow-ups due, maybe-ghosted, debriefs due                                                 |
-| `get_started`                                   | The round's state plus example requests and ready-made prompts                                                                                                         |
-| `find_applications`                             | Look up by company, title, domain, posting URL or a person's email, in the current search unless `all_searches` is set                                                 |
-| `get_application`                               | Everything about one: posting and company fields, people, timeline, stories, files                                                                                     |
-| `get_timeline`                                  | Events, optionally only around a date and of some types: read this before logging                                                                                      |
-| `read_posting`                                  | The whole posting from its link: the job board's own data (Greenhouse, Lever, Ashby, SmartRecruiters, Workday), the page's job data, or the page as a browser loads it |
-| `create_application`, `update_application`      | Add a job (returns the existing one for a known posting URL); change its fields, including the company's details                                                       |
-| `set_company_logo`                              | Attach a company's logo from an image on the web, set its monogram's color (closest to the brand), or remove the logo                                                  |
-| `set_status`                                    | Change status by writing a status event; on Accepted, lists the other open applications                                                                                |
-| `log_meeting`, `update_meeting`                 | An interview or call: time, kind, state, join link, attendees, topics                                                                                                  |
-| `log_email`                                     | An email as a summary, with direction, category and key points                                                                                                         |
-| `add_note`                                      | A note, optionally under a meeting (a debrief)                                                                                                                         |
-| `update_event`, `delete_event`                  | Fix or remove an event (deleting a status event recomputes the status)                                                                                                 |
-| `add_person`                                    | A recruiter, hiring manager, interviewer, referrer or someone else on a job, at its company                                                                            |
-| `list_frameworks`, `list_stories`, `get_story`  | Story frameworks; search Stories by the question being asked                                                                                                           |
-| `list_archived_stories`                         | Archived stories, which the other tools leave out, and how to bring one back                                                                                           |
-| `create_story`, `update_story`                  | Add or change a story (or archive and unarchive it)                                                                                                                    |
-| `link_story`, `update_job_story`                | Copy a story to a job with an angle for it; tailor the job's copy                                                                                                      |
-| `upload_link`, `add_text_file`, `get_file_text` | A one-time upload link; save a transcript you have as text; read one                                                                                                   |
+| Tool                                                                          | What it does                                                                                                                                                           |
+| ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `round_overview`                                                              | The current round: counts by status, open applications, upcoming meetings, follow-ups due, maybe-ghosted, debriefs due                                                 |
+| `get_started`                                                                 | The round's state plus example requests and ready-made prompts                                                                                                         |
+| `find_applications`                                                           | Look up by company, title, domain, posting URL or a person's email, in the current round unless `all_rounds` is set                                                    |
+| `get_application`                                                             | Everything about one: posting and company fields, people, timeline, stories, questions, files                                                                          |
+| `get_timeline`                                                                | Events, optionally only around a date and of some types: read this before logging                                                                                      |
+| `read_posting`                                                                | The whole posting from its link: the job board's own data (Greenhouse, Lever, Ashby, SmartRecruiters, Workday), the page's job data, or the page as a browser loads it |
+| `create_application`, `update_application`                                    | Add a job (returns the existing one for a known posting URL); change its fields, including the company's details                                                       |
+| `delete_application`                                                          | Delete a job with its timeline, stories and questions (its people stay at the company)                                                                                 |
+| `get_company`, `list_companies`                                               | A company with its jobs and people; every company                                                                                                                      |
+| `create_company`, `update_company`, `delete_company`                          | Add a company, change its details (every job there follows), or delete it with its jobs and people                                                                     |
+| `set_company_logo`                                                            | Attach a company's logo from an image on the web, set its monogram's color (closest to the brand), or remove the logo                                                  |
+| `set_status`                                                                  | Change status by writing a status event; on Accepted, lists the other open applications                                                                                |
+| `log_meeting`, `update_meeting`                                               | An interview or call: time, kind, state, join link, attendees, topics                                                                                                  |
+| `log_email`                                                                   | An email as a summary, with direction, category and key points                                                                                                         |
+| `add_note`                                                                    | A note, optionally under a meeting (a debrief)                                                                                                                         |
+| `update_event`, `delete_event`                                                | Fix or remove an event (deleting a status event recomputes the status)                                                                                                 |
+| `add_person`, `find_people`, `update_person`                                  | Someone on a job or at a company (reusing who's already there); search everyone; change their details                                                                  |
+| `link_person`, `remove_person_from_job`, `delete_person`                      | Put someone on another job, take them off one (they stay at the company), or delete them                                                                               |
+| `set_person_company`                                                          | Link someone to a company, move them to another (a new name adds it), or take them off their company                                                                   |
+| `list_frameworks`, `create_framework`, `update_framework`, `delete_framework` | Story frameworks, and your own custom ones                                                                                                                             |
+| `list_stories`, `get_story`, `list_archived_stories`                          | Search Stories by the question being asked; one story and the jobs it's on; archived stories and how to bring one back                                                 |
+| `create_story`, `update_story`, `delete_story`                                | Add, change (or archive and unarchive) or delete a story in Stories                                                                                                    |
+| `link_story`, `create_job_story`, `get_job_story`, `update_job_story`         | Link a story to a job with an angle, or write one just for the job; read or edit it there (editing makes it the job's own)                                             |
+| `save_job_story_to_bank`, `remove_job_story`                                  | Add a job's own story to Stories; take a story off a job (unlinks a linked one, deletes a job-only one)                                                                |
+| `list_questions`, `get_question`, `list_archived_questions`                   | Search the Question bank; one question and the jobs it's on; archived questions                                                                                        |
+| `create_question`, `update_question`, `delete_question`                       | Add, reword (or archive and unarchive) or delete a bank question                                                                                                       |
+| `link_question`, `add_job_question`, `update_job_question`                    | Link a bank question to a job, or write one just for it; reword or reorder it there (rewording makes it the job's own)                                                 |
+| `save_job_question_to_bank`, `remove_job_question`                            | Add a job's own question to the bank; take one off a job (unlinks a linked one, deletes a job-only one)                                                                |
+| `get_meeting_questions`, `add_meeting_question`, `update_meeting_question`    | A meeting's questions (the job's and its own): add one, mark it asked, note the answer, remove it                                                                      |
+| `upload_link`, `add_text_file`, `get_file_text`                               | A one-time upload link; save a transcript you have as text (on a job or none); read one                                                                                |
+| `list_files`, `link_file`, `unlink_file`, `update_file`, `delete_file`        | Every file; put one on several jobs or take it off one; rename it or change its kind; delete it                                                                        |
 
 Ready-made prompts (in Claude, from the **+** menu):
 
@@ -273,7 +303,7 @@ Ready-made prompts (in Claude, from the **+** menu):
 
 ## Back up and restore
 
-**Settings → Backup → Download backup** saves everything as one JSON file: searches, companies, applications, people, timelines, stories and their job copies, custom frameworks, settings, and every file's details (and the text of text files). **Restore from backup** replaces everything with a backup's contents. The files themselves live in R2; restoring into the same deployment keeps them attached.
+**Settings → Backup → Download backup** saves everything as one JSON file: rounds, companies, applications, people, timelines, stories and questions with each job's own, custom frameworks, settings, and every file's details (and the text of text files). **Restore from backup** replaces everything with a backup's contents. The files themselves live in R2; restoring into the same deployment keeps them attached.
 
 ## Deploy by hand
 
@@ -308,13 +338,13 @@ npm run dev
 ### How it's built
 
 - **Cloudflare Workers** with static assets. **Hono** serves the API under `/api`. **D1** stores everything; the schema is in `migrations/`:
-  - `searches` group `applications` (jobs). Each job points at its company (`company_id`) and keeps a copy of the company's name and details in its own `company_*` columns, kept in step on every change, so lists, search and assistants read one row. `board_position` is its place within its lane on the Jobs board.
+  - `rounds` group `applications` (jobs). Each job points at its company (`company_id`) and keeps a copy of the company's name and details in its own `company_*` columns, kept in step on every change, so lists, search and assistants read one row. `board_position` is its place within its lane on the Jobs board.
   - `companies` hold a company's website, LinkedIn, headquarters, size, industry, funding and logo (stored in R2), and `logo_color`, the monogram's color when there's no logo (a key from `LOGO_COLORS` in `src/shared/logo.ts`; null is ultramarine). Several jobs can be at one company; a company name written to a job links it to the company of that name, ignoring case, or makes one.
   - `people` work at a company (`company_id`), with a role (`recruiter`, `hiring_manager`, `interviewer`, `referrer` or `other`, with `other_role` in their own words). `job_people` says which of its jobs each person is on. Deleting a job leaves its people at the company.
   - `events` are the timeline: one table for created, status, meeting, email and note events. Each type's own fields are JSON checked by zod schemas in `src/shared/schemas.ts`. A partial unique index refuses a repeated `external_ref` per job.
-  - `stories` and `job_stories` (each job's copies), `frameworks` (custom ones; the built-in frameworks live in code) and `files` (metadata, hash and kept text; the bytes are in R2).
+  - `stories` and `job_stories` (each job's stories: copies from Stories, or written just for it), `questions` and `job_questions` (the same for questions; a meeting's own questions, answers and ticks live on the meeting), `frameworks` (custom ones; the built-in frameworks live in code) and `files` (metadata, hash and kept text; the bytes are in R2).
 - A job's `status` is a cache of its timeline: the newest created or status event (by when it happened) decides it, recomputed on every change (`src/shared/logic/status.ts`).
-- Story copies remember the original's version and a content hash from when they were copied, which is enough to tell whether the copy, the original, or both have changed since (`src/shared/logic/stories.ts`). Stories are searched by title, framework name and the parts' text.
+- A job's story copy remembers the original's version and a content hash from when it was copied. An unchanged copy follows its bank story; changing the copy on the job drops its link (`story_id`), so it's the job's own (`src/worker/routes/stories.ts`; questions in `routes/questions.ts` follow the same rule). Stories are searched by title, framework name and the parts' text.
 - Report numbers come from `src/shared/logic/report.ts`. "Heard back" means a job moved past Applied or was rejected; time to hear back runs from applying to the first such change.
 - **R2** stores files privately under `files/<id>` and logos under `logos/<id>`, served only to signed-in users.
 - **React**, **TypeScript**, **Vite**, **TanStack Query** and **React Router**, with a service worker from `vite-plugin-pwa`. Call Mode's search runs in the browser: instant, and it works offline.

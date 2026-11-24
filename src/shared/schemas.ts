@@ -269,6 +269,14 @@ export const personAt = z.object({
   company_id: z.string().max(64).optional(),
   company_name: z.string().trim().min(1).max(200).optional(),
 });
+/**
+ * Moving someone to another company (company_id, or company_name found or added) or taking
+ * them off their company (company_id: null). Their jobs stay as they are.
+ */
+export const personMove = z.object({
+  company_id: z.string().max(64).nullable().optional(),
+  company_name: z.string().trim().min(1).max(200).optional(),
+});
 
 // ---------- stories ----------
 

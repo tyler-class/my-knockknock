@@ -1,5 +1,6 @@
 // Questions to ask in interviews: a bank reused across jobs and meetings, and each job's own
-// list (copied from the bank, or written just for it). A meeting's own questions, and what was
+// list (copied from the bank, or written just for it). A copy from the bank follows it while
+// unchanged; rewording it on the job makes it the job's own (the bank question stays as it is). A meeting's own questions, and what was
 // said on each call, live on the meeting (its data.questions).
 import { Hono } from 'hono';
 import { jobQuestionInput, jobQuestionPatch, questionInput, questionPatch } from '@shared/schemas';
@@ -60,8 +61,16 @@ questions.post('/questions', async (c) => {
 questions.patch('/questions/:id', async (c) => {
   const id = c.req.param('id');
   if (!(await loadQuestion(c.env.DB, id))) throw notFound('Question');
+  const prev = (await loadQuestion(c.env.DB, id))!;
   const input = defined(await body(c, questionPatch));
   if (Object.keys(input).length) await updateStmt(c.env.DB, 'questions', id, encode(input)).run();
+  // The jobs' copies that still read as it did take the new words.
+  if (input.text !== undefined && input.text !== prev.text)
+    await c.env.DB.prepare(
+      'UPDATE job_questions SET text = ?, updated_at = ? WHERE question_id = ? AND text = ?',
+    )
+      .bind(input.text, nowIso(), id, prev.text)
+      .run();
   return c.json(await loadQuestion(c.env.DB, id));
 });
 
@@ -114,8 +123,12 @@ questions.post('/applications/:id/questions', async (c) => {
 
 questions.patch('/job-questions/:id', async (c) => {
   const id = c.req.param('id');
-  if (!(await loadJobQuestion(c.env.DB, id))) throw notFound('Question');
-  const input = defined(await body(c, jobQuestionPatch));
+  const prev = await loadJobQuestion(c.env.DB, id);
+  if (!prev) throw notFound('Question');
+  const input: Record<string, unknown> = defined(await body(c, jobQuestionPatch));
+  // New words make it this job's own: it stops following the bank (which doesn't change).
+  if (input.text !== undefined && input.text !== prev.text && prev.question_id)
+    input.question_id = null;
   if (Object.keys(input).length) await updateStmt(c.env.DB, 'job_questions', id, input).run();
   return c.json(await loadJobQuestion(c.env.DB, id));
 });

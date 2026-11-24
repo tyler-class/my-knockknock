@@ -65,6 +65,56 @@ describe('questions', () => {
   });
 });
 
+describe('a job’s copy of a bank question', () => {
+  it('follows the bank until it is reworded on the job, then is the job’s own', async () => {
+    const api = await session();
+    const a = (await api.post<Application>('/applications', { title: 'PM', company: 'Fco' })).data;
+    const b = (await api.post<Application>('/applications', { title: 'PM', company: 'Gco' })).data;
+    const q = (await api.post<Question>('/questions', { text: 'What would I own?' })).data;
+    const ja = (
+      await api.post<JobQuestion>(`/applications/${a.id}/questions`, { question_id: q.id })
+    ).data;
+    const jb = (
+      await api.post<JobQuestion>(`/applications/${b.id}/questions`, { question_id: q.id })
+    ).data;
+
+    // Moving it keeps the link.
+    const moved = (await api.patch<JobQuestion>(`/job-questions/${ja.id}`, { position: 5 })).data;
+    expect(moved).toMatchObject({ question_id: q.id, position: 5 });
+    // The same words again change nothing.
+    expect(
+      (await api.patch<JobQuestion>(`/job-questions/${ja.id}`, { text: q.text })).data.question_id,
+    ).toBe(q.id);
+
+    // The bank's new words reach both copies.
+    await api.patch(`/questions/${q.id}`, { text: 'What would I own in the first year?' });
+    let state = (await api.get<AppState>('/state')).data;
+    expect(state.job_questions.filter((j) => j.question_id === q.id).map((j) => j.text)).toEqual([
+      'What would I own in the first year?',
+      'What would I own in the first year?',
+    ]);
+
+    // Reworded on job A: it's A's own now, and the bank stays as it was.
+    const own = (
+      await api.patch<JobQuestion>(`/job-questions/${ja.id}`, { text: 'What would I own day one?' })
+    ).data;
+    expect(own).toMatchObject({ question_id: null, text: 'What would I own day one?' });
+    state = (await api.get<AppState>('/state')).data;
+    expect(state.questions.find((x) => x.id === q.id)!.text).toBe(
+      'What would I own in the first year?',
+    );
+
+    // The bank changes again: only B's copy follows.
+    await api.patch(`/questions/${q.id}`, { text: 'What will I own?' });
+    state = (await api.get<AppState>('/state')).data;
+    expect(state.job_questions.find((j) => j.id === ja.id)!.text).toBe('What would I own day one?');
+    expect(state.job_questions.find((j) => j.id === jb.id)).toMatchObject({
+      text: 'What will I own?',
+      question_id: q.id,
+    });
+  });
+});
+
 describe('saving a job story to the bank', () => {
   it('makes one bank story however many times it is pressed', async () => {
     const api = await session();

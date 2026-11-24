@@ -1,19 +1,12 @@
 // The Stories's sheets: a story from Stories, picking a framework, a job's copy of a story,
 // linking from Stories, and custom frameworks.
 //
-// A job keeps its own copy of a story from Stories, so it can be tailored. The copy says in plain
-// words how it compares with Stories ("You changed this for PwC") and offers at most the
-// one or two actions that make sense, never version numbers.
+// A job keeps its own copy of a story from Stories. While it's unchanged it follows the story in
+// Stories; editing it on the job makes it that job's own (the one in Stories never changes).
 import { useMemo, useState } from 'react';
 import { sectionLetter, type FrameworkSection } from '@shared/frameworks';
-import {
-  COPY_LABEL,
-  frameworkOf,
-  searchStories,
-  switchFramework,
-  syncState,
-} from '@shared/logic/stories';
-import type { Framework, JobStory, Story } from '@shared/types';
+import { frameworkOf, searchStories, switchFramework } from '@shared/logic/stories';
+import type { JobStory, Story } from '@shared/types';
 import { useActions, type Data } from '../lib/queries';
 import { useToast } from '../components/Toast';
 import {
@@ -187,19 +180,15 @@ export function StorySheet({
       {copies.length > 0 && (
         <section className="used-in">
           <h3>Jobs Using This Story</h3>
-          <p className="sub">Each job has its own copy, so saving here doesn’t change them.</p>
+          <p className="sub">Saving here updates them too.</p>
           {copies.map((c) => {
             const a = data.appById.get(c.application_id);
-            const st = syncState(c, s);
             return (
               <div key={c.id} className="copy-row">
                 <span>
                   <strong>{a?.company ?? 'Deleted application'}</strong>{' '}
                   <span className="sub">{a?.title}</span>
                 </span>
-                {COPY_LABEL[st] && (
-                  <span className={cx('sync', `sync-${st}`)}>{COPY_LABEL[st]}</span>
-                )}
               </div>
             );
           })}
@@ -278,14 +267,11 @@ export function JobStorySheet({
   const act = useActions();
   const js = id ? data.state.job_stories.find((x) => x.id === id) : undefined;
   const app = data.appById.get(js?.application_id ?? appId ?? '');
-  const bank = js?.story_id ? data.state.stories.find((s) => s.id === js.story_id) : undefined;
   const [v, setV] = useState<Content>(() => contentOf(js, framework));
   const [angle, setAngle] = useState(js?.angle ?? '');
-  const [compare, setCompare] = useState(false);
   const set = (p: Partial<Content>) => setV((x) => ({ ...x, ...p }));
   const fw = frameworkOf(v.framework_key, data.state.frameworks);
   const defs = js && js.framework_key === v.framework_key ? js.section_defs : (fw?.sections ?? []);
-  const st = js ? syncState({ ...js, ...v } as JobStory, bank) : 'job_only';
   if (!app) return null;
 
   async function save() {
@@ -295,19 +281,7 @@ export function JobStorySheet({
       : await act.post(`/applications/${app!.id}/stories`, body, 'Added');
     if (ok) sheets.close();
   }
-  const runAndClose = async (path: string, done: string) => {
-    if (js && (await act.post(`/job-stories/${js.id}/${path}`, {}, done))) sheets.close();
-  };
   const company = app.company;
-  // What to say about this copy, and what you can do about it.
-  const status: Record<string, string> = {
-    job_only: 'Only on this job.',
-    source_gone: 'The original in Stories was deleted.',
-    in_sync: 'Same as the story in Stories.',
-    edited: `You changed this for ${company}.`,
-    bank_newer: 'The story in Stories has changed since you added it here.',
-    both: `You changed this for ${company}, and the one in Stories changed too.`,
-  };
 
   return (
     <Sheet
@@ -319,10 +293,10 @@ export function JobStorySheet({
           {js && (
             <ConfirmButton
               className="left"
-              confirm="Remove from this job?"
+              confirm={js.story_id ? 'Remove from this job?' : 'Delete this story?'}
               onConfirm={async () => (await act.del(`/job-stories/${js.id}`)) && sheets.close()}
             >
-              Remove
+              {js.story_id ? 'Remove' : 'Delete'}
             </ConfirmButton>
           )}
           {!js && (
@@ -336,70 +310,6 @@ export function JobStorySheet({
         </>
       }
     >
-      {js && (
-        // How this copy compares with Stories: one slim line, with what you can do about it.
-        <div className={cx('story-sync', (st === 'bank_newer' || st === 'both') && 'warn')}>
-          <p className="sync-line">
-            <Icon name="info" size={16} />
-            {status[st]}
-          </p>
-          <div className="acts">
-            {(st === 'job_only' || st === 'source_gone') && (
-              <button
-                type="button"
-                className="btn sm"
-                onClick={() => runAndClose('save-as-new', 'Added to Stories')}
-              >
-                Add to Stories
-              </button>
-            )}
-            {st === 'edited' && bank && (
-              <button
-                type="button"
-                className="btn sm"
-                onClick={() => runAndClose('push', 'Updated in Stories')}
-              >
-                Update it in Stories too
-              </button>
-            )}
-            {st === 'bank_newer' && bank && (
-              <button
-                type="button"
-                className="btn sm"
-                onClick={() => runAndClose('pull', 'Using the new version')}
-              >
-                Use the new version
-              </button>
-            )}
-            {st === 'both' && bank && (
-              <>
-                <button
-                  type="button"
-                  className="btn sm"
-                  onClick={() => runAndClose('push', 'Updated in Stories')}
-                >
-                  Keep mine, update Stories
-                </button>
-                <button
-                  type="button"
-                  className="btn sm"
-                  onClick={() => runAndClose('pull', 'Using the version in Stories')}
-                >
-                  Use the version in Stories
-                </button>
-              </>
-            )}
-            {bank && (st === 'bank_newer' || st === 'both') && (
-              <button type="button" className="btn sm ghost" onClick={() => setCompare((c) => !c)}>
-                {compare ? 'Hide differences' : 'See differences'}
-              </button>
-            )}
-          </div>
-          {compare && bank && (
-            <Compare js={js} bank={bank} company={company} frameworks={data.state.frameworks} />
-          )}
-        </div>
-      )}
       <StoryForm data={data} v={v} set={set} defs={defs} />
       {/* An optional note on framing it for this company; the story itself stays as written. */}
       <Field label={`How to Angle It for ${company}`}>
@@ -414,42 +324,6 @@ export function JobStorySheet({
         />
       </Field>
     </Sheet>
-  );
-}
-
-function Compare({
-  js,
-  bank,
-  company,
-  frameworks,
-}: {
-  js: JobStory;
-  bank: Story;
-  company: string;
-  frameworks: Framework[];
-}) {
-  const defs = frameworkOf(bank.framework_key, frameworks)?.sections ?? js.section_defs;
-  const keys = [...new Set([...js.section_defs, ...defs].map((d) => d.key))];
-  const label = (k: string) => [...js.section_defs, ...defs].find((d) => d.key === k)?.label ?? k;
-  return (
-    <div className="compare">
-      <div className="compare-col">
-        <span className="lbl">For {company}</span>
-        {keys.map((k) => (
-          <p key={k} className={cx((js.sections[k] ?? '') !== (bank.sections[k] ?? '') && 'diff')}>
-            <b>{label(k)}:</b> {js.sections[k] || '—'}
-          </p>
-        ))}
-      </div>
-      <div className="compare-col">
-        <span className="lbl">In Stories</span>
-        {keys.map((k) => (
-          <p key={k} className={cx((js.sections[k] ?? '') !== (bank.sections[k] ?? '') && 'diff')}>
-            <b>{label(k)}:</b> {bank.sections[k] || '—'}
-          </p>
-        ))}
-      </div>
-    </div>
   );
 }
 

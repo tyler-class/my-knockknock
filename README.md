@@ -26,7 +26,7 @@ A board with a lane per stage on a computer, a list with stage tabs on a phone. 
 
 ### A page for every job
 
-A header with the title, company, work mode, location, applied date and pay, and a stage bar: Saved → Applied → Screening → Interviewing → Offer → Closed (Accepted, Rejected, Declined or Ghosted). Tap a stage to move the job there. Tabs for Details, Timeline, Stories and Files. Every detail (title, pay, links, requirements, notes, the pasted posting) edits in place where it's shown: tap it, type, and it saves when you press Enter or click away.
+A header with the title, company, work mode, location, applied date and pay, and a stage bar: Saved → Applied → Screening → Interviewing → Offer → Closed (Accepted, Rejected, Declined or Ghosted). Tap a stage to move the job there. Tabs for Details, Timeline, Stories, Questions and Files. Every detail (title, pay, links, requirements, notes, the pasted posting) edits in place where it's shown: tap it, type, and it saves when you press Enter or click away.
 
 ![A job's Details tab: The Job card with every field editable in place, the Company card with the company's logo and its other jobs, and the people on the job](docs/screenshots/job.png)
 
@@ -56,7 +56,11 @@ A company without a logo gets a monogram: the first letter of its name (skipping
 
 ![People: everyone at your companies, with their role, title, the jobs they're on and their company](docs/screenshots/people.png)
 
-### Stories
+### Prepare: Stories and Questions
+
+Stories to tell and questions to ask live together under **Prepare**.
+
+#### Stories
 
 STAR, CAR, SOAR, Introduction, Why this job, Why I'm looking, Failure, Weakness, Design decision, or a framework of your own. A story is its framework's parts. Search by the question you were asked and the stories whose words match come up first.
 
@@ -64,9 +68,13 @@ STAR, CAR, SOAR, Introduction, Why this job, Why I'm looking, Failure, Weakness,
 
 ![Stories: each story with its framework, how many jobs use it, and custom frameworks](docs/screenshots/stories.png)
 
+#### Questions
+
+A bank of questions to ask in interviews, reused like stories. Link them to a job (they come up on every call for it), or write ones just for that job or just for one meeting; a job's own can be saved to the bank later. A meeting's **Prepare questions** gathers the job's and the meeting's own ahead of the call.
+
 ### Call Mode
 
-A full-screen view to keep beside the video call: who's in the room, the topics, call notes that save themselves to the meeting as you type, and a search box. Type the question you just heard and the job's stories, then the rest of Stories, come up with each part in big type and the angle for this job. **End call** asks how it went and saves your reflections as their own note.
+A full-screen view to keep beside the video call: who's in the room and the topics (behind the "i" by the title), call notes that save themselves to the meeting as you type, the meeting's questions with a place to jot each answer, and a search box. Start a line with `Q:` to add a question as it comes up. Option+/ (Alt+/ on a PC) moves between the notes and the search, Option+N and Option+Q between notes and questions; **Shortcuts** lists them all. Type the question you just heard and the job's stories, then the rest of Stories, come up with each part in big type and the angle for this job. **End call** asks how it went and saves your reflections as their own note.
 
 ![Call Mode: who's in the room, the topics, call notes, and a story found by the question just asked, shown part by part with the angle for this job](docs/screenshots/call-mode.png)
 

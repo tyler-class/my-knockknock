@@ -5,6 +5,8 @@ export class ApiError extends Error {
     public status: number,
     public code: string,
     message: string,
+    /** Anything else the server said (a duplicate's existing event_id, say). */
+    public details?: unknown,
   ) {
     super(message);
   }
@@ -49,7 +51,7 @@ export async function request<T>(method: string, path: string, body?: unknown): 
   const text = await res.text();
   const data: unknown = parseBody(text);
   if (!res.ok) {
-    const err = (data ?? {}) as { error?: string; message?: string };
+    const err = (data ?? {}) as { error?: string; message?: string; details?: unknown };
     // /session's own 401 is the signed-out answer, not a session that just expired.
     if (res.status === 401 && path !== '/login' && path !== '/session')
       unauthorizedListeners.forEach((fn) => fn());
@@ -57,6 +59,7 @@ export async function request<T>(method: string, path: string, body?: unknown): 
       res.status,
       err.error ?? 'error',
       err.message ?? `Request failed (${res.status}).`,
+      err.details,
     );
   }
   return data as T;

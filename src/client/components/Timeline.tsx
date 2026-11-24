@@ -153,7 +153,7 @@ export function EventCard({
         {upcoming && (
           <div className="acts">
             <Link className="btn sm primary" to={`/a/${appId}/call?meeting=${e.id}`}>
-              Open Call Mode
+              <Icon name="handset" size={14} /> Open Call Mode
             </Link>
             {d.join_url && (
               <a className="btn sm" href={d.join_url} target="_blank" rel="noreferrer">

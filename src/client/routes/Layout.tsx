@@ -1,7 +1,14 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 import { GlassTabBar, type GlassTab } from '../components/GlassTabBar';
-import { TRACKER, TRACKER_ITEMS, trackerPage } from '../lib/tracker';
+import {
+  PREPARE,
+  PREPARE_ITEMS,
+  preparePage,
+  TRACKER,
+  TRACKER_ITEMS,
+  trackerPage,
+} from '../lib/tracker';
 import { Icon } from '../components/Icon';
 import { Asterisk, Spinner, Wordmark } from '../components/Brand';
 import { useIsFetching, useIsMutating } from '@tanstack/react-query';
@@ -16,7 +23,7 @@ import { onPushOpen, syncBadge } from '../kit/push';
 const TABS: GlassTab[] = [
   ['/', 'Home', 'home'],
   ['/jobs', TRACKER, 'search'],
-  ['/stories', 'Stories', 'quote'],
+  ['/stories', PREPARE, 'book'],
   ['/reports', 'Report', 'chart'],
   ['/settings', 'Settings', 'settings'],
 ];
@@ -33,6 +40,7 @@ function tabRoot(path: string): string | null {
 /** The main section an address is in: anything in Tracker counts as Tracker (/jobs). */
 function activeTab(path: string): string {
   if (trackerPage(path)) return '/jobs';
+  if (preparePage(path)) return '/stories';
   for (const [p] of TABS.slice(1)) if (path.startsWith(p)) return p;
   return '/';
 }
@@ -202,17 +210,24 @@ export function Layout() {
           <Icon name="plus" size={18} /> Add job
         </button>
         <nav aria-label="Main">
-          {TABS.map((t) =>
-            t[1] === TRACKER ? (
-              // Tracker, with its four pages listed under it.
+          {TABS.map((t) => {
+            // Search and Prepare, each with its pages listed under it.
+            const group =
+              t[1] === TRACKER
+                ? { items: TRACKER_ITEMS, page: trackerPage }
+                : t[1] === PREPARE
+                  ? { items: PREPARE_ITEMS, page: preparePage }
+                  : null;
+            if (!group) return tab(t);
+            return (
               <div key={t[0]} className="nav-group">
                 {tab(t)}
                 <div className="nav-sub">
-                  {TRACKER_ITEMS.map(([to, label, icon]) => (
+                  {group.items.map(([to, label, icon]) => (
                     <Link
                       key={to}
                       to={to}
-                      aria-current={trackerPage(pathname) === to ? 'page' : undefined}
+                      aria-current={group.page(pathname) === to ? 'page' : undefined}
                     >
                       <Icon name={icon} size={16} />
                       {label}
@@ -220,10 +235,8 @@ export function Layout() {
                   ))}
                 </div>
               </div>
-            ) : (
-              tab(t)
-            ),
-          )}
+            );
+          })}
         </nav>
         <div className="side-foot">
           <button type="button" className="side-about" onClick={sheets.about}>

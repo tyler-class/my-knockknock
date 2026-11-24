@@ -174,8 +174,11 @@ files.post('/applications/:id/files', async (c) => {
   return c.json(f, 201);
 });
 
-/** Text pasted straight in (a transcript copied from Zoom, say). */
-files.post('/applications/:id/text-files', async (c) => {
+/** Text pasted straight in (a transcript copied from Zoom, say), on a job or on none. */
+files.post('/applications/:id/text-files', (c) => addText(c, c.req.param('id')));
+files.post('/text-files', (c) => addText(c, null));
+
+async function addText(c: Ctx, applicationId: string | null) {
   const raw = (await c.req.json().catch(() => null)) as {
     text?: unknown;
     filename?: unknown;
@@ -190,7 +193,7 @@ files.post('/applications/:id/text-files', async (c) => {
   ) as FileKind;
   const filename = typeof raw.filename === 'string' && raw.filename ? raw.filename : `${kind}.txt`;
   const f = await storeFile(c.env, {
-    applicationId: c.req.param('id'),
+    applicationId,
     kind,
     bytes: new TextEncoder().encode(raw.text).buffer as ArrayBuffer,
     filename: /\.(txt|md|vtt|srt)$/i.test(filename) ? filename : `${filename}.txt`,
@@ -199,6 +202,83 @@ files.post('/applications/:id/text-files', async (c) => {
     source: by(c),
   });
   return c.json(f, 201);
+}
+
+/** Upload a file on no job (from Files): the same as on a job, without one. */
+files.post('/files', async (c) => {
+  const kind = (c.req.query('kind') ?? 'other') as FileKind;
+  if (!KINDS.has(kind)) throw new ApiError(400, 'invalid', 'Unknown file kind.');
+  if (Number(c.req.header('Content-Length') ?? 0) > MAX_FILE_BYTES)
+    throw new ApiError(413, 'too_large', 'That file is too big (20 MB max).');
+  const name = c.req.header('X-Filename');
+  const f = await storeFile(c.env, {
+    applicationId: null,
+    kind,
+    bytes: await c.req.arrayBuffer(),
+    filename: name ? decodeURIComponent(name) : 'file',
+    source: by(c),
+  });
+  return c.json(f, 201);
+});
+
+/**
+ * Link a file you have to another job: it gets that job's "File added" entry (its record there).
+ * Linking it again changes nothing.
+ */
+files.post('/applications/:id/files/:fileId', async (c) => {
+  const appId = c.req.param('id');
+  const f = await loadFile(c.env.DB, c.req.param('fileId'));
+  if (!f) throw notFound('File');
+  if (!(await first(c.env.DB, 'SELECT id FROM applications WHERE id = ?', appId)))
+    throw notFound('Application');
+  if (!f.application_ids.includes(appId)) {
+    const now = nowIso();
+    const src = by(c);
+    await insertStmt(c.env.DB, 'events', {
+      id: newId(),
+      application_id: appId,
+      type: 'note',
+      occurred_at: now,
+      title: fileEventTitle(f.label ?? f.filename),
+      body: null,
+      source: src.source,
+      source_name: src.source_name,
+      data: JSON.stringify({ file_id: f.id }),
+      created_at: now,
+      updated_at: now,
+    }).run();
+    // A file with no job yet now hangs off this one.
+    if (!f.application_id)
+      await c.env.DB.prepare('UPDATE files SET application_id = ? WHERE id = ?')
+        .bind(appId, f.id)
+        .run();
+    await refreshApplication(c.env.DB, appId);
+  }
+  return c.json(await loadFile(c.env.DB, f.id));
+});
+
+/** Off this job (its entry there goes); the file itself stays, on any other jobs. */
+files.delete('/applications/:id/files/:fileId', async (c) => {
+  const appId = c.req.param('id');
+  const id = c.req.param('fileId');
+  const f = await loadFile(c.env.DB, id);
+  if (!f) throw notFound('File');
+  await c.env.DB.batch([
+    c.env.DB.prepare(
+      "DELETE FROM events WHERE type = 'note' AND application_id = ? AND json_extract(data, '$.file_id') = ?",
+    ).bind(appId, id),
+    c.env.DB.prepare(
+      'UPDATE applications SET resume_file_id = NULL WHERE id = ? AND resume_file_id = ?',
+    ).bind(appId, id),
+  ]);
+  // The job it hangs off: another it's still on, else none.
+  const left = (await loadFile(c.env.DB, id))!.application_ids.filter((x) => x !== appId);
+  if (f.application_id === appId)
+    await c.env.DB.prepare('UPDATE files SET application_id = ? WHERE id = ?')
+      .bind(left[0] ?? null, id)
+      .run();
+  await refreshApplication(c.env.DB, appId);
+  return c.json(await loadFile(c.env.DB, id));
 });
 
 files.get('/files/:id', async (c) => {

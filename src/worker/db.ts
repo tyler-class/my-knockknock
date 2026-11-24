@@ -16,6 +16,8 @@ import type {
   Settings,
   Story,
   TimelineEvent,
+  JobQuestion,
+  Question,
 } from '@shared/types';
 import { kitState } from './kit/telemetry';
 
@@ -227,6 +229,26 @@ export const toStory = (r: Row): Story => ({
   updated_at: String(r.updated_at),
 });
 
+export const toQuestion = (r: Row): Question => ({
+  id: String(r.id),
+  text: String(r.text),
+  tags: arr(r.tags),
+  notes: s(r.notes),
+  archived: !!r.archived,
+  created_at: String(r.created_at),
+  updated_at: String(r.updated_at),
+});
+
+export const toJobQuestion = (r: Row): JobQuestion => ({
+  id: String(r.id),
+  application_id: String(r.application_id),
+  question_id: s(r.question_id),
+  text: String(r.text),
+  position: Number(r.position ?? 0),
+  created_at: String(r.created_at),
+  updated_at: String(r.updated_at),
+});
+
 export const toJobStory = (r: Row): JobStory => ({
   id: String(r.id),
   application_id: String(r.application_id),
@@ -259,10 +281,20 @@ export const toFile = (r: Row): FileRef => ({
   sha256: String(r.sha256),
   has_text: !!r.has_text,
   created_at: String(r.created_at),
+  application_ids: jobsOf(r),
 });
 
-const FILE_COLS =
-  'id, application_id, event_id, kind, filename, content_type, size, label, sha256, created_at, text IS NOT NULL AS has_text';
+/** Every job a file is on: the one it was added to, and any it's been linked to since. */
+function jobsOf(r: Row): string[] {
+  const linked = r.linked_ids ? (JSON.parse(String(r.linked_ids)) as (string | null)[]) : [];
+  return [...new Set([s(r.application_id), ...linked].filter((x): x is string => !!x))];
+}
+
+// A file is on a job when that job's timeline has its "File added" entry (a note pointing at it).
+const FILE_COLS = `id, application_id, event_id, kind, filename, content_type, size, label, sha256,
+  created_at, text IS NOT NULL AS has_text,
+  (SELECT json_group_array(DISTINCT e.application_id) FROM events e
+    WHERE e.type = 'note' AND json_extract(e.data, '$.file_id') = files.id) AS linked_ids`;
 
 export const DEFAULT_SETTINGS: Settings = {
   time_zone: 'UTC',
@@ -367,6 +399,8 @@ export async function loadState(db: D1Database): Promise<AppState> {
     frameworks,
     stories,
     jobStories,
+    questions,
+    jobQuestions,
     files,
   ] = await Promise.all([
     loadSettings(db),
@@ -380,6 +414,10 @@ export async function loadState(db: D1Database): Promise<AppState> {
     all(db, 'SELECT * FROM job_stories ORDER BY application_id, position, created_at').then((r) =>
       r.map(toJobStory),
     ),
+    all(db, 'SELECT * FROM questions ORDER BY created_at').then((r) => r.map(toQuestion)),
+    all(db, 'SELECT * FROM job_questions ORDER BY application_id, position, created_at').then((r) =>
+      r.map(toJobQuestion),
+    ),
     all(db, `SELECT ${FILE_COLS} FROM files ORDER BY created_at DESC`).then((r) => r.map(toFile)),
   ]);
   return {
@@ -392,6 +430,8 @@ export async function loadState(db: D1Database): Promise<AppState> {
     frameworks,
     stories,
     job_stories: jobStories,
+    questions,
+    job_questions: jobQuestions,
     files,
   };
 }

@@ -1,5 +1,6 @@
 // Adding and editing applications, changing status, people, and rounds.
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
+import { groupPeople } from '../lib/peopleGroups';
 import { burst } from '../components/Brand';
 import {
   OPEN_STATUSES,
@@ -596,25 +597,18 @@ export function PersonSheet({
   const [otherRole, setOtherRole] = useState(p?.other_role ?? '');
   const [linkedin, setLinkedin] = useState(p?.linkedin ?? '');
   const [notes, setNotes] = useState(p?.notes ?? '');
-  // Adding someone: first, the people already at this job's company (not yet on this job).
+  // Adding someone: anyone you have who isn't on this job yet, grouped (at its company, then
+  // everyone else: a third-party recruiter, say).
   const app = appId ? data.appById.get(appId) : undefined;
   const coId = companyId ?? app?.company_id ?? p?.company_id ?? null;
-  const known =
-    p || !appId
-      ? []
-      : data.state.people.filter(
-          (x) => coId && x.company_id === coId && !x.application_ids.includes(appId),
-        );
   // From a company's page there's no one to pick: straight to the form.
   const [creating, setCreating] = useState(!appId);
   const [q, setQ] = useState('');
   const [hi, setHi] = useState(0);
-  const ql = q.trim().toLowerCase();
-  const matches = known.filter(
-    (x) => !ql || `${x.name} ${x.title ?? ''} ${x.email ?? ''}`.toLowerCase().includes(ql),
-  );
-  // The list: matching people at the company, then "Add person" (with what's typed as the name).
-  const rows: (Person | null)[] = [...matches, null];
+  const groups =
+    p || !appId ? [] : groupPeople(data, appId, q, (x) => x.application_ids.includes(appId));
+  // The list: the matching people, group by group, then "Add person" (what's typed as the name).
+  const rows: (Person | null)[] = [...groups.flatMap((g) => g.people), null];
   const choose = (r: Person | null) => {
     if (r) void addKnown(r);
     else {
@@ -622,7 +616,6 @@ export function PersonSheet({
       setCreating(true);
     }
   };
-  const company = data.state.companies.find((c) => c.id === coId);
   async function addKnown(person: Person) {
     if (await act.post(`/applications/${appId}/people/${person.id}`, {}, `${person.name} added`))
       sheets.close();
@@ -692,7 +685,7 @@ export function PersonSheet({
             <input
               autoFocus
               value={q}
-              placeholder={`Search people at ${company?.name ?? app?.company ?? 'this company'}`}
+              placeholder="Search people"
               aria-label="Person"
               aria-autocomplete="list"
               onChange={(e) => {
@@ -713,40 +706,47 @@ export function PersonSheet({
             <SearchClear value={q} onClear={() => setQ('')} />
           </label>
           <div className="pick-list" role="listbox" aria-label="People">
-            {rows.map((x, i) =>
-              x ? (
-                <button
-                  key={x.id}
-                  type="button"
-                  role="option"
-                  aria-selected={i === hi}
-                  className={cx('person', i === hi && 'hi')}
-                  onClick={() => choose(x)}
-                >
-                  <span className="avatar">{initials(x.name)}</span>
-                  <span className="row-text">
-                    <strong>{x.name}</strong>
-                    <span className="sub">
-                      {[personRoleLabel(x), x.title].filter(Boolean).join(' · ')}
-                    </span>
-                  </span>
-                </button>
-              ) : (
-                <button
-                  key="new"
-                  type="button"
-                  role="option"
-                  aria-selected={i === hi}
-                  className={cx('person pick-add', i === hi && 'hi')}
-                  onClick={() => choose(null)}
-                >
-                  <span className="avatar">
-                    <Icon name="plus" size={16} />
-                  </span>
-                  <strong>{q.trim() ? `Add person “${q.trim()}”` : 'Add a new person'}</strong>
-                </button>
-              ),
-            )}
+            {groups.map((g) => (
+              <Fragment key={g.label}>
+                <div className="pick-group" role="presentation">
+                  {g.label}
+                </div>
+                {g.people.map((x) => {
+                  const i = rows.indexOf(x);
+                  return (
+                    <button
+                      key={x.id}
+                      type="button"
+                      role="option"
+                      aria-selected={i === hi}
+                      className={cx('person', i === hi && 'hi')}
+                      onClick={() => choose(x)}
+                    >
+                      <span className="avatar">{initials(x.name)}</span>
+                      <span className="row-text">
+                        <strong>{x.name}</strong>
+                        <span className="sub">
+                          {[personRoleLabel(x), x.title].filter(Boolean).join(' · ')}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </Fragment>
+            ))}
+            <button
+              key="new"
+              type="button"
+              role="option"
+              aria-selected={rows.length - 1 === hi}
+              className={cx('person pick-add', rows.length - 1 === hi && 'hi')}
+              onClick={() => choose(null)}
+            >
+              <span className="avatar">
+                <Icon name="plus" size={16} />
+              </span>
+              <strong>{q.trim() ? `Add person “${q.trim()}”` : 'Add a new person'}</strong>
+            </button>
           </div>
         </div>
       )}

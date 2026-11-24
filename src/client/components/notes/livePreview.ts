@@ -161,6 +161,23 @@ export interface Live {
   atoms: RangeSet<Decoration>;
 }
 
+/** "Q:" at the start of a line: a round Q badge, marking a formal question. */
+class QuestionBadge extends WidgetType {
+  eq() {
+    return true;
+  }
+  toDOM() {
+    const s = document.createElement('span');
+    s.className = 'cm-qbadge';
+    s.textContent = 'Q';
+    s.setAttribute('aria-label', 'Question');
+    return s;
+  }
+}
+
+/** "Q:" (and the space after it) starting a line's text. */
+export const QUESTION_RE = /^q:[ \t]*/i;
+
 const hidden = Decoration.replace({});
 /**
  * Hidden marks that open or close a format (the "**" around bold): Enter, Backspace and Delete
@@ -274,6 +291,24 @@ function build(state: EditorState): Omit<Live, 'focused'> {
       }
     }
 
+    // A question ("Q: …"): its "Q:" drawn as a round Q badge, one piece (Backspace takes it
+    // whole); the line reads as a question.
+    {
+      const start = L ? L.content : /^[ \t]*/.exec(text)![0].length;
+      const q = QUESTION_RE.exec(text.slice(start));
+      if (q && !inside(raw, line.from + start, line.from + start + 1)) {
+        // Replaced outright by the badge (not hidden at no size), so the cursor right after it
+        // is a full-height cursor.
+        const d = Decoration.replace({ widget: new QuestionBadge(), role: 'prefix' }).range(
+          line.from + start,
+          line.from + start + q[0].length,
+        );
+        out.push(d);
+        atoms.push(d);
+        lineDeco(line.from, 'cm-qline');
+      }
+    }
+
     // <u>Underlined</u> text: its tags hidden, the text underlined.
     if (text.includes('<u>')) {
       for (const h of text.matchAll(UNDERLINE_RE)) {
@@ -334,9 +369,9 @@ const offLinePrefix = EditorState.transactionFilter.of((tr) => {
   const sel = tr.newSelection.main;
   if (!sel.empty) return tr;
   const line = tr.state.doc.lineAt(sel.head);
-  if (sel.head !== line.from) return tr;
+  // Anywhere inside the hidden start (between a bullet and a question's Q badge, say).
   const end = prefixEnd(tr.state, line.from);
-  if (end === null) return tr;
+  if (end === null || sel.head >= end) return tr;
   return [tr, { selection: { anchor: end }, sequential: true }];
 });
 

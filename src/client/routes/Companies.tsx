@@ -1,13 +1,13 @@
 // Companies: each its own record, with the jobs you have there. A job looks its company up; the
 // company's details (website, HQ, size…) and logo are kept and edited here, once, for every job
 // at it.
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import type { Company } from '@shared/types';
 import { useActions, useData, type Data } from '../lib/queries';
 import { compLabel } from '../lib/format';
 import { Icon } from '../components/Icon';
 import { ComboEdit, LineEdit } from '../components/edit';
-import { INDUSTRIES, personRoleLabel } from '@shared/lookups';
+import { INDUSTRIES, OPEN_STATUSES, personRoleLabel } from '@shared/lookups';
 import { useSheets } from '../sheets/context';
 import { CompanyLogo } from '../components/CompanyLogo';
 import { CompanyLogoEdit, LogoMark } from '../components/CompanyFields';
@@ -16,9 +16,23 @@ import { ConfirmButton, PageHeader } from '../components/ui';
 import { companyFacts } from '../lib/company';
 import { SearchBox, TrackerTabs } from './Directory';
 import { useState } from 'react';
+import { FilledFirst } from '../components/FilledFirst';
 
 const jobsAt = (data: Data, id: string) =>
   data.state.applications.filter((a) => a.company_id === id);
+
+/** "4 jobs · 2 active", or "3 active jobs" when every one is still open. */
+function jobsLabel(all: number, active: number): string {
+  if (all !== active) return `${all} ${all === 1 ? 'job' : 'jobs'} · ${active} active`;
+  return `${all} active ${all === 1 ? 'job' : 'jobs'}`;
+}
+
+/** A website as a short address: "acme.com" for https://www.acme.com/. */
+const shortSite = (url: string) =>
+  url
+    .replace(/^[a-z]+:\/\//i, '')
+    .replace(/^www\./i, '')
+    .replace(/\/+$/, '');
 
 /** Every company, with how many jobs you have at each (across all rounds). */
 export function Companies() {
@@ -40,8 +54,10 @@ export function Companies() {
       <SearchBox q={q} setQ={setQ} placeholder="Search companies" />
       <div className="card list">
         {list.map((c) => {
-          const n = jobsAt(data, c.id).length;
-          const facts = companyFacts(c);
+          const jobs = jobsAt(data, c.id);
+          const active = jobs.filter((a) => OPEN_STATUSES.includes(a.status)).length;
+          // Where and how big under the name; the website and industry as pills.
+          const facts = companyFacts({ ...c, industry: null });
           return (
             <Link key={c.id} to={`/c/${c.id}`} className="prow co-row">
               <span className="co-mark">
@@ -50,10 +66,36 @@ export function Companies() {
               <span className="row-text">
                 <strong>{c.name}</strong>
                 {facts && <span className="sub ell">{facts}</span>}
+                {(c.website || c.industry) && (
+                  <span className="prow-pills">
+                    {c.website && (
+                      // Opens the site (in a new tab), not the company.
+                      <span
+                        role="link"
+                        tabIndex={0}
+                        className="pill co-site"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') (e.currentTarget as HTMLElement).click();
+                        }}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          window.open(
+                            /^[a-z]+:\/\//i.test(c.website!) ? c.website! : `https://${c.website}`,
+                            '_blank',
+                            'noopener,noreferrer',
+                          );
+                        }}
+                      >
+                        <Icon name="link" size={12} />
+                        {shortSite(c.website)}
+                      </span>
+                    )}
+                    {c.industry && <span className="pill">{c.industry}</span>}
+                  </span>
+                )}
               </span>
-              <span className="pill">
-                {n} {n === 1 ? 'job' : 'jobs'}
-              </span>
+              <span className="pill">{jobsLabel(jobs.length, active)}</span>
             </Link>
           );
         })}
@@ -74,6 +116,8 @@ export function CompanyPage() {
   const act = useActions();
   const sheets = useSheets();
   const nav = useNavigate();
+  // Opened from a job (its Open company button): where the back link goes, and its name.
+  const from = (useLocation().state as { from?: { href: string; label: string } } | null)?.from;
   if (!data) return null;
   const c = data.state.companies.find((x) => x.id === id);
   if (!c)
@@ -89,8 +133,9 @@ export function CompanyPage() {
   return (
     <div className="app-page">
       <div className="crumbs">
-        <Link className="linkish" to="/companies">
-          ‹ Companies
+        {/* Opened from a job: back to that job; otherwise to Companies. */}
+        <Link className="linkish" to={from?.href ?? '/companies'}>
+          ‹ {from?.label ?? 'Companies'}
         </Link>
       </div>
       <section className="card app-head co-head">
@@ -112,20 +157,75 @@ export function CompanyPage() {
                 <Icon name="building" size={18} /> Company Details
               </h2>
             </div>
-            <div className="kvs">
-              <LineEdit label="Company Name" full required value={c.name} onSave={save('name')} />
-              <LineEdit label="Website" url value={c.website ?? ''} onSave={save('website')} />
-              <LineEdit label="LinkedIn" url value={c.linkedin ?? ''} onSave={save('linkedin')} />
-              <LineEdit label="Headquarters" value={c.hq ?? ''} onSave={save('hq')} />
-              <LineEdit label="Size" value={c.size ?? ''} onSave={save('size')} />
-              <ComboEdit
-                label="Industry"
-                value={c.industry ?? ''}
-                options={INDUSTRIES}
-                onSave={save('industry')}
-              />
-              <LineEdit label="Funding" value={c.funding ?? ''} onSave={save('funding')} />
-            </div>
+            {/* One column: the details filled in, then Show more for the empty ones. */}
+            <FilledFirst
+              fields={[
+                {
+                  key: 'name',
+                  filled: true,
+                  el: (
+                    <LineEdit
+                      label="Company Name"
+                      full
+                      required
+                      value={c.name}
+                      onSave={save('name')}
+                    />
+                  ),
+                },
+                {
+                  key: 'website',
+                  filled: !!c.website,
+                  el: (
+                    <LineEdit
+                      label="Website"
+                      url
+                      value={c.website ?? ''}
+                      onSave={save('website')}
+                    />
+                  ),
+                },
+                {
+                  key: 'linkedin',
+                  filled: !!c.linkedin,
+                  el: (
+                    <LineEdit
+                      label="LinkedIn"
+                      url
+                      value={c.linkedin ?? ''}
+                      onSave={save('linkedin')}
+                    />
+                  ),
+                },
+                {
+                  key: 'hq',
+                  filled: !!c.hq,
+                  el: <LineEdit label="Headquarters" value={c.hq ?? ''} onSave={save('hq')} />,
+                },
+                {
+                  key: 'size',
+                  filled: !!c.size,
+                  el: <LineEdit label="Size" value={c.size ?? ''} onSave={save('size')} />,
+                },
+                {
+                  key: 'industry',
+                  filled: !!c.industry,
+                  el: (
+                    <ComboEdit
+                      label="Industry"
+                      value={c.industry ?? ''}
+                      options={INDUSTRIES}
+                      onSave={save('industry')}
+                    />
+                  ),
+                },
+                {
+                  key: 'funding',
+                  filled: !!c.funding,
+                  el: <LineEdit label="Funding" value={c.funding ?? ''} onSave={save('funding')} />,
+                },
+              ]}
+            />
           </section>
         </div>
         <div className="details-col">
@@ -171,10 +271,11 @@ export function CompanyPage() {
               <button
                 key={p.id}
                 type="button"
-                className="person"
+                // An outlined card, like the jobs here.
+                className="person prow dir-row"
                 onClick={() => sheets.person(null, p.id, c.id)}
               >
-                <span className="avatar">
+                <span className="co-mark person-mark">
                   {p.name
                     .split(/\s+/)
                     .map((w) => w[0])
@@ -184,15 +285,12 @@ export function CompanyPage() {
                 </span>
                 <span className="row-text">
                   <strong>{p.name}</strong>
-                  <span className="sub">
-                    {[
-                      personRoleLabel(p),
-                      p.title,
-                      ...p.application_ids.map((id) => data.appById.get(id)?.title),
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </span>
+                  {(personRoleLabel(p) || p.title) && (
+                    <span className="prow-pills">
+                      {personRoleLabel(p) && <span className="pill">{personRoleLabel(p)}</span>}
+                      {p.title && <span className="pill">{p.title}</span>}
+                    </span>
+                  )}
                 </span>
               </button>
             ))}

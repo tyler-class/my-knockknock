@@ -14,7 +14,7 @@ import {
   type MeetingKind,
   type MeetingState,
 } from '@shared/lookups';
-import type { Attendee, EmailData, MeetingData, TimelineEvent } from '@shared/types';
+import type { Attendee, CallQuestion, EmailData, MeetingData, TimelineEvent } from '@shared/types';
 import { useActions, type Data } from '../lib/queries';
 import { fileUrl } from '../lib/api';
 import { bytes, fromLocalInput, rangeLabel, toLocalInput, whenLabel } from '../lib/format';
@@ -31,9 +31,12 @@ import {
   TextEdit,
   groupKeys,
 } from '../components/edit';
-import { AttendeesInput, EVENT_ICON, eventLabel } from './EventSheet';
+import { AttendeesInput, EVENT_ICON, PersonChooser, eventLabel } from './EventSheet';
 import { fileComment } from '../lib/fileComment';
 import { useSheets } from './context';
+import { CallQuestions } from '../routes/CallQuestions';
+import { callList, meetingKeeps, newQuestionId } from '../lib/callQuestions';
+import { QuestionBankPicker } from '../components/QuestionBankPicker';
 
 const STATES = [
   ['scheduled', 'Scheduled'],
@@ -49,14 +52,25 @@ const DIRECTIONS = [
 ] as const;
 
 /** A titled group of values, as on a job's Details. */
-function Group({ icon, title, children }: { icon: IconName; title: string; children: ReactNode }) {
+/** A card of fields, under its heading; the first card has none (the panel's title says it). */
+function Group({
+  icon,
+  title,
+  children,
+}: {
+  icon?: IconName;
+  title?: string;
+  children: ReactNode;
+}) {
   return (
     <section className="card ev-group">
-      <div className="card-h">
-        <h3 className="sec-title">
-          <Icon name={icon} size={18} /> {title}
-        </h3>
-      </div>
+      {title && icon && (
+        <div className="card-h">
+          <h3 className="sec-title">
+            <Icon name={icon} size={18} /> {title}
+          </h3>
+        </div>
+      )}
       <div className="kvs">{children}</div>
     </section>
   );
@@ -100,7 +114,8 @@ function WhenEdit({
     >
       <div {...groupKeys(save, () => setEditing(false), false)}>
         {hasEnd ? (
-          <div className="two">
+          // Starts, then Ends under it: each a date and a time side by side.
+          <div className="when-edit">
             <label className="mini-l">
               Starts
               <DateTimeField label="Starts" value={s} onChange={setS} />
@@ -119,48 +134,99 @@ function WhenEdit({
   );
 }
 
+/** An email's other side picked from the people you have (or a new person): fills Name and Email. */
+function CounterpartPick({
+  appId,
+  data,
+  onPick,
+}: {
+  appId: string;
+  data: Data;
+  onPick: (p: Attendee) => unknown;
+}) {
+  const [open, setOpen] = useState(false);
+  if (!open)
+    return (
+      <button type="button" className="btn sm pick-person-btn" onClick={() => setOpen(true)}>
+        <Icon name="user" size={14} /> Choose a person
+      </button>
+    );
+  return (
+    <PersonChooser
+      appId={appId}
+      data={data}
+      heading="Choose a person"
+      onAdd={(p) => {
+        setOpen(false);
+        void onPick(p);
+      }}
+      onCancel={() => setOpen(false)}
+    />
+  );
+}
+
 /** Who was in the meeting: a name, title and email each, edited as one list. */
 function AttendeesEdit({
   value,
   onSave,
+  appId,
+  data,
 }: {
   value: Attendee[];
   onSave: (v: Attendee[]) => Promise<unknown>;
+  appId: string;
+  data: Data;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [v, setV] = useState<Attendee[]>([]);
-  const save = async () => {
-    const next = v.filter((p) => p.name.trim());
-    if (JSON.stringify(next) === JSON.stringify(value) || (await onSave(next))) setEditing(false);
-  };
+  // Always editable, each change saved as it's made (someone added, someone removed): no edit
+  // mode to open, and nothing lost when the add-someone card closes.
   return (
-    <EditBox
-      label="Who"
-      full
-      shown={
-        value.length ? (
-          <span className="att-list">
-            {value.map((p, i) => (
-              <span key={i}>
-                <strong>{p.name}</strong>
-                {p.title ? ` · ${p.title}` : ''}
-                {p.email ? <span className="sub"> · {p.email}</span> : null}
-              </span>
-            ))}
-          </span>
-        ) : null
-      }
-      editing={editing}
-      onEdit={() => {
-        setV(value.length ? value : [{ name: '' }]);
-        setEditing(true);
-      }}
-    >
-      <div {...groupKeys(save, () => setEditing(false))}>
-        <AttendeesInput people={v} onChange={setV} />
-        <EditActs onSave={() => void save()} onCancel={() => setEditing(false)} />
-      </div>
-    </EditBox>
+    <div className="kv ikv kv-full">
+      <span className="kv-l">Who</span>
+      <AttendeesInput
+        people={value}
+        onChange={(next) => void onSave(next.filter((p) => p.name.trim()))}
+        appId={appId}
+        data={data}
+      />
+    </div>
+  );
+}
+
+/** A meeting's questions in its panel: the same list as in Call Mode. */
+function MeetingQuestions({
+  appId,
+  data,
+  own,
+  save,
+}: {
+  appId: string;
+  data: Data;
+  own: CallQuestion[];
+  save: (body: Record<string, unknown>) => Promise<unknown>;
+}) {
+  const [picking, setPicking] = useState(false);
+  const list = callList(
+    data.state.job_questions.filter((j) => j.application_id === appId),
+    own,
+  );
+  const keep = (next: CallQuestion[]) => void save({ questions: meetingKeeps(next) });
+  return (
+    <div className="kv kv-full ev-qs">
+      <CallQuestions questions={list} onChange={keep} onAddFromBank={() => setPicking(true)} />
+      {picking && (
+        <QuestionBankPicker
+          taken={new Set(list.map((x) => x.question_id).filter((x): x is string => !!x))}
+          onPick={(b) => {
+            keep([
+              ...list,
+              { id: newQuestionId(), text: b.text, answer: null, asked: false, question_id: b.id },
+            ]);
+            setPicking(false);
+          }}
+          onClose={() => setPicking(false)}
+        />
+      )}
+    </div>
   );
 }
 
@@ -232,8 +298,19 @@ export function EventView({ data, appId, ev }: { data: Data; appId: string; ev: 
               to={`/a/${appId}/call?meeting=${ev.id}`}
               onClick={sheets.close}
             >
-              Open Call Mode
+              <Icon name="handset" size={14} /> Open Call Mode
             </Link>
+            <button
+              type="button"
+              className="btn sm"
+              onClick={() =>
+                document
+                  .getElementById('ev-questions')
+                  ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              }
+            >
+              <Icon name="question" size={14} /> Prepare questions
+            </button>
             {d.join_url && (
               <a className="btn sm" href={d.join_url} target="_blank" rel="noreferrer">
                 Join <Icon name="external" size={14} />
@@ -241,7 +318,7 @@ export function EventView({ data, appId, ev }: { data: Data; appId: string; ev: 
             )}
           </div>
         )}
-        <Group icon="video" title="The Meeting">
+        <Group>
           <LineEdit
             label="Name"
             full
@@ -277,7 +354,12 @@ export function EventView({ data, appId, ev }: { data: Data; appId: string; ev: 
           <LineEdit label="Where" value={d.location ?? ''} onSave={(v) => save({ location: v })} />
         </Group>
         <Group icon="users" title="People">
-          <AttendeesEdit value={d.attendees} onSave={(v) => save({ attendees: v })} />
+          <AttendeesEdit
+            value={d.attendees}
+            onSave={(v) => save({ attendees: v })}
+            appId={appId}
+            data={data}
+          />
         </Group>
         <Group icon="list" title="Prep">
           <TextEdit
@@ -287,6 +369,13 @@ export function EventView({ data, appId, ev }: { data: Data; appId: string; ev: 
           />
           <TextEdit label="Other details" value={ev.body ?? ''} onSave={(v) => save({ body: v })} />
         </Group>
+        {/* Questions for the call: the job's (every call for it) and this meeting's own, from
+            the bank or written here; worked through in Call Mode. */}
+        <section id="ev-questions">
+          <Group icon="question" title="Questions">
+            <MeetingQuestions appId={appId} data={data} own={d.questions ?? []} save={save} />
+          </Group>
+        </section>
         <NotesOn ev={ev} notes={notes} appId={appId} />
       </>
     );
@@ -295,7 +384,7 @@ export function EventView({ data, appId, ev }: { data: Data; appId: string; ev: 
     title = 'Email';
     groups = (
       <>
-        <Group icon="mail" title="The Email">
+        <Group>
           <LineEdit
             label="Subject"
             full
@@ -324,6 +413,11 @@ export function EventView({ data, appId, ev }: { data: Data; appId: string; ev: 
           />
         </Group>
         <Group icon="user" title={d.direction === 'in' ? 'From' : 'To'}>
+          <CounterpartPick
+            appId={appId}
+            data={data}
+            onPick={(p) => save({ counterpart_name: p.name, counterpart_email: p.email ?? null })}
+          />
           <LineEdit
             label="Name"
             value={d.counterpart_name ?? ''}
@@ -354,7 +448,7 @@ export function EventView({ data, appId, ev }: { data: Data; appId: string; ev: 
     groups = (
       <>
         {/* One group: the file (opens in a new tab), its kind, when it was added, and a comment. */}
-        <Group icon="paperclip" title="The File">
+        <Group>
           {/* Its name (the file's label; the timeline entry is titled with it too). */}
           {f && (
             <LineEdit
@@ -386,6 +480,27 @@ export function EventView({ data, appId, ev }: { data: Data; appId: string; ev: 
               </span>
             </div>
           )}
+          {/* The jobs it's on (a file can be on several): open one from here. */}
+          {f && f.application_ids.length > 0 && (
+            <div className="kv kv-full">
+              <span className="kv-l">{f.application_ids.length > 1 ? 'Jobs' : 'Job'}</span>
+              <span className="file-jobs">
+                {f.application_ids
+                  .map((id) => data.appById.get(id))
+                  .filter((x): x is NonNullable<typeof x> => !!x)
+                  .map((x) => (
+                    <Link
+                      key={x.id}
+                      to={`/a/${x.id}`}
+                      className="pill dir-job file-job"
+                      onClick={sheets.close}
+                    >
+                      {x.company} · {x.title}
+                    </Link>
+                  ))}
+              </span>
+            </div>
+          )}
           {f && (
             <ChoiceEdit
               label="Kind"
@@ -403,7 +518,7 @@ export function EventView({ data, appId, ev }: { data: Data; appId: string; ev: 
     const parents = events.filter((e) => e.type === 'meeting' || e.type === 'email');
     title = 'Note';
     groups = (
-      <Group icon="note" title="The Note">
+      <Group>
         <LineEdit label="Title" full value={ev.title ?? ''} onSave={(v) => save({ title: v })} />
         <WhenEdit label="When" start={ev.occurred_at} onSave={(s) => save({ occurred_at: s })} />
         <TextEdit

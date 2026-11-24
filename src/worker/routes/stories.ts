@@ -336,6 +336,11 @@ stories.post('/job-stories/:id/save-as-new', async (c) => {
   const db = c.env.DB;
   const js = await loadJobStory(db, c.req.param('id'));
   if (!js) throw notFound('Story');
+  // Save to bank (a job's own story): once only, so pressing it twice doesn't make two. (Save as
+  // new, from a copy already linked, always makes a new one.)
+  const once = ((await c.req.json().catch(() => ({}))) as { once?: unknown }).once === true;
+  const linked = once && js.story_id ? await loadStory(db, js.story_id) : null;
+  if (linked) return c.json({ job_story: js, story: linked });
   const id = newId();
   const now = nowIso();
   const fwExists = await framework(db, js.framework_key)

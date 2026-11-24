@@ -8016,7 +8016,8 @@ textarea.in.angle {
   color: var(--ink);
 }
 .appbar-settings[aria-current] {
-  background: var(--accent-soft);
+  /* Open: a clear theme-blue fill, so it reads as selected. */
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
   color: var(--accent-deep);
 }
 .appbar-settings:active {
@@ -8474,4 +8475,818 @@ svg.funnel {
 }
 .infotip-pop > span {
   width: min(22rem, calc(100vw - 2rem));
+}
+
+/* Required and preferred qualifications: rounded squares, not pills (they run long and wrap).
+   Required keeps the light blue; preferred is a light grey. */
+.tags.quals .tag {
+  border-radius: 10px;
+  text-align: left;
+}
+.tags.quals-preferred .tag {
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  color: var(--ink);
+}
+
+/* Companies: the website pill opens the site. */
+.pill.co-site {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.pill.co-site:hover {
+  text-decoration: underline;
+}
+
+/* People: a card like a company's or a file's, the initials in a rounded square. */
+.co-mark.person-mark {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* Companies, People and Files: the cards a little closer together. */
+.prow.co-row,
+.prow.dir-row {
+  margin-top: 6px;
+}
+
+/* Jobs, list and board alike: cards 6px apart (the same as Companies, People and Files). The
+   board lane's heading keeps its room above the first card. */
+.plist .prow {
+  margin-top: 6px;
+}
+.board .col {
+  gap: 6px;
+}
+.board .col > .col-h {
+  margin-bottom: 4px;
+}
+
+/* Jobs list: "Company · Title", the dot lighter. */
+.plist .prow strong .at {
+  font-weight: 500;
+  color: var(--ink2);
+}
+
+/* Field labels a touch bigger (15px, under the 16px values). */
+.kv .kv-l,
+.ikv .kv-l {
+  font-size: 15px;
+}
+/* ...and only the company bold: the title in the regular weight. */
+.plist .prow strong .job-t {
+  font-weight: 450;
+}
+
+/* People and Files: the mark on the left a shade darker than the card's hover colour, so it
+   still stands out when the card is hovered. */
+.dir-row .co-mark {
+  background: #dde1e8;
+}
+/* ...and their grey pills the same darker shade, so they don't vanish on hover either. */
+.dir-row .pill:not(.dir-job),
+.co-row .pill {
+  background: #dde1e8;
+}
+
+/* Files: "Open file ↗", the pill that opens the file itself (the card opens its record). */
+.dir-row .pill.open-file {
+  gap: 4px;
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+}
+.dir-row .pill.open-file:hover {
+  text-decoration: underline;
+}
+
+/* A pill never runs off its card: a long one is cut short with "…". */
+.prow-pills .pill,
+.kcard-foot .pill {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+/* Timeline cards: a darkish grey outline, so a white card doesn't sit straight on the page. An
+   upcoming one (light blue) is outlined in blue. */
+.ev-card {
+  border: 1.5px solid #b8bec9;
+}
+.ev.upcoming .ev-card {
+  border-color: var(--accent);
+}
+
+/* A meeting's people: name, title and email share the row evenly, 8px apart, lined up with
+   the rest of the field (no box spilling into the next, none of an inline field's offsets). */
+.three.att {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.att .in,
+.att-last .in,
+.ikv .att .in {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding-right: 10px;
+}
+.att-last .in {
+  flex: 1;
+}
+.att-last .xbtn {
+  flex: none;
+}
+@media (max-width: 560px) {
+  /* Phones: one under another (name, title, then email with its remove button). */
+  .three.att {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--line);
+  }
+}
+
+/* Field labels everywhere (pop-ups, sheets, Settings, sign-in, filters) match a job's detail
+   labels: 15px, bold, ink. Small labels inside one field (Min, Max) are 15px too, lighter. */
+.fg > .lbl,
+label.lbl,
+.fgroup > .lbl,
+.sec-cols .lbl {
+  font-size: 15px;
+  font-weight: 850;
+  color: var(--ink);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.mini-l {
+  font-size: 15px;
+  font-weight: 650;
+}
+
+/* A person as an outlined card (a button): left-aligned, full width, in the app's type. */
+button.person.prow {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+}
+
+/* A meeting's people: a small outlined card each (initials, name, title and email as pills,
+   remove at the end); Add someone opens a card below with the whole form. */
+.att-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+}
+.att-card .row-text {
+  flex: 1;
+  min-width: 0;
+}
+.att-card .co-mark {
+  width: 34px;
+  height: 34px;
+}
+.att-card .xbtn {
+  flex: none;
+}
+.add-person-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1.5px solid var(--accent);
+  border-radius: 16px;
+  background: var(--surface);
+}
+.add-person-h {
+  font-size: 16px;
+}
+.add-person-card .two {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+.add-person-card .fg .in,
+.add-person-card .in {
+  width: 100%;
+  margin: 0;
+  padding-right: 10px;
+}
+.add-person-acts {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+@media (max-width: 560px) {
+  .add-person-card .two {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* A file card's first line: its name, then Open file beside it (wrapping under when long). */
+.file-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-width: 0;
+}
+.file-line .file-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.file-line .pill.open-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  text-decoration: none;
+}
+.file-line .pill.open-file:hover {
+  text-decoration: underline;
+}
+
+/* Pick lists in pop-ups (a person's Role, a meeting's kind…) in the same 16px as the text
+   fields beside them, their choices too. */
+.sheet .sel-btn,
+.sheet .sel-opt {
+  font-size: 16px;
+}
+
+/* Job and company pages, wide screens: the first column (The Job, Company details) a little
+   wider than the second (3 to 2). Narrower screens keep stacking them. */
+@media (min-width: 1100px) {
+  .details {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+}
+
+/* A file's record: the job it's for, a light blue pill that opens it. */
+.pill.file-job {
+  width: fit-content;
+  max-width: 100%;
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  text-decoration: none;
+}
+.pill.file-job:hover {
+  text-decoration: underline;
+}
+
+/* Notes on a meeting or email (in its panel and in the timeline): full width, text on the left. */
+.nested-note {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  text-align: left;
+}
+
+/* A date and a time side by side, in any detail: each box stays in its own place (none of an
+   inline field's extra width or offset), the date taking the room, the time its own width. */
+.ikv .dt-pair {
+  width: 100%;
+  margin: 0;
+}
+.ikv .dt-pair .dt-field {
+  width: auto;
+  margin: 0;
+}
+.ikv .dt-pair .dt-field:first-child {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.ikv .dt-pair .dt-field + .dt-field {
+  flex: none;
+}
+/* A meeting's when: Starts, then Ends under it. */
+.when-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.when-edit .mini-l {
+  gap: 6px;
+}
+
+/* A search box in a column (adding a person): its normal 42px height. Its "grow to fill" is
+   meant for toolbars, where it grows sideways; in a column it grew tall. */
+.known-people .search-in,
+.co-pick .search-in {
+  flex: none;
+}
+.pick-person-btn {
+  width: fit-content;
+}
+.add-person-card .pick-list {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+/* People, Files and the person and file cards on job and company pages: a lighter grey on hover,
+   so the marks and pills on them keep their contrast. */
+@media (hover: hover) and (pointer: fine) {
+  .dir-row:hover {
+    background: #f6f7f9;
+  }
+}
+
+/* Files: the job a new file goes on (or No job), beside Choose a file. */
+.file-job-pick {
+  min-width: 200px;
+  max-width: 300px;
+}
+.file-job-pick .sel-btn {
+  min-height: 34px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  font-size: 14px;
+}
+/* A file's record: every job it's on, a pill each. */
+.file-jobs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* The Job: its fields in one column, filled ones first; Show more opens the empty ones. */
+.kvs.one-col {
+  grid-template-columns: minmax(0, 1fr);
+}
+.job-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-weight: 750;
+}
+.job-more svg {
+  transition: transform 0.15s ease;
+}
+.job-more[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+
+/* "Add a new person" / "New person" at the end of a people list: a solid blue circle with a
+   white plus; picked or hovered, the row turns light blue (not grey). */
+.pick-list .pick-add .avatar {
+  border: 0;
+  background: var(--accent);
+  color: #fff;
+}
+.pick-list .pick-add.hi {
+  background: var(--accent-soft);
+}
+@media (hover: hover) and (pointer: fine) {
+  .pick-list .pick-add:hover {
+    background: var(--accent-soft);
+    box-shadow: none;
+  }
+}
+
+/* People lists: a small heading over each group (At Acme, On this job, All people). */
+.pick-group {
+  padding: 10px 10px 4px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink2);
+}
+.pick-group:first-child {
+  padding-top: 2px;
+}
+.known-people .pick-list {
+  max-height: min(55vh, 460px);
+  overflow-y: auto;
+}
+
+/* A full-width search box (in a column: adding a person, linking a file…) keeps its 42px height
+   wherever it sits; its "grow to fill" is for toolbars. */
+.search-in.search-full {
+  flex: none;
+}
+/* Inside a detail field, the old label rule (.kv span:first-child: 12px grey) must not reach the
+   people picker's initials or its rows, nor a meeting person's mark. */
+.kv .add-person-card .avatar,
+.kv .pick-list .avatar {
+  color: #fff;
+  font-size: 12px;
+}
+.kv .add-person-card .pick-list .person {
+  font-size: 15px;
+}
+.kv .att-card .co-mark {
+  color: var(--ink);
+  font-size: 13px;
+}
+.kv .add-person-card .search-in input {
+  font-size: 16px;
+}
+
+/* A person's initials, everywhere (People, job and company pages, a meeting's people): deep blue
+   on light blue, bold, readable on a white card and on a hovered one. Beats the old field-label
+   rule (.kv span:first-child) too. */
+.co-mark.person-mark,
+.dir-row .co-mark.person-mark,
+.kv .co-mark.person-mark,
+.kv .att-card .co-mark.person-mark {
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+/* People lists (pick someone): rows with no rule under them. */
+.pick-list .person,
+.known-people .person {
+  border-bottom: 0;
+}
+
+/* A job's header: each pill with a small icon before its text. */
+.app-meta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.app-meta > span svg {
+  flex: none;
+  color: var(--ink2);
+}
+
+/* Home, Coming Up: like Recent Activity, its icon on light blue and how soon as a blue pill. */
+.upcoming-row .up-icon {
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+}
+.upcoming-row .up-when {
+  margin-left: auto;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  font-size: 12px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+.upcoming-row .act-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.upcoming-row .act-top .lbl {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.upcoming-row .act-text {
+  flex: 1;
+  min-width: 0;
+}
+
+/* An upcoming meeting on the timeline: the same white card as the rest, outlined in blue. */
+.ev.upcoming .ev-card {
+  background: var(--surface);
+  border-color: var(--accent);
+}
+
+/* Drag to reorder (a job's stories and questions): a grip at the row's start; the row being
+   dragged fades, and a blue line shows where it will land. */
+.drag-grip {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  color: #b8bec9;
+  cursor: grab;
+}
+.drag-grip:active {
+  cursor: grabbing;
+}
+[data-drag='self'] {
+  opacity: 0.45;
+}
+[data-drag='over'] {
+  box-shadow: 0 -3px 0 0 var(--accent);
+}
+
+/* ---- Sortable rows (a job's stories and questions) ---- */
+.sort-row {
+  position: relative;
+  border-radius: 12px;
+}
+.sort-row > .story-line {
+  border-bottom: 0;
+}
+.sort-row + .sort-row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 2px;
+  right: 2px;
+  border-top: 1px solid var(--rule);
+}
+/* Where the row will land: a dashed blue card in its place. */
+.sort-row.sort-ghost {
+  border: 1.5px dashed var(--accent);
+  background: var(--accent-soft);
+}
+.sort-row.sort-ghost > *,
+.sort-row.sort-ghost::before {
+  visibility: hidden;
+}
+.sort-row.sort-ghost + .sort-row::before {
+  display: none;
+}
+/* The row being dragged: a card lifted off the list, following the pointer. */
+.sort-row.sort-lifted {
+  padding: 0 12px;
+  background: var(--surface);
+  box-shadow: 0 10px 28px rgb(20 30 50 / 0.18);
+  cursor: grabbing;
+}
+.drag-grip {
+  touch-action: none;
+}
+
+/* A job's question, as a row like a story: the Q mark, its words (edited in place), then its
+   actions at the end. */
+.q-line .q-line-text {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 8px;
+  margin: -3px 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 650;
+}
+.q-line .q-line-text:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 0;
+  background: #fff;
+}
+.q-line {
+  flex-wrap: nowrap;
+}
+
+/* Stories page: one card, a row per story (framework, title, where it's used). */
+.story-rows {
+  padding: 4px 14px;
+}
+.story-row {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  flex-wrap: nowrap;
+}
+.story-row:last-child {
+  border-bottom: 0;
+}
+.story-row .sc-title {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+}
+.story-row .fw-tag {
+  flex: none;
+}
+.story-row-meta {
+  flex: none;
+  color: var(--ink2);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+@media (hover: hover) and (pointer: fine) {
+  .story-row:hover .sc-title {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+}
+
+/* Pick a framework: one row each. The kind pill keeps its size when the name wraps. */
+.fw-rows {
+  display: flex;
+  flex-direction: column;
+  border: 1.5px solid var(--line);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.fw-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.fw-row:last-child {
+  border-bottom: 0;
+}
+@media (hover: hover) and (pointer: fine) {
+  .fw-row:hover {
+    background: #f6f7f9;
+  }
+}
+.fw-row .fw-name {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  font-weight: 750;
+}
+.fw-group {
+  flex: none;
+  align-self: flex-start;
+  height: auto;
+  white-space: nowrap;
+}
+.fw-row .fw-secs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Framework tags (STAR, CAR, Why this job…): the theme blue with white text. */
+.fw-tag {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+/* Story and question rows, everywhere (Stories, Questions, a job's tabs): one height. */
+.story-line {
+  min-height: 46px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+.q-line .q-line-text {
+  padding-top: 2px;
+  padding-bottom: 2px;
+  margin: -2px 0;
+}
+
+/* Custom framework: Sections as a heading, each section a card nested under it (indented, a
+   blue line down its left), its Name and Hint each on their own line. */
+.fw-sections {
+  margin-top: 6px;
+}
+.fw-sections-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 17px;
+  font-weight: 800;
+}
+.fw-sections-h svg {
+  color: var(--ink2);
+}
+.fw-sections-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-left: 14px;
+  border-left: 2px solid var(--accent-soft);
+}
+.fw-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px 14px;
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.fw-section-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.fw-section-n {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent-deep);
+}
+.fw-section-top .xbtn {
+  width: 28px;
+  height: 28px;
+}
+.fw-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.fw-field-l {
+  font-size: 15px;
+  font-weight: 750;
+  color: var(--ink);
+}
+.fw-add-sec {
+  width: fit-content;
+}
+/* A field's label always clears its box's focus ring. */
+.fg {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* The small ✕ on a job's story or question; armed, a red "Delete?". */
+.rm-job {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--ink2);
+  font: inherit;
+  cursor: pointer;
+}
+.rm-job:hover {
+  background: var(--bg);
+  color: var(--ink);
+}
+.story-line .rm-job {
+  margin-left: auto;
+}
+.story-line .sync + .rm-job {
+  margin-left: 4px;
+}
+.rm-job.armed {
+  padding: 0 10px;
+  background: var(--bad-soft, #ffe3e0);
+  color: var(--bad, #b4231c);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+/* Stories' header: Custom framework (white) beside New story. */
+.page-h-acts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+/* Pick a framework: the edit pencil on one of your own. */
+.fw-edit {
+  margin-left: auto;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: var(--ink2);
+}
+.fw-edit:hover {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+/* Board: cards fill the lane (just a little room each side). */
+.board .col {
+  padding-left: 4px;
+  padding-right: 4px;
+}
+/* A custom framework's section: move up / down, beside its remove. */
+.fw-section-move {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  margin-right: 4px;
+}
+.fw-section-move .xbtn {
+  width: 28px;
+  height: 28px;
+}
+.fw-section-move .xbtn:disabled {
+  opacity: 0.35;
 }

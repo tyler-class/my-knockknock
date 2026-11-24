@@ -19,6 +19,9 @@ const highlight = HighlightStyle.define([
   { tag: tags.strikethrough, textDecoration: 'line-through' },
 ]);
 
+/** The event that puts the cursor at the end of the notes (sent on window). */
+export const FOCUS_NOTES_END = 'kk:notes-focus-end';
+
 /** Marks the text being replaced from outside, so it isn't echoed back through onChange. */
 const fromOutside = Annotation.define<boolean>();
 
@@ -71,7 +74,9 @@ export default function NotesEditor({
           syntaxHighlighting(highlight),
           livePreview(),
           formatPill(),
-          keymap.of([...defaultKeymap, ...historyKeymap]),
+          // Not ⌘/ (Ctrl+/): CodeMirror's "comment out" wraps the line in <!-- -->, which notes
+          // have no use for.
+          keymap.of([...defaultKeymap.filter((k) => k.key !== 'Mod-/'), ...historyKeymap]),
           ...(placeholder ? [placeholderText(placeholder)] : []),
           EditorView.domEventHandlers({
             blur: () => {
@@ -95,6 +100,23 @@ export default function NotesEditor({
     };
     // Made once; the text flows out through onChange and back in only when it differs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Asked to take the cursor (Call Mode's Option+/ or Option+N): at the end of the notes, scrolled
+  // into view.
+  useEffect(() => {
+    const go = () => {
+      const v = view.current;
+      if (!v) return;
+      const end = v.state.doc.length;
+      v.focus();
+      v.dispatch({
+        selection: { anchor: end },
+        effects: EditorView.scrollIntoView(end, { y: 'nearest', yMargin: 40 }),
+      });
+    };
+    window.addEventListener(FOCUS_NOTES_END, go);
+    return () => window.removeEventListener(FOCUS_NOTES_END, go);
   }, []);
 
   // Text set from outside (the saved note arriving): replace what's there.

@@ -549,7 +549,7 @@ function buildServer(call: Call) {
       });
       const round = c.state.rounds.find((s) => s.id === a.round_id);
       const js = c.state.job_stories.filter((j) => j.application_id === a.id);
-      const files = c.state.files.filter((f) => f.application_id === a.id);
+      const files = c.state.files.filter((f) => f.application_ids.includes(a.id));
       const { description, ...fields } = a;
       return {
         ...fields,

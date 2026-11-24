@@ -213,12 +213,35 @@ export function FrameworkPicker({ data, onPick }: { data: Data; onPick: (key: st
   const sheets = useSheets();
   return (
     <Sheet title="Pick a Framework" icon="layers" onClose={sheets.close}>
-      <div className="fw-grid">
+      {/* One row per framework: its name and kind, what it's for, and its sections. */}
+      <div className="fw-rows">
         {data.state.frameworks.map((f) => (
-          <button key={f.key} type="button" className="fw-card" onClick={() => onPick(f.key)}>
+          <button key={f.key} type="button" className="fw-row" onClick={() => onPick(f.key)}>
             <span className="fw-name">
               {f.name}
               <span className="fw-group">{f.group}</span>
+              {/* Your own framework: change it from here. */}
+              {!f.builtin && (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className="fw-edit"
+                  aria-label={`Edit ${f.name}`}
+                  title="Edit this framework"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    sheets.framework(f.key);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.stopPropagation();
+                      sheets.framework(f.key);
+                    }
+                  }}
+                >
+                  <Icon name="edit" size={14} />
+                </span>
+              )}
             </span>
             <span className="sub">{f.blurb}</span>
             <span className="fw-secs">
@@ -231,7 +254,7 @@ export function FrameworkPicker({ data, onPick }: { data: Data; onPick: (key: st
             </span>
           </button>
         ))}
-        <button type="button" className="fw-card custom" onClick={() => sheets.framework()}>
+        <button type="button" className="fw-row custom" onClick={() => sheets.framework()}>
           <span className="fw-name">Custom</span>
           <span className="sub">Name your own sections. Saved as a framework you can reuse.</span>
         </button>
@@ -555,61 +578,101 @@ export function FrameworkSheet({ data, fwKey }: { data: Data; fwKey?: string }) 
         </>
       }
     >
-      <div className="two">
-        <Field label="Name">
-          <input className="in" value={name} onChange={(e) => setName(e.target.value)} />
-        </Field>
-        <Field label="When to use it">
-          <input className="in" value={blurb} onChange={(e) => setBlurb(e.target.value)} />
-        </Field>
-      </div>
-      {/* Each section: its name (the box's heading in a story) and an optional hint, the grey
-          line under that heading that reminds you what to write there. */}
-      <Field label="Sections">
-        <div className="two sec-row sec-cols" aria-hidden="true">
-          <span className="lbl">Section name</span>
-          <span className="lbl">Hint under it (optional)</span>
-        </div>
-        {secs.map((s, i) => (
-          <div key={i} className="two sec-row">
-            <input
-              className="in"
-              value={s.label}
-              placeholder="e.g. Situation"
-              aria-label="Section name"
-              onChange={(e) =>
-                setSecs((l) => l.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))
-              }
-            />
-            <div className="att-last">
-              <input
-                className="in"
-                value={s.prompt}
-                placeholder="e.g. Where were you, and what was at stake?"
-                aria-label="Hint under the section (optional)"
-                onChange={(e) =>
-                  setSecs((l) => l.map((x, j) => (j === i ? { ...x, prompt: e.target.value } : x)))
-                }
-              />
-              <button
-                type="button"
-                className="xbtn"
-                aria-label="Remove section"
-                onClick={() => setSecs((l) => l.filter((_, j) => j !== i))}
-              >
-                <Icon name="x" size={16} />
-              </button>
-            </div>
-          </div>
-        ))}
-        <button
-          type="button"
-          className="btn sm"
-          onClick={() => setSecs((l) => [...l, { key: '', label: '', prompt: '' }])}
-        >
-          <Icon name="plus" size={14} /> Add a section
-        </button>
+      <Field label="Name">
+        <input className="in" value={name} onChange={(e) => setName(e.target.value)} />
       </Field>
+      <Field label="When to use it">
+        <input className="in" value={blurb} onChange={(e) => setBlurb(e.target.value)} />
+      </Field>
+      {/* Its sections, each a card nested under the heading: its name (the box's heading in a
+          story) and an optional hint (the grey line under it that says what to write). */}
+      <section className="fw-sections">
+        <h3 className="fw-sections-h">
+          <Icon name="layers" size={18} /> Sections
+          {secs.length > 0 && <span className="count">{secs.length}</span>}
+        </h3>
+        <div className="fw-sections-list">
+          {secs.map((s, i) => (
+            <div key={i} className="fw-section">
+              <div className="fw-section-top">
+                <span className="fw-section-n">Section {i + 1}</span>
+                {/* Up and down: its place among the sections. */}
+                <span className="fw-section-move">
+                  <button
+                    type="button"
+                    className="xbtn"
+                    aria-label={`Move section ${i + 1} up`}
+                    disabled={i === 0}
+                    onClick={() =>
+                      setSecs((l) => {
+                        const n = [...l];
+                        [n[i - 1], n[i]] = [n[i]!, n[i - 1]!];
+                        return n;
+                      })
+                    }
+                  >
+                    <Icon name="chevDown" size={14} className="flip" />
+                  </button>
+                  <button
+                    type="button"
+                    className="xbtn"
+                    aria-label={`Move section ${i + 1} down`}
+                    disabled={i === secs.length - 1}
+                    onClick={() =>
+                      setSecs((l) => {
+                        const n = [...l];
+                        [n[i], n[i + 1]] = [n[i + 1]!, n[i]!];
+                        return n;
+                      })
+                    }
+                  >
+                    <Icon name="chevDown" size={14} />
+                  </button>
+                </span>
+                <button
+                  type="button"
+                  className="xbtn"
+                  aria-label={`Remove section ${i + 1}`}
+                  onClick={() => setSecs((l) => l.filter((_, j) => j !== i))}
+                >
+                  <Icon name="x" size={14} />
+                </button>
+              </div>
+              <label className="fw-field">
+                <span className="fw-field-l">Name</span>
+                <input
+                  className="in"
+                  value={s.label}
+                  placeholder="e.g. Situation"
+                  onChange={(e) =>
+                    setSecs((l) => l.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))
+                  }
+                />
+              </label>
+              <label className="fw-field">
+                <span className="fw-field-l">Hint (optional)</span>
+                <input
+                  className="in"
+                  value={s.prompt}
+                  placeholder="e.g. Where were you, and what was at stake?"
+                  onChange={(e) =>
+                    setSecs((l) =>
+                      l.map((x, j) => (j === i ? { ...x, prompt: e.target.value } : x)),
+                    )
+                  }
+                />
+              </label>
+            </div>
+          ))}
+          <button
+            type="button"
+            className="btn sm fw-add-sec"
+            onClick={() => setSecs((l) => [...l, { key: '', label: '', prompt: '' }])}
+          >
+            <Icon name="plus" size={14} /> Add a section
+          </button>
+        </div>
+      </section>
     </Sheet>
   );
 }

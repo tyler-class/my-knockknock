@@ -15,6 +15,7 @@ import { Reports } from './routes/Reports';
 import { Companies, CompanyPage } from './routes/Companies';
 import { Files, People } from './routes/Directory';
 import { Stories } from './routes/Stories';
+import { Questions } from './routes/Questions';
 import { Home } from './routes/Home';
 import { Login, SetupNeeded } from './routes/Login';
 import { Settings } from './routes/Settings';
@@ -64,6 +65,7 @@ const router = createBrowserRouter([
       { path: '/people', element: <People /> },
       { path: '/files', element: <Files /> },
       { path: '/stories', element: <Stories /> },
+      { path: '/questions', element: <Questions /> },
       { path: '/reports', element: <Reports /> },
       { path: '/settings', element: <Settings /> },
       { path: '*', element: <Home /> },

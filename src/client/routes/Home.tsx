@@ -14,7 +14,6 @@ import { EVENT_ICON } from '../sheets/EventSheet';
 import { Asterisk, StatusArrow } from '../components/Brand';
 import { Icon, type IconName } from '../components/Icon';
 import { PageHeader } from '../components/ui';
-import { RoundLine } from '../components/RoundLine';
 
 /** A job's Timeline tab, scrolled to one entry (which flashes briefly). */
 const eventHref = (e: Pick<TimelineEvent, 'application_id' | 'id'>) =>
@@ -79,7 +78,6 @@ export function Home() {
   return (
     <>
       {header}
-      <RoundLine />
       <div className="kpis home-kpis">
         {tiles.map(([l, v]) => (
           <div key={l} className="kpi">
@@ -103,19 +101,31 @@ export function Home() {
       {upcoming.length > 0 && (
         <section className="sec">
           <div className="sec-h">
-            <h2>Coming Up</h2>
+            <h2 className="sec-title">
+              <Icon name="cal" size={18} /> Coming Up
+            </h2>
           </div>
           <div className="card list">
             {upcoming.map((e) => {
               const a = appById.get(e.application_id)!;
               const d = e.data as MeetingData;
               return (
-                <Link key={e.id} to={eventHref(e)} className="recent">
-                  <span className="recent-what">
-                    <strong>{a.company}</strong> · {e.title || meetingKindLabel(d.kind)}
+                // Laid out like Recent Activity: its icon, the kind of meeting and how soon, the
+                // job, then when exactly.
+                <Link key={e.id} to={eventHref(e)} className="recent activity upcoming-row">
+                  <span className="act-icon node-in up-icon" aria-hidden="true">
+                    <Icon name="video" size={18} />
                   </span>
-                  <span className="sub">
-                    {whenLabel(e.occurred_at)} · {relDays(e.occurred_at)}
+                  <span className="act-text">
+                    <span className="act-top">
+                      <span className="lbl">{e.title || meetingKindLabel(d.kind)}</span>
+                      <span className="up-when">{relDays(e.occurred_at)}</span>
+                    </span>
+                    <span className="act-job">
+                      <strong>{a.company}</strong>
+                      <span className="sub"> · {ellipsis(a.title, 40)}</span>
+                    </span>
+                    <span className="act-snip">{whenLabel(e.occurred_at)}</span>
                   </span>
                 </Link>
               );
@@ -126,7 +136,9 @@ export function Home() {
 
       <section className="sec">
         <div className="sec-h">
-          <h2>Recent Activity</h2>
+          <h2 className="sec-title">
+            <Icon name="clock" size={18} /> Recent Activity
+          </h2>
         </div>
         <div className="card list">
           {recent.map((e) => {

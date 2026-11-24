@@ -2,7 +2,7 @@
 // edited where it's shown (a pencil at the right of each), notes, the timeline, files and
 // linked stories.
 import { useRef, useState, type ReactNode } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import {
   CLOSED_STATUSES,
   FILE_KINDS,
@@ -23,8 +23,14 @@ import { withScheme } from '@shared/url';
 import { SYNC_LABEL, frameworkOf, syncState } from '@shared/logic/stories';
 import type { Application, FileRef, JobStory } from '@shared/types';
 import { useActions, useData, type Data } from '../lib/queries';
-import { fileUrl, uploadFile } from '../lib/api';
-import { bytes, compLabel, dayLabel, relDays } from '../lib/format';
+import { api, fileUrl, uploadFile } from '../lib/api';
+import { SortableRows } from '../components/SortableRows';
+import { RemoveFromJob } from '../components/RemoveFromJob';
+import './callmode.css';
+import { useOpenFileRecord } from '../lib/fileRecord';
+import { JobQuestions } from './JobQuestions';
+import { FilledFirst, type FilledField } from '../components/FilledFirst';
+import { compLabel, dayLabel, relDays } from '../lib/format';
 import { shortDateLabel } from '../lib/dates';
 import { DatePicker } from '../components/DateTimePicker';
 import { useSheets } from '../sheets/context';
@@ -285,6 +291,80 @@ function PostingField({ a }: { a: Application }) {
   );
 }
 
+/**
+ * The Job's fields in one column: those with something in them, then Show more for the empty
+ * ones (to fill in). A field filled in moves up among the others; the title is always there.
+ */
+function JobFields({ a }: { a: Application }) {
+  const fields: FilledField[] = [
+    { key: 'title', filled: true, el: <InlineField a={a} k="title" label="Title" required full /> },
+    {
+      key: 'pay',
+      filled: a.salary_min != null || a.salary_max != null || !!a.salary_text,
+      el: <PayField a={a} />,
+    },
+    {
+      key: 'url',
+      filled: !!a.url,
+      el: <InlineField a={a} k="url" label="Job link" kind="url" full />,
+    },
+    {
+      key: 'source',
+      filled: !!a.source,
+      el: <InlineField a={a} k="source" label="Source" kind="choice" choices={SOURCE_CHOICES} />,
+    },
+    {
+      key: 'employment_type',
+      filled: !!a.employment_type,
+      el: (
+        <InlineField
+          a={a}
+          k="employment_type"
+          label="Employment type"
+          kind="choice"
+          choices={EMPLOYMENT_CHOICES}
+        />
+      ),
+    },
+    {
+      key: 'work_mode',
+      filled: !!a.work_mode,
+      el: (
+        <InlineField
+          a={a}
+          k="work_mode"
+          label="Work mode"
+          kind="choice"
+          choices={WORK_MODE_CHOICES}
+        />
+      ),
+    },
+    {
+      key: 'location',
+      filled: !!a.location,
+      el: <InlineField a={a} k="location" label="Location" />,
+    },
+    { key: 'team', filled: !!a.team, el: <InlineField a={a} k="team" label="Team" /> },
+    {
+      key: 'reports_to',
+      filled: !!a.reports_to,
+      el: <InlineField a={a} k="reports_to" label="Reports to" />,
+    },
+    {
+      key: 'must_haves',
+      filled: a.must_haves.length > 0,
+      el: <TagsField a={a} k="must_haves" label="Required qualifications" />,
+    },
+    {
+      key: 'nice_to_haves',
+      filled: a.nice_to_haves.length > 0,
+      el: <TagsField a={a} k="nice_to_haves" label="Preferred qualifications" />,
+    },
+    { key: 'description', filled: !!a.description, el: <PostingField a={a} /> },
+  ];
+  return <FilledFirst fields={fields} />;
+}
+
 function PayField({ a }: { a: Application }) {
   const act = useActions();
   const str = (n: number | null) => (n == null ? '' : groupThousands(String(n)));
@@ -367,6 +447,7 @@ function PayField({ a }: { a: Application }) {
  * whichever details are filled in). Open company changes it.
  */
 function CompanyCard({ a, data }: { a: Application; data: Data }) {
+  const here = useLocation();
   const c = data.state.companies.find((x) => x.id === a.company_id);
   const rows: [string, ReactNode][] = c
     ? (
@@ -386,7 +467,12 @@ function CompanyCard({ a, data }: { a: Application; data: Data }) {
           <Icon name="building" size={18} /> Company
         </h2>
         {c && (
-          <Link className="btn sm" to={`/c/${c.id}`}>
+          // The company page's back link comes back to this job.
+          <Link
+            className="btn sm"
+            to={`/c/${c.id}`}
+            state={{ from: { href: here.pathname + here.search, label: a.title || a.company } }}
+          >
             Open company <Icon name="chevRight" size={14} />
           </Link>
         )}
@@ -474,6 +560,7 @@ function TagsField({
   return (
     <TagsEdit
       label={label}
+      quals={k === 'must_haves' ? 'required' : 'preferred'}
       value={a[k]}
       onSave={(v) => act.patch(`/applications/${a.id}`, { [k]: v })}
     />
@@ -551,32 +638,7 @@ function Details({ a, data }: { a: Application; data: Data }) {
               <Icon name="briefcase" size={18} /> The Job
             </h2>
           </div>
-          <div className="kvs">
-            <InlineField a={a} k="title" label="Title" required full />
-            <PayField a={a} />
-            <InlineField a={a} k="url" label="Job link" kind="url" full />
-            <InlineField a={a} k="source" label="Source" kind="choice" choices={SOURCE_CHOICES} />
-            <InlineField
-              a={a}
-              k="employment_type"
-              label="Employment type"
-              kind="choice"
-              choices={EMPLOYMENT_CHOICES}
-            />
-            <InlineField
-              a={a}
-              k="work_mode"
-              label="Work mode"
-              kind="choice"
-              choices={WORK_MODE_CHOICES}
-            />
-            <InlineField a={a} k="location" label="Location" />
-            <InlineField a={a} k="team" label="Team" />
-            <InlineField a={a} k="reports_to" label="Reports to" />
-            <TagsField a={a} k="must_haves" label="Required qualifications" />
-            <TagsField a={a} k="nice_to_haves" label="Preferred qualifications" />
-            <PostingField a={a} />
-          </div>
+          <JobFields a={a} />
         </section>
       </div>
       <div className="details-col">
@@ -594,10 +656,11 @@ function Details({ a, data }: { a: Application; data: Data }) {
             <button
               key={p.id}
               type="button"
-              className="person"
+              // An outlined card, like the company page's people and jobs.
+              className="person prow dir-row"
               onClick={() => sheets.person(a.id, p.id)}
             >
-              <span className="avatar">
+              <span className="co-mark person-mark">
                 {p.name
                   .split(/\s+/)
                   .map((w) => w[0])
@@ -607,11 +670,12 @@ function Details({ a, data }: { a: Application; data: Data }) {
               </span>
               <span className="row-text">
                 <strong>{p.name}</strong>
-                <span className="sub">
-                  {personRoleLabel(p)}
-                  {p.title ? ` · ${p.title}` : ''}
-                  {p.email ? ` · ${p.email}` : ''}
-                </span>
+                {(personRoleLabel(p) || p.title) && (
+                  <span className="prow-pills">
+                    {p.title && <span className="pill">{p.title}</span>}
+                    {personRoleLabel(p) && <span className="pill">{personRoleLabel(p)}</span>}
+                  </span>
+                )}
               </span>
             </button>
           ))}
@@ -635,15 +699,22 @@ function Details({ a, data }: { a: Application; data: Data }) {
 function StoriesSection({ a, data }: { a: Application; data: Data }) {
   const sheets = useSheets();
   const act = useActions();
-  const list = data.state.job_stories
+  const saved = data.state.job_stories
     .filter((j) => j.application_id === a.id)
     .sort((x, y) => x.position - y.position);
-  const move = async (j: JobStory, dir: -1 | 1) => {
-    const i = list.indexOf(j);
-    const other = list[i + dir];
-    if (!other) return;
-    await act.patch(`/job-stories/${j.id}`, { position: other.position });
-    await act.patch(`/job-stories/${other.id}`, { position: j.position });
+  // Drag a story by its grip to reorder: shown at once, then each moved one saved.
+  const [order, setOrder] = useState<string[] | null>(null);
+  const list = order
+    ? order.map((id) => saved.find((j) => j.id === id)).filter((j): j is JobStory => !!j)
+    : saved;
+  const reorder = (next: JobStory[]) => {
+    setOrder(next.map((j) => j.id));
+    void act
+      .run(async () => {
+        for (const [i, j] of next.entries())
+          if (j.position !== i) await api.patch(`/job-stories/${j.id}`, { position: i });
+      })
+      .finally(() => setOrder(null));
   };
   return (
     <section className="sec" aria-label="Stories">
@@ -651,53 +722,66 @@ function StoriesSection({ a, data }: { a: Application; data: Data }) {
         <h2>Stories {list.length ? `· ${list.length}` : ''}</h2>
         <div className="acts">
           <button type="button" className="btn sm" onClick={() => sheets.linkStory(a.id)}>
-            <Icon name="plus" size={14} /> Link from Stories
+            <Icon name="link" size={14} /> Link from Stories
           </button>
           <button type="button" className="btn sm" onClick={() => sheets.newStory(a.id)}>
-            New story for this job
+            <Icon name="plus" size={14} /> New story for this job
           </button>
         </div>
       </div>
       <div className="card list">
-        {list.map((j, i) => {
-          const bank = data.state.stories.find((s) => s.id === j.story_id);
-          const st = syncState(j, bank);
-          return (
-            <div key={j.id} className="story-line">
-              <span className="fw-tag">
-                {frameworkOf(j.framework_key, data.state.frameworks)?.name ?? j.framework_key}
-              </span>
-              <button
-                type="button"
-                className="sc-title"
-                onClick={() => sheets.jobStory({ id: j.id })}
-              >
-                {j.title}
-              </button>
-              {SYNC_LABEL[st] && <span className={cx('sync', `sync-${st}`)}>{SYNC_LABEL[st]}</span>}
-              <span className="acts">
+        <SortableRows items={list} onReorder={reorder}>
+          {(j, grip) => {
+            const bank = data.state.stories.find((s) => s.id === j.story_id);
+            const st = syncState(j, bank);
+            return (
+              <div className="story-line">
+                {grip}
+                <span className="fw-tag">
+                  {frameworkOf(j.framework_key, data.state.frameworks)?.name ?? j.framework_key}
+                </span>
                 <button
                   type="button"
-                  className="xbtn"
-                  aria-label="Move up"
-                  disabled={i === 0}
-                  onClick={() => move(j, -1)}
+                  className="sc-title"
+                  onClick={() => sheets.jobStory({ id: j.id })}
                 >
-                  <Icon name="chevDown" size={16} className="flip" />
+                  {j.title}
                 </button>
-                <button
-                  type="button"
-                  className="xbtn"
-                  aria-label="Move down"
-                  disabled={i === list.length - 1}
-                  onClick={() => move(j, 1)}
-                >
-                  <Icon name="chevDown" size={16} />
-                </button>
-              </span>
-            </div>
-          );
-        })}
+                {/* A story only on this job offers Save to bank (as a question does); the others
+                    say how they stand against the bank, if anything's different. */}
+                {st === 'job_only' ? (
+                  <button
+                    type="button"
+                    className="cmq-tag cmq-tag-btn cmq-tag-grey sync"
+                    onClick={() =>
+                      void act.post(
+                        `/job-stories/${j.id}/save-as-new`,
+                        { once: true },
+                        'Saved to Stories',
+                      )
+                    }
+                  >
+                    Save to bank
+                  </button>
+                ) : (
+                  SYNC_LABEL[st] && (
+                    <span className={cx('sync', `sync-${st}`)}>{SYNC_LABEL[st]}</span>
+                  )
+                )}
+                <RemoveFromJob
+                  fromBank={!!j.story_id}
+                  what="story"
+                  onRemove={() =>
+                    act.del(
+                      `/job-stories/${j.id}`,
+                      j.story_id ? 'Removed from this job' : 'Deleted',
+                    )
+                  }
+                />
+              </div>
+            );
+          }}
+        </SortableRows>
         {!list.length && (
           <p className="empty">
             None linked yet. Link your intro, your “why this job”, and the STAR stories that fit.
@@ -708,8 +792,8 @@ function StoriesSection({ a, data }: { a: Application; data: Data }) {
   );
 }
 
-/** A guess at the kind from the file's name; it can be changed on the list. */
-function guessKind(name: string): FileKind {
+/** A guess at the kind from the file's name; it can be changed in its record. */
+export function guessKind(name: string): FileKind {
   const n = name.toLowerCase();
   if (/\.(vtt|srt)$/.test(n) || /transcript/.test(n)) return 'transcript';
   if (/cover/.test(n)) return 'cover_letter';
@@ -719,18 +803,29 @@ function guessKind(name: string): FileKind {
   return 'other';
 }
 
-function PasteSheet({ a, data, onClose }: { a: Application; data: Data; onClose: () => void }) {
+/** Text pasted in as a file: on a job (appId), or on none (from Files). */
+export function PasteSheet({
+  appId,
+  data,
+  onClose,
+}: {
+  appId: string | null;
+  data: Data;
+  onClose: () => void;
+}) {
   const act = useActions();
   const [text, setText] = useState('');
   const [kind, setKind] = useState<FileKind>('transcript');
   const [label, setLabel] = useState('');
   const [meeting, setMeeting] = useState('');
   const [busy, setBusy] = useState(false);
-  const meetings = (data.eventsByApp.get(a.id) ?? []).filter((e) => e.type === 'meeting');
+  const meetings = appId
+    ? (data.eventsByApp.get(appId) ?? []).filter((e) => e.type === 'meeting')
+    : [];
   const save = async () => {
     setBusy(true);
     const ok = await act.post(
-      `/applications/${a.id}/text-files`,
+      appId ? `/applications/${appId}/text-files` : '/text-files',
       {
         text,
         kind,
@@ -796,16 +891,83 @@ function PasteSheet({ a, data, onClose }: { a: Application; data: Data; onClose:
   );
 }
 
+/** A file you already have (on another job, or none), linked to this job too. */
+function LinkFileSheet({ a, data, onClose }: { a: Application; data: Data; onClose: () => void }) {
+  const act = useActions();
+  const [q, setQ] = useState('');
+  const ql = q.trim().toLowerCase();
+  const jobName = (id: string) => {
+    const x = data.appById.get(id);
+    return x ? `${x.company} · ${x.title}` : null;
+  };
+  const list = data.state.files
+    .filter((f) => !f.application_ids.includes(a.id))
+    .filter(
+      (f) =>
+        !ql ||
+        [f.label, f.filename, fileKindLabel(f.kind), ...f.application_ids.map(jobName)]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+          .includes(ql),
+    )
+    .sort((x, y) => y.created_at.localeCompare(x.created_at));
+  const link = async (id: string) => {
+    if (await act.post(`/applications/${a.id}/files/${id}`, {}, 'Linked to this job')) onClose();
+  };
+  return (
+    <Sheet title="Link a File" icon="paperclip" onClose={onClose}>
+      <label className="search-in search-full">
+        <Icon name="search" size={16} />
+        <input
+          autoFocus
+          value={q}
+          placeholder="Search files"
+          aria-label="Search files"
+          onChange={(e) => setQ(e.target.value)}
+        />
+      </label>
+      <div className="pick-list" role="listbox" aria-label="Files">
+        {list.map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            role="option"
+            aria-selected={false}
+            className="person"
+            onClick={() => void link(f.id)}
+          >
+            <span className="avatar">
+              <Icon name="paperclip" size={15} />
+            </span>
+            <span className="row-text">
+              <strong>{f.label ?? f.filename}</strong>
+              <span className="sub">
+                {[fileKindLabel(f.kind), dayLabel(f.created_at), ...f.application_ids.map(jobName)]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </span>
+            </span>
+          </button>
+        ))}
+        {!list.length && <p className="sub">{ql ? 'Nothing matches.' : 'No other files yet.'}</p>}
+      </div>
+    </Sheet>
+  );
+}
+
 function FilesSection({ a, data }: { a: Application; data: Data }) {
+  const openRecord = useOpenFileRecord();
   // The file waiting on "Are you sure?" before it's deleted.
   const [doomed, setDoomed] = useState<FileRef | null>(null);
   const act = useActions();
   const toast = useToast();
   const [paste, setPaste] = useState(false);
+  const [linking, setLinking] = useState(false);
   const [drag, setDrag] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const files = data.state.files
-    .filter((f) => f.application_id === a.id)
+    .filter((f) => f.application_ids.includes(a.id))
     .sort((x, y) => y.created_at.localeCompare(x.created_at));
   async function upload(list: FileList | null) {
     if (!list?.length) return;
@@ -839,14 +1001,16 @@ function FilesSection({ a, data }: { a: Application; data: Data }) {
         <Icon name="upload" size={20} />
         <span className="file-drop-t">
           <strong>Add a file</strong>
-          <span className="sub">Drop it here, choose one, or paste text</span>
         </span>
         <div className="acts">
           <button type="button" className="btn sm" onClick={() => input.current?.click()}>
-            Choose a file
+            <Icon name="upload" size={14} /> Upload file
           </button>
           <button type="button" className="btn sm" onClick={() => setPaste(true)}>
-            Paste text
+            <Icon name="compose" size={14} /> Paste text as file
+          </button>
+          <button type="button" className="btn sm" onClick={() => setLinking(true)}>
+            <Icon name="link" size={14} /> Link existing
           </button>
           <input
             ref={input}
@@ -861,32 +1025,45 @@ function FilesSection({ a, data }: { a: Application; data: Data }) {
       {files.length > 0 && (
         <div className="card list">
           {files.map((f) => (
-            <div key={f.id} className="file-row">
-              <Icon name="paperclip" size={20} />
+            // A card, as on Files: it opens the file's record (name, kind, comment); Open file
+            // beside its name opens the file itself.
+            <div
+              key={f.id}
+              role="button"
+              tabIndex={0}
+              className="prow dir-row"
+              onClick={() => openRecord(f, a.id)}
+              onKeyDown={(e) => {
+                if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return;
+                e.preventDefault();
+                openRecord(f, a.id);
+              }}
+            >
+              <span className="co-mark">
+                <Icon name="paperclip" size={18} />
+              </span>
               <span className="row-text">
-                <a
-                  href={fileUrl(f.id, true)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="file-name"
-                >
-                  {f.label ?? f.filename}
-                </a>
-                <span className="sub">
-                  {bytes(f.size)} · {relDays(f.created_at)}
-                  {a.resume_file_id === f.id ? ' · sent with this application' : ''}
+                <span className="file-line">
+                  <strong className="file-title">{f.label ?? f.filename}</strong>
+                  <a
+                    className="pill open-file"
+                    href={fileUrl(f.id, true)}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Open file <Icon name="external" size={12} />
+                  </a>
+                </span>
+                <span className="prow-pills">
+                  <span className="pill">{fileKindLabel(f.kind)}</span>
+                  <span className="pill">{relDays(f.created_at)}</span>
+                  {a.resume_file_id === f.id && (
+                    <span className="pill">Sent with this application</span>
+                  )}
                 </span>
               </span>
-              <span className="acts">
-                <span className="file-kind">
-                  <Select
-                    value={f.kind}
-                    onChange={(v) => void act.patch(`/files/${f.id}`, { kind: v })}
-                    groups={[
-                      { options: FILE_KINDS.map((k) => ({ value: k.key, label: k.label })) },
-                    ]}
-                  />
-                </span>
+              <span className="acts" onClick={(e) => e.stopPropagation()}>
                 {f.kind === 'resume' && a.resume_file_id !== f.id && (
                   <button
                     type="button"
@@ -905,8 +1082,17 @@ function FilesSection({ a, data }: { a: Application; data: Data }) {
                 <button
                   type="button"
                   className="xbtn"
-                  aria-label={`Delete ${fileKindLabel(f.kind).toLowerCase()} ${f.filename}`}
-                  onClick={() => setDoomed(f)}
+                  // On other jobs too: off this one only. Else the file goes (asks first).
+                  aria-label={
+                    f.application_ids.length > 1
+                      ? `Remove ${f.filename} from this job`
+                      : `Delete ${fileKindLabel(f.kind).toLowerCase()} ${f.filename}`
+                  }
+                  onClick={() =>
+                    f.application_ids.length > 1
+                      ? void act.del(`/applications/${a.id}/files/${f.id}`, 'Removed from this job')
+                      : setDoomed(f)
+                  }
                 >
                   <Icon name="trash" size={16} />
                 </button>
@@ -915,7 +1101,8 @@ function FilesSection({ a, data }: { a: Application; data: Data }) {
           ))}
         </div>
       )}
-      {paste && <PasteSheet a={a} data={data} onClose={() => setPaste(false)} />}
+      {paste && <PasteSheet appId={a.id} data={data} onClose={() => setPaste(false)} />}
+      {linking && <LinkFileSheet a={a} data={data} onClose={() => setLinking(false)} />}
       {doomed && (
         <ConfirmDialog
           question={`Are you sure you want to delete ${doomed.filename}?`}
@@ -935,6 +1122,7 @@ const TABS = [
   { key: 'details', label: 'Details', icon: 'list' },
   { key: 'timeline', label: 'Timeline', icon: 'clock' },
   { key: 'stories', label: 'Stories', icon: 'quote' },
+  { key: 'questions', label: 'Questions', icon: 'question' },
   { key: 'files', label: 'Files', icon: 'paperclip' },
 ] as const;
 type Tab = (typeof TABS)[number]['key'];
@@ -974,7 +1162,8 @@ export function ApplicationPage() {
     details: null,
     timeline: events.length,
     stories: data.state.job_stories.filter((j) => j.application_id === a.id).length,
-    files: data.state.files.filter((f) => f.application_id === a.id).length,
+    questions: data.state.job_questions.filter((j) => j.application_id === a.id).length,
+    files: data.state.files.filter((f) => f.application_ids.includes(a.id)).length,
   };
 
   return (
@@ -1001,15 +1190,36 @@ export function ApplicationPage() {
             <h1 className="title">{a.title}</h1>
             <p className="app-meta">
               <strong className="app-co">{a.company}</strong>
-              {a.work_mode && <span>{workModeLabel(a.work_mode)}</span>}
-              {a.location && a.work_mode !== 'remote' && <span>{a.location}</span>}
-              {a.applied_on && <span>Applied {shortDateLabel(a.applied_on)}</span>}
-              {pay && <span className="mono">{pay}</span>}
+              {/* Each with its icon: how it works, where, when you applied, the pay. */}
+              {a.work_mode && (
+                <span>
+                  <Icon name="briefcase" size={14} />
+                  {workModeLabel(a.work_mode)}
+                </span>
+              )}
+              {a.location && a.work_mode !== 'remote' && (
+                <span>
+                  <Icon name="pin" size={14} />
+                  {a.location}
+                </span>
+              )}
+              {a.applied_on && (
+                <span>
+                  <Icon name="send" size={14} />
+                  Applied {shortDateLabel(a.applied_on)}
+                </span>
+              )}
+              {pay && (
+                <span className="mono">
+                  <Icon name="coin" size={14} />
+                  {pay}
+                </span>
+              )}
             </p>
           </div>
           <div className="acts app-acts">
             <Link className="btn sm" to={`/a/${a.id}/call`}>
-              <Icon name="phone" size={16} /> Call Mode
+              <Icon name="handset" size={16} /> Call Mode
             </Link>
             <button type="button" className="btn sm primary" onClick={() => sheets.log(a.id)}>
               <Icon name="plus" size={16} /> Log to timeline
@@ -1053,6 +1263,7 @@ export function ApplicationPage() {
         )}
         {tab === 'timeline' && <Timeline events={events} appId={a.id} />}
         {tab === 'stories' && <StoriesSection a={a} data={data} />}
+        {tab === 'questions' && <JobQuestions a={a} data={data} />}
         {tab === 'files' && <FilesSection a={a} data={data} />}
       </div>
     </div>

@@ -434,3 +434,505 @@
   outline: 2px solid var(--bad, #b4231c);
   outline-offset: 2px;
 }
+
+/* ---------- the divider between notes and stories: drag to resize ---------- */
+.cmv-grid {
+  grid-template-columns: minmax(0, var(--cmv-split, 50%)) 16px minmax(0, 1fr);
+  gap: 0;
+}
+.cmv-split {
+  display: grid;
+  place-items: center;
+  cursor: col-resize;
+  touch-action: none;
+  outline: none;
+}
+.cmv-split-grip {
+  width: 6px;
+  height: 44px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink, #17191c) 22%, transparent);
+  transition:
+    background 0.15s ease,
+    height 0.15s ease;
+}
+.cmv-split:hover .cmv-split-grip,
+.cmv-split:focus-visible .cmv-split-grip,
+body.cmv-dragging .cmv-split-grip {
+  height: 64px;
+  background: var(--accent, #2b3fd0);
+}
+body.cmv-dragging {
+  cursor: col-resize;
+  user-select: none;
+}
+/* Phones: one column again (no divider to drag). */
+@media (max-width: 760px) {
+  .cmv-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .cmv-split {
+    display: none;
+  }
+}
+
+/* ---------- headings: Stories, Notes | Questions, and the key to move between them ---------- */
+.cmv-stories .cmv-notes-head {
+  margin-bottom: 2px;
+}
+.cmv-key {
+  margin-left: auto;
+}
+.cmv-notes-head .cmv-save {
+  margin-left: 10px;
+}
+.cmv kbd,
+.cmv-search kbd,
+.cmv-key kbd {
+  display: inline-block;
+  min-width: 20px;
+  padding: 1px 6px;
+  border: 1px solid #c9ced8;
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink, #1a1d24);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.5;
+  text-align: center;
+}
+/* Notes | Questions: the app's own tabs (underlined), sitting on the card's top edge. */
+.cmv-tabs.tabs {
+  flex: 1;
+  margin: -4px 0 0;
+}
+
+/* ---------- the stories search: white, outlined, dark text ---------- */
+.cmv-search {
+  background: #fff;
+  border: 1.5px solid #c9ced8;
+  color: var(--ink, #1a1d24);
+}
+.cmv-search input::placeholder {
+  color: #7b8494;
+}
+
+/* ---------- questions ---------- */
+.cmq {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cmq-add {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 12px;
+  border: 1.5px dashed #c9ced8;
+  border-radius: 12px;
+  color: var(--ink2, #5c6370);
+}
+.cmq-add:focus-within {
+  border-style: solid;
+  border-color: var(--accent, #2b3fd0);
+}
+.cmq-add input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ink, #1a1d24);
+  font: inherit;
+  font-size: 15px;
+}
+.cmq-count {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--ink2, #5c6370);
+}
+.cmq-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cmq-item {
+  padding: 10px 12px;
+  border: 1.5px solid #d9dce3;
+  border-radius: 14px;
+  background: #fff;
+}
+.cmq-item.asked {
+  border-color: color-mix(in srgb, var(--good, #1f9d6b) 45%, #d9dce3);
+}
+.cmq-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cmq-check {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 2px solid #b8bec9;
+  border-radius: 7px;
+  background: #fff;
+  color: #fff;
+  cursor: pointer;
+}
+.cmq-check[aria-checked='true'] {
+  border-color: var(--good, #1f9d6b);
+  background: var(--good, #1f9d6b);
+}
+.cmq-text {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ink, #1a1d24);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 750;
+}
+.cmq-item.asked .cmq-text {
+  color: var(--ink2, #5c6370);
+}
+.cmq-rm {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--ink2, #5c6370);
+  cursor: pointer;
+}
+.cmq-rm:hover {
+  background: var(--bg, #ebedf1);
+}
+.cmq-answer {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 7px 10px 7px 32px;
+  border: 0;
+  border-radius: 10px;
+  background: #f6f7f9;
+  color: var(--ink, #1a1d24);
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.45;
+  resize: none;
+}
+.cmq-answer:focus {
+  outline: 2px solid var(--accent, #2b3fd0);
+  background: #fff;
+}
+
+/* The same questions list in a meeting's Prep (not filling a column there). */
+.kv .cmq {
+  flex: none;
+  overflow: visible;
+}
+.kv .cmq-count,
+.kv .cmq-list span {
+  font-size: 13px;
+}
+
+/* ---------- who's in the room and the topics: an "i" beside the title ---------- */
+.cmv-infotip {
+  position: relative;
+  flex: none;
+  align-self: center;
+}
+.cmv-i {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--ink2, #5c6370);
+  cursor: help;
+}
+.cmv-i:hover,
+.cmv-i:focus-visible {
+  background: var(--bg, #ebedf1);
+  color: var(--ink, #1a1d24);
+}
+.cmv-infopop {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 30;
+  display: none;
+  flex-direction: column;
+  gap: 14px;
+  width: max-content;
+  max-width: min(420px, 80vw);
+  padding: 14px 16px;
+  border: 1px solid #d9dce3;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 10px 30px rgb(20 30 50 / 0.16);
+}
+.cmv-infotip:hover .cmv-infopop,
+.cmv-infotip:focus-within .cmv-infopop {
+  display: flex;
+}
+.cmv-infosec {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cmv-infosec .cmv-h {
+  margin-bottom: 2px;
+}
+.cmv-infosec .cmv-person,
+.cmv-infosec .cmv-pre {
+  display: block;
+  white-space: pre-wrap;
+  font-size: 14px;
+}
+
+/* ---------- questions: tighter, a round tick, a rounded focus like the answer, drag to move ---------- */
+.cmq-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cmq-bar .cmq-add {
+  flex: 1;
+}
+.cmq-item {
+  padding: 8px 10px;
+}
+.cmq-check {
+  border-radius: 50%;
+}
+.cmq-text {
+  padding: 3px 8px;
+  margin: -3px 0;
+  border-radius: 8px;
+}
+.cmq-text:focus,
+.cmq-text:focus-visible {
+  outline: 2px solid var(--accent, #2b3fd0);
+  outline-offset: 0;
+  background: #fff;
+}
+.cmq-text[readonly]:focus,
+.cmq-text[readonly]:focus-visible {
+  outline: none;
+}
+.cmq-answer {
+  margin-top: 4px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  padding-left: 58px;
+}
+.cmq-grip {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  color: #b8bec9;
+  cursor: grab;
+}
+.cmq-grip:active {
+  cursor: grabbing;
+}
+.cmq-item.dragging {
+  opacity: 0.45;
+}
+.cmq-item.over {
+  box-shadow: 0 -3px 0 0 var(--accent, #2b3fd0);
+}
+.cmq-tag {
+  flex: none;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft, #e4e8fd);
+  color: var(--accent-deep, #2131a6);
+  font-size: 11.5px;
+  font-weight: 750;
+}
+
+/* Question cards outside Call Mode (a job's Questions tab, the bank): a small round Q mark, and
+   a tag that can be a button (Save to bank). */
+.cmq-qmark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent, #2b3fd0);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+}
+.cmq-tag-btn {
+  border: 0;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 750;
+  cursor: pointer;
+}
+.cmq-tag-btn:hover {
+  text-decoration: underline;
+}
+.sec .cmq-list,
+.cmq-list:only-child {
+  margin-top: 4px;
+}
+
+/* A new question: its words, then (for a job) Save to the bank too, and Cancel / Add. */
+.q-new {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 14px;
+  border: 1.5px solid var(--accent, #2b3fd0);
+}
+.q-new .in {
+  width: 100%;
+}
+.q-new-acts {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.q-new-btns {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+.cmq-del {
+  background: var(--bad-soft, #ffe3e0);
+  color: var(--bad, #b4231c);
+}
+/* Save to bank: a grey pill. */
+.cmq-tag-grey {
+  background: #e6e8ed;
+  color: var(--ink2, #5c6370);
+}
+.cmq-tag-grey:hover {
+  background: #dde1e8;
+  color: var(--ink, #1a1d24);
+}
+
+/* Questions as cards: no rule between them, and the dragged one lifts as itself. */
+.cmq-list .sort-row + .sort-row::before {
+  display: none;
+}
+.cmq-list .sort-row.sort-ghost {
+  border-radius: 14px;
+}
+.sort-row.sort-lifted:has(> .cmq-item) {
+  padding: 0;
+  border-radius: 14px;
+}
+
+/* ---------- keyboard shortcuts cheat sheet ---------- */
+.kb-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.kb-group h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink2, #5c6370);
+}
+.kb-group dl {
+  margin: 0;
+  border: 1.5px solid #d9dce3;
+  border-radius: 14px;
+  overflow: hidden;
+}
+.kb-row {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  border-bottom: 1px solid #eceef2;
+}
+.kb-row:last-child {
+  border-bottom: 0;
+}
+.kb-row dt,
+.kb-row dd {
+  margin: 0;
+}
+.kb-row dd {
+  font-size: 15px;
+}
+.kb-row kbd {
+  display: inline-block;
+  min-width: 22px;
+  padding: 2px 8px;
+  border: 1px solid #c9ced8;
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink, #1a1d24);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 12.5px;
+  font-weight: 700;
+  text-align: center;
+  white-space: pre;
+}
+
+/* ---------- tighter, to give the notes and stories as much of the screen as possible ---------- */
+.cmv-bar {
+  gap: 8px 12px;
+  padding: calc(7px + env(safe-area-inset-top, 0px)) 12px 7px;
+}
+.cmv-title strong {
+  font-size: 16.5px;
+}
+.cmv-title span {
+  font-size: 13px;
+}
+.cmv-grid {
+  grid-template-columns: minmax(0, var(--cmv-split, 50%)) 10px minmax(0, 1fr);
+  padding: 8px;
+}
+.cmv-card {
+  padding: 12px 14px;
+  border-radius: 16px;
+}
+@media (max-width: 760px) {
+  .cmv-grid {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 8px;
+    gap: 8px;
+  }
+}

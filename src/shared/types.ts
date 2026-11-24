@@ -130,6 +130,8 @@ export interface Attendee {
   name: string;
   title?: string | null;
   email?: string | null;
+  /** Their person record, when they have one. */
+  person_id?: string | null;
 }
 
 export interface MeetingData {
@@ -141,6 +143,23 @@ export interface MeetingData {
   location: string | null;
   attendees: Attendee[];
   agenda: string | null;
+  /** Questions to ask (or asked): prepared ahead, or marked in the call notes. Older meetings
+   * have none. */
+  questions?: CallQuestion[];
+}
+
+export interface CallQuestion {
+  id: string;
+  text: string;
+  /** What was said, jotted down. */
+  answer: string | null;
+  asked: boolean;
+  /** Marked in the call notes ("Q: …"), not added to the list by hand. */
+  from_notes?: boolean;
+  /** The bank question it came from, if any. */
+  question_id?: string | null;
+  /** The job's question it stands for (its answer on this call), if any. */
+  job_question_id?: string | null;
 }
 
 export interface EmailData {
@@ -256,6 +275,31 @@ export interface FileRef {
   /** Text was kept (transcripts and other text files), readable through /api/files/:id/text. */
   has_text: boolean;
   created_at: string;
+  /** Every job it's on (it can be linked to several). */
+  application_ids: string[];
+}
+
+/** A question in the bank: reused across jobs and meetings. */
+export interface Question {
+  id: string;
+  text: string;
+  tags: string[];
+  notes: string | null;
+  archived: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A question for one job (from the bank, or just for it): it comes up in every call for it. */
+export interface JobQuestion {
+  id: string;
+  application_id: string;
+  /** The bank question it came from, if any. */
+  question_id: string | null;
+  text: string;
+  position: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface AppState {
@@ -268,5 +312,7 @@ export interface AppState {
   frameworks: Framework[];
   stories: Story[];
   job_stories: JobStory[];
+  questions: Question[];
+  job_questions: JobQuestion[];
   files: FileRef[];
 }

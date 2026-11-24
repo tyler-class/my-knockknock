@@ -285,11 +285,15 @@ export function TagsEdit({
   label,
   value,
   onSave,
+  quals,
 }: {
   label: string;
   value: string[];
   onSave: (v: string[]) => Promise<unknown>;
+  /** Qualifications: rounded squares (they run long), light blue if required, grey if preferred. */
+  quals?: 'required' | 'preferred';
 }) {
+  const tagsClass = quals ? `tags quals quals-${quals}` : 'tags';
   const [editing, setEditing] = useState(false);
   const [v, setV] = useState<string[]>([]);
   const [draft, setDraft] = useState('');
@@ -308,7 +312,7 @@ export function TagsEdit({
       full
       shown={
         value.length ? (
-          <span className="tags">
+          <span className={tagsClass}>
             {value.map((m) => (
               <span key={m} className="tag">
                 {m}
@@ -329,7 +333,7 @@ export function TagsEdit({
       <div className="tags-edit" {...groupKeys(save, () => setEditing(false), false)}>
         {v.length > 0 && (
           <div className="kv-v tags-edit-v">
-            <span className="tags">
+            <span className={tagsClass}>
               {v.map((m) => (
                 <span key={m} className="tag tag-x">
                   {m}

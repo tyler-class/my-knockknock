@@ -5,7 +5,7 @@
 // answers with the event, the application and what's nearby on its timeline, so an assistant can
 // spot a duplicate it just made and fix it in the same turn.
 import { Hono } from 'hono';
-import { settleCompany } from '../companies';
+import { createCompany, findCompanyByName, settleCompany } from '../companies';
 import type { z } from 'zod';
 import { isOpen } from '@shared/lookups';
 import {
@@ -17,6 +17,7 @@ import {
   meetingPatch,
   noteInput,
   notePatch,
+  personAt,
   personInput,
   personPatch,
   roundInput,
@@ -392,8 +393,14 @@ function meetingData(input: z.output<typeof meetingInput>): MeetingData {
     timezone: input.timezone,
     join_url: input.join_url,
     location: input.location,
-    attendees: input.attendees.map((a) => ({ name: a.name, title: a.title, email: a.email })),
+    attendees: input.attendees.map((a) => ({
+      name: a.name,
+      title: a.title,
+      email: a.email,
+      person_id: a.person_id ?? null,
+    })),
     agenda: input.agenda,
+    questions: input.questions,
   };
 }
 
@@ -517,10 +524,14 @@ applications.delete('/events/:id', async (c) => {
 
 // ---------- people ----------
 
-/** Someone new on a job: at the job's company, and on the job. */
+/**
+ * Someone new on a job, and at a company: the one chosen (or named, found or added), else the
+ * job's own.
+ */
 applications.post('/applications/:id/people', async (c) => {
   const id = await needApp(c);
   const input = await body(c, personInput);
+  const at = await body(c, personAt);
   if (input.role !== 'other') input.other_role = null;
   const pid = newId();
   const now = nowIso();
@@ -529,11 +540,20 @@ applications.post('/applications/:id/people', async (c) => {
     'SELECT company_id FROM applications WHERE id = ?',
     id,
   );
+  let companyId = app?.company_id ?? null;
+  if (at.company_id) {
+    if (!(await first(c.env.DB, 'SELECT id FROM companies WHERE id = ?', at.company_id)))
+      throw notFound('Company');
+    companyId = at.company_id;
+  } else if (at.company_name) {
+    const found = await findCompanyByName(c.env.DB, at.company_name);
+    companyId = (found ?? (await createCompany(c.env.DB, { name: at.company_name }))).id;
+  }
   await c.env.DB.batch([
     insertStmt(c.env.DB, 'people', {
       id: pid,
       application_id: id,
-      company_id: app?.company_id ?? null,
+      company_id: companyId,
       ...input,
       created_at: now,
       updated_at: now,

@@ -164,7 +164,7 @@ export function agentName(env: object): string | null {
 
 /** File uploads send the file itself as the body; everything else is JSON. */
 /** Raw file bodies: a job's files, and a company's logo. */
-const FILE_UPLOAD = /^\/api\/(applications\/[^/]+\/files|companies\/[^/]+\/logo)$/;
+const FILE_UPLOAD = /^\/api\/(applications\/[^/]+\/files|files|companies\/[^/]+\/logo)$/;
 
 /** Refuses to run open, blocks cross-site writes, and requires a session for the API. */
 export const guard: MiddlewareHandler<Env> = async (c, next) => {

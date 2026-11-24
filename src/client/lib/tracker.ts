@@ -12,6 +12,20 @@ export const TRACKER_ITEMS: GlassTab[] = [
   ['/files', 'Files', 'paperclip'],
 ];
 
+/** The parent section for getting ready: stories to tell and questions to ask. */
+export const PREPARE = 'Prepare';
+export const PREPARE_ITEMS: GlassTab[] = [
+  ['/stories', 'Stories', 'quote'],
+  ['/questions', 'Questions', 'question'],
+];
+
+/** The Prepare page an address belongs to. */
+export function preparePage(path: string): string | null {
+  if (path.startsWith('/stories')) return '/stories';
+  if (path.startsWith('/questions')) return '/questions';
+  return null;
+}
+
 /** The Tracker page an address belongs to (a job's page is Jobs, a company's Companies). */
 export function trackerPage(path: string): string | null {
   if (path.startsWith('/a/') || path.startsWith('/jobs') || path.startsWith('/pipeline'))

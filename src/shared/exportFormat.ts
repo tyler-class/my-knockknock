@@ -130,6 +130,16 @@ export const TABLE_COLUMNS = {
     'created_at',
     'updated_at',
   ],
+  questions: ['id', 'text', 'tags', 'notes', 'archived', 'created_at', 'updated_at'],
+  job_questions: [
+    'id',
+    'application_id',
+    'question_id',
+    'text',
+    'position',
+    'created_at',
+    'updated_at',
+  ],
   // Unused since 0.1.2 (the "told" marks were removed). The table stays in D1 and in exports
   // so older data still round-trips; nothing reads or writes it any more.
   story_tells: ['id', 'job_story_id', 'event_id', 'told_at', 'heard_by', 'note', 'created_at'],

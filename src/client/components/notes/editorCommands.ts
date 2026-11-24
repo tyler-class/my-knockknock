@@ -15,6 +15,7 @@ import {
   live,
   parseListLine,
   prefixEnd,
+  QUESTION_RE,
   UNDERLINE_RE,
   type ListLine,
   type MarkRole,
@@ -216,7 +217,7 @@ function softBreak(view: EditorView): boolean {
 
 // --------------------------------------------------------------- Backspace
 
-function backspace(view: EditorView): boolean {
+export function backspace(view: EditorView): boolean {
   const { state } = view;
   const sel = state.selection.main;
   if (!sel.empty) return false;
@@ -224,6 +225,19 @@ function backspace(view: EditorView): boolean {
   if (inCode(state, pos)) return false;
   const line = state.doc.lineAt(pos);
   const L = parseListLine(line.text);
+  // Right after a question's Q badge: the whole "Q: " goes (the line stays, as plain text).
+  {
+    const start = line.from + (L ? L.content : /^[ \t]*/.exec(line.text)![0].length);
+    const q = QUESTION_RE.exec(line.text.slice(start - line.from));
+    if (q && pos === start + q[0].length) {
+      view.dispatch({
+        changes: { from: start, to: pos },
+        selection: { anchor: start },
+        userEvent: 'delete.backward',
+      });
+      return true;
+    }
+  }
   if (L && pos === line.from + L.content) {
     // At the start of an item's text: out a level first, then back to plain text.
     if (L.indent > 0) return shiftItem(view, true);

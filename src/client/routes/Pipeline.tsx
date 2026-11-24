@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import {
   closestCenter,
@@ -24,13 +24,14 @@ import { CSS } from '@dnd-kit/utilities';
 import { useQueryClient } from '@tanstack/react-query';
 import { OPEN_STATUSES, statusLabel, type Status } from '@shared/lookups';
 import { isUpcoming, quietDays } from '@shared/logic/timeline';
-import type { AppState, Application, MeetingData } from '@shared/types';
+import type { AppState, Application } from '@shared/types';
 import { keys, useActions, useData } from '../lib/queries';
 import { CompanyLogo } from '../components/CompanyLogo';
-import { compLabel, relDays } from '../lib/format';
+import { compLabel } from '../lib/format';
 import {
   CLOSED_STAGES,
   STAGES,
+  defaultStage,
   isStage,
   stageCounts,
   stageName,
@@ -58,7 +59,8 @@ function nextStep(
   const meet = (data.eventsByApp.get(a.id) ?? [])
     .filter((e) => isUpcoming(e, now))
     .sort((x, y) => x.occurred_at.localeCompare(y.occurred_at))[0];
-  if (meet) return `${meet.title || (meet.data as MeetingData).kind} ${relDays(meet.occurred_at)}`;
+  // Just that there is one (its title can run long; the job's timeline has the details).
+  if (meet) return 'Upcoming meeting';
   if (a.status === 'offer') return 'Decide on the offer';
   const q = quietDays(a, now, data.state.events);
   if (a.status !== 'saved' && q >= data.state.settings.follow_up_days)
@@ -88,7 +90,6 @@ function Card({
   /** The copy that follows the pointer while dragging. */
   lifted?: boolean;
 }) {
-  const next = nextStep(a, data, now);
   const pay = compLabel(a);
   return (
     <Link
@@ -113,10 +114,9 @@ function Card({
               : a.work_mode[0]!.toUpperCase() + a.work_mode.slice(1)}
           </span>
         )}
-        {a.source && <span className="tag">{a.source}</span>}
       </span>
+      {/* Only when anything last happened (no source, no follow-up nudge, on the board). */}
       <span className="kcard-foot">
-        {next && <span className="pill hot-pill">{next}</span>}
         <span className="pill when-pill">{lastActivityLabel(a, data, now)}</span>
       </span>
     </Link>
@@ -206,6 +206,7 @@ function Lane({
       ref={setNodeRef}
       className={`col${className ? ` ${className}` : ''}${target ? ' col-target' : ''}${target && isOver ? ' col-over' : ''}`}
       aria-label={label}
+      data-lane={id}
     >
       {children}
       {target && isOver && (
@@ -220,11 +221,36 @@ function Lane({
 export function Pipeline() {
   const data = useData();
   const sheets = useSheets();
-  // The stage and search are remembered on this device and kept in the address
-  // (?stage=applied&q=acme). The view isn't remembered: it opens as the board on a computer and
-  // the list on a phone, and a switch lasts while you're on the page (it's in the address).
-  const [choice, choose] = useViewState('kk:pipeline', { stage: 'saved', q: '' });
+  // The search is remembered on this device and kept in the address (?q=acme). The stage isn't
+  // remembered: Jobs opens on the furthest stage with a job in it (see defaultStage), and a tab
+  // picked lasts while you're on the page (?stage=applied). The view isn't remembered either: it
+  // opens as the board on a computer and the list on a phone (?view=list while switched).
+  const [choice, choose] = useViewState('kk:pipeline', { q: '' });
   const [params, setParams] = useSearchParams();
+  const opening = defaultStage(data?.apps ?? []);
+  const askedStage = params.get('stage') ?? '';
+  const stage: Stage = isStage(askedStage) ? askedStage : opening;
+  const setStage = (s: Stage) =>
+    setParams(
+      (p) => {
+        const q = new URLSearchParams(p);
+        if (s === opening) q.delete('stage');
+        else q.set('stage', s);
+        return q;
+      },
+      { replace: true },
+    );
+  // The board opens scrolled to that stage's lane (the furthest one with a job in it).
+  const boardScroll = useRef<HTMLDivElement>(null);
+  const scrolledFor = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    const el = boardScroll.current;
+    if (!el || !data || scrolledFor.current === 'done') return;
+    scrolledFor.current = 'done';
+    const lane = [...OPEN_STATUSES].reverse().find((s) => data.apps.some((a) => a.status === s));
+    const col = lane && el.querySelector<HTMLElement>(`[data-lane="${lane}"]`);
+    if (col) el.scrollLeft = Math.max(0, col.offsetLeft - 12);
+  });
   const wide = window.matchMedia('(min-width: 900px)').matches;
   const asked = params.get('view');
   const view: View = asked === 'list' || asked === 'board' ? asked : wide ? 'board' : 'list';
@@ -252,7 +278,6 @@ export function Pipeline() {
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
-  const stage: Stage = isStage(choice.stage) ? choice.stage : 'saved';
   const q = choice.q;
   if (!data) return null;
   const now = new Date();
@@ -368,7 +393,7 @@ export function Pipeline() {
             } else sheets.status(app.id, to as Status);
           }}
         >
-          <div className="card board-scroll">
+          <div ref={boardScroll} className="card board-scroll">
             {/* "crossing": the card is over another lane, so its old place isn't where it lands. */}
             <div
               className={
@@ -455,7 +480,7 @@ export function Pipeline() {
                 role="tab"
                 aria-selected={stage === s}
                 className="tab"
-                onClick={() => choose({ stage: s })}
+                onClick={() => setStage(s)}
               >
                 <StatusIcon status={s === 'active' ? 'interviewing' : s} size={15} />
                 {stageName(s)}
@@ -480,8 +505,11 @@ export function Pipeline() {
                     return (
                       <Link key={a.id} to={`/a/${a.id}`} className="prow">
                         <span className="row-text">
-                          <strong>{a.company}</strong>
-                          <span className="sub ell">{a.title}</span>
+                          {/* One line: "Acme · Senior PM" (cut short with … when it's long). */}
+                          <strong className="ell">
+                            {a.company} <span className="at">·</span>{' '}
+                            <span className="job-t">{a.title}</span>
+                          </strong>
                           <span className="prow-pills">
                             {pay && <span className="pill">{pay}</span>}
                             {next && <span className="pill hot-pill">{next}</span>}

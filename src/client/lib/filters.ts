@@ -41,6 +41,17 @@ export function stageCounts(apps: Application[]): StageCounts {
   return { byStatus, count };
 }
 
+/**
+ * Where Jobs opens: the furthest stage that has a job in it (Offer, then Active, Applied, Saved;
+ * never Closed), else Saved.
+ */
+export function defaultStage(apps: Application[]): Stage {
+  const c = stageCounts(apps);
+  return (
+    (['offer', 'active', 'applied', 'saved'] as Stage[]).find((s) => c.count(s) > 0) ?? 'saved'
+  );
+}
+
 /** A Jobs list tab's name: "Saved", "Active", "Closed". */
 export const stageName = (stage: Stage) =>
   stage === 'active' ? 'Active' : stage === 'closed' ? 'Closed' : statusLabel(stage);

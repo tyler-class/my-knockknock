@@ -162,6 +162,19 @@ const attendee = z.object({
   name: z.string().trim().min(1).max(200),
   title: text(200),
   email: text(200),
+  /** Their person record, when they have one. */
+  person_id: z.string().max(64).nullish(),
+});
+
+/** A question for a meeting: prepared ahead or noted on the call, what was said, asked or not. */
+const callQuestion = z.object({
+  id: z.string().min(1).max(64),
+  text: z.string().trim().min(1).max(1000),
+  answer: text(4000),
+  asked: z.boolean().default(false),
+  from_notes: z.boolean().optional(),
+  question_id: z.string().max(64).nullish(),
+  job_question_id: z.string().max(64).nullish(),
 });
 
 const meetingFields = {
@@ -176,6 +189,7 @@ const meetingFields = {
   location: text(500),
   attendees: z.array(attendee).max(30).default([]),
   agenda: text(10_000),
+  questions: z.array(callQuestion).max(100).default([]),
 };
 export const meetingInput = z.object({
   ...meetingFields,
@@ -187,6 +201,7 @@ export const meetingPatch = z
     kind: z.enum(MEETING_KIND_KEYS),
     state: z.enum(MEETING_STATES),
     attendees: z.array(attendee).max(30),
+    questions: z.array(callQuestion).max(100),
     external_ref: externalRef,
   })
   .partial();
@@ -246,6 +261,14 @@ export const personInput = z.object({
   notes: text(4000),
 });
 export const personPatch = personInput.partial();
+/**
+ * Where someone added to a job works: a company that exists (company_id) or one named here
+ * (found by name, or added). Neither: the job's own company.
+ */
+export const personAt = z.object({
+  company_id: z.string().max(64).optional(),
+  company_name: z.string().trim().min(1).max(200).optional(),
+});
 
 // ---------- stories ----------
 
@@ -298,6 +321,36 @@ export const linkStoryInput = z.object({
   story_id: z.string().min(1).max(100),
   angle: text(2000),
 });
+
+// ---------- questions ----------
+
+export const questionInput = z.object({
+  text: z.string().trim().min(1).max(1000),
+  tags: list(30, 60).default([]),
+  notes: text(4000),
+});
+export const questionPatch = z
+  .object({
+    text: z.string().trim().min(1).max(1000),
+    tags: list(30, 60),
+    notes: text(4000),
+    archived: z.boolean(),
+  })
+  .partial();
+/** A question for a job: one from the bank, or written for it (optionally kept in the bank too). */
+export const jobQuestionInput = z.union([
+  z.object({ question_id: z.string().min(1).max(64) }),
+  z.object({
+    text: z.string().trim().min(1).max(1000),
+    to_bank: z.boolean().default(false),
+  }),
+]);
+export const jobQuestionPatch = z
+  .object({
+    text: z.string().trim().min(1).max(1000),
+    position: z.number().int().min(0).max(10_000),
+  })
+  .partial();
 
 // ---------- files ----------
 

@@ -10,18 +10,29 @@ import { meetingKindLabel } from '@shared/lookups';
 import { frameworkOf, searchStories } from '@shared/logic/stories';
 import { isUpcoming } from '@shared/logic/timeline';
 import { sectionLetter, type FrameworkSection } from '@shared/frameworks';
-import type { JobStory, MeetingData, Story, TimelineEvent } from '@shared/types';
+import type { CallQuestion, JobStory, MeetingData, Story, TimelineEvent } from '@shared/types';
 import { useActions, useData } from '../lib/queries';
+import { api, ApiError } from '../lib/api';
 import { whenLabel } from '../lib/format';
 import { Icon } from '../components/Icon';
 import { AutoTextarea, Field, SearchClear, Sheet, cx } from '../components/ui';
 import './callmode.css';
+import { CallQuestions } from './CallQuestions';
+import { callList, meetingKeeps, savable, withNoteQuestions } from '../lib/callQuestions';
+
+/** The notes side's share of the width, at least and at most (the rest is stories). */
+const MIN_SPLIT = 30;
+const MAX_SPLIT = 70;
 
 // The notes editor (CodeMirror) is big: it loads on its own, after the page.
 const NotesEditor = lazy(() => import('../components/notes/NotesEditor'));
+/** Sent on window to put the notes' cursor at their end (the editor listens). */
+const FOCUS_NOTES_END = 'kk:notes-focus-end';
 
-const MOD =
-  typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl+';
+const MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
+const MOD = MAC ? '⌘' : 'Ctrl+';
+/** The key that moves between the notes and the stories search. */
+const ALT = MAC ? '⌥' : 'Alt+';
 
 type Item = (JobStory | Story) & { kind: 'job' | 'bank'; defs: FrameworkSection[] };
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
@@ -60,6 +71,62 @@ function clock(ms: number) {
   return h ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`;
 }
 
+/** Call Mode's keys, at a glance: moving around, then writing notes. */
+function Shortcuts({ onClose }: { onClose: () => void }) {
+  const SHIFT = MAC ? '⇧' : 'Shift+';
+  const groups: [string, [string, string][]][] = [
+    [
+      'Moving around',
+      [
+        [`${ALT}/`, 'Notes ⇄ stories search'],
+        [`${ALT}N`, 'Notes'],
+        [`${ALT}Q`, 'Questions'],
+        ['/', 'Stories search (when you’re not typing)'],
+        ['Esc', 'Clear the stories search'],
+      ],
+    ],
+    [
+      'In your notes',
+      [
+        [`${MOD}B`, 'Bold'],
+        [`${MOD}I`, 'Italic'],
+        [`${MOD}U`, 'Underline'],
+        [`${MOD}${SHIFT}X`, 'Strikethrough'],
+        ['Q: ', 'Quick-add a question (it joins Questions)'],
+        ['- ', 'Bulleted list'],
+        ['1. ', 'Numbered list'],
+        ['[ ] ', 'Task'],
+        ['Tab', 'Indent a list item'],
+        [`${SHIFT}Tab`, 'Outdent it'],
+        [`${SHIFT}Enter`, 'New line in the same item'],
+        [`${MOD}Z`, 'Undo'],
+      ],
+    ],
+    ['In Questions', [['Enter', 'Add the question you typed']]],
+  ];
+  return (
+    <Sheet title="Keyboard Shortcuts" icon="keyboard" onClose={onClose}>
+      <div className="kb-groups">
+        {groups.map(([title, keys]) => (
+          <section key={title} className="kb-group">
+            <h3>{title}</h3>
+            <dl>
+              {keys.map(([k, what]) => (
+                <div key={k} className="kb-row">
+                  <dt>
+                    <kbd>{k.trim()}</kbd>
+                  </dt>
+                  <dd>{what}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        ))}
+      </div>
+    </Sheet>
+  );
+}
+
 export function CallMode() {
   const { id = '' } = useParams();
   const [params] = useSearchParams();
@@ -71,6 +138,44 @@ export function CallMode() {
   const [notes, setNotes] = useState('');
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [ending, setEnding] = useState(false);
+  const [keys, setKeys] = useState(false);
+  // How much of the width the notes side takes (the rest is stories), kept on this device.
+  const grid = useRef<HTMLDivElement>(null);
+  const [split, setSplit] = useState(() => {
+    try {
+      const v = Number(localStorage.getItem('kk:call-split'));
+      return v >= MIN_SPLIT && v <= MAX_SPLIT ? v : 50;
+    } catch {
+      return 50;
+    }
+  });
+  const setSplitKept = (v: number) => {
+    const next = Math.min(MAX_SPLIT, Math.max(MIN_SPLIT, v));
+    setSplit(next);
+    try {
+      localStorage.setItem('kk:call-split', String(Math.round(next)));
+    } catch {
+      /* private mode: it lasts for this visit */
+    }
+  };
+  const startDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    const box = grid.current?.getBoundingClientRect();
+    if (!box) return;
+    e.preventDefault();
+    const handle = e.currentTarget;
+    handle.setPointerCapture(e.pointerId);
+    document.body.classList.add('cmv-dragging');
+    const move = (ev: PointerEvent) => setSplitKept(((ev.clientX - box.left) / box.width) * 100);
+    const up = () => {
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', up);
+      handle.removeEventListener('pointercancel', up);
+      document.body.classList.remove('cmv-dragging');
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', up);
+    handle.addEventListener('pointercancel', up);
+  };
   const [reflection, setReflection] = useState('');
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -80,9 +185,50 @@ export function CallMode() {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
+  // The notes side: Notes, or the meeting's Questions.
+  const [side, setSide] = useState<'notes' | 'questions'>('notes');
+  /** To the notes, the cursor at their end (scrolled into view). */
+  const toNotes = () => {
+    setSide('notes');
+    // Once the editor is there (it may be loading after a switch from Questions).
+    let tries = 0;
+    const go = () => {
+      if (document.querySelector('.cmv-notes .cm-content'))
+        window.dispatchEvent(new Event(FOCUS_NOTES_END));
+      else if (tries++ < 20) requestAnimationFrame(go);
+    };
+    requestAnimationFrame(go);
+  };
+  // Keys: / goes to the stories search (when not typing); Option+/ (Alt+/) goes back and forth
+  // between the notes and the search, from anywhere, so hands never leave the keyboard.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = document.activeElement as HTMLElement | null;
+      const alt = e.altKey && !e.metaKey && !e.ctrlKey;
+      // Option+/: between the notes and the stories search.
+      if (alt && e.code === 'Slash') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (el && el === searchRef.current) toNotes();
+        else searchRef.current?.focus();
+        return;
+      }
+      // Option+N: the Notes tab (the cursor at the end); Option+Q: the Questions tab.
+      if (alt && e.code === 'KeyN') {
+        e.preventDefault();
+        e.stopPropagation();
+        toNotes();
+        return;
+      }
+      if (alt && e.code === 'KeyQ') {
+        e.preventDefault();
+        e.stopPropagation();
+        setSide('questions');
+        requestAnimationFrame(() =>
+          document.querySelector<HTMLInputElement>('.cmv-notes .cmq-add input')?.focus(),
+        );
+        return;
+      }
       if (
         e.key === '/' &&
         el?.tagName !== 'INPUT' &&
@@ -93,8 +239,8 @@ export function CallMode() {
         searchRef.current?.focus();
       }
     };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    document.addEventListener('keydown', onKey, true);
+    return () => document.removeEventListener('keydown', onKey, true);
   }, []);
 
   const a = data?.appById.get(id);
@@ -118,6 +264,34 @@ export function CallMode() {
   const ref = a ? callRef(a.id, meeting?.id) : '';
   const noteEv = events.find((e) => e.type === 'note' && e.external_ref === ref);
   const noteId = useRef<string | null>(null);
+  const eventsRef = useRef<TimelineEvent[]>([]);
+  useEffect(() => {
+    eventsRef.current = events;
+  }, [events]);
+  const meetingId = meeting?.id;
+  // The meeting's own questions (and what was said to the job's), as saved on it.
+  const meetingQs = useMemo(
+    () => (meeting?.data as MeetingData | undefined)?.questions ?? [],
+    [meeting],
+  );
+  // On the call: the job's questions (every call for it), then the meeting's own.
+  const jobQs = useMemo(
+    () => (data && a ? data.state.job_questions.filter((j) => j.application_id === a.id) : []),
+    [data, a],
+  );
+  const questions = useMemo(() => callList(jobQs, meetingQs), [jobQs, meetingQs]);
+  const questionsRef = useRef<CallQuestion[]>(meetingQs);
+  useEffect(() => {
+    questionsRef.current = meetingQs;
+  }, [meetingQs]);
+  const saveQuestions = useCallback(
+    (list: CallQuestion[]) => {
+      const keep = meetingKeeps(list);
+      questionsRef.current = keep;
+      if (meetingId) void act.patch(`/events/${meetingId}`, { questions: keep });
+    },
+    [act, meetingId],
+  );
   const saved = useRef('');
   const latest = useRef('');
   const queue = useRef<Promise<void>>(Promise.resolve());
@@ -129,24 +303,50 @@ export function CallMode() {
       const text = latest.current;
       if (!a || !text.trim() || text === saved.current) return;
       setSaveState('saving');
-      const r = noteId.current
-        ? await act.patch<TimelineEvent>(`/events/${noteId.current}`, { body: text })
-        : await act.post<TimelineEvent>(`/applications/${a.id}/notes`, {
+      // This call's note may already exist (made on another device, or before the page reloaded):
+      // then it's updated, never made twice.
+      noteId.current ??= eventsRef.current.find((e) => e.external_ref === ref)?.id ?? null;
+      const create = async () => {
+        try {
+          const made = await api.post<TimelineEvent>(`/applications/${a.id}/notes`, {
             body: text,
             title: 'Call notes',
             parent_id: meeting?.id ?? null,
             external_ref: ref,
           });
+          await act.refresh();
+          return made;
+        } catch (e) {
+          const existing =
+            e instanceof ApiError && e.code === 'duplicate'
+              ? (e.details as { event_id?: string } | undefined)?.event_id
+              : undefined;
+          if (existing) return act.patch<TimelineEvent>(`/events/${existing}`, { body: text });
+          return act.run(() => Promise.reject(e));
+        }
+      };
+      const r = noteId.current
+        ? await act.patch<TimelineEvent>(`/events/${noteId.current}`, { body: text })
+        : await create();
       if (!r) return setSaveState('error');
       noteId.current = r.id;
       saved.current = text;
+      // Questions marked in the notes ("Q: …") join the meeting's list.
+      if (meetingId) {
+        const cur = questionsRef.current;
+        const next = withNoteQuestions(cur, text);
+        if (next !== cur) {
+          questionsRef.current = next;
+          await act.patch(`/events/${meetingId}`, { questions: savable(next) });
+        }
+      }
       if (latest.current === text) {
         writeDraft(ref, null);
         setSaveState('saved');
       }
     });
     return queue.current;
-  }, [a, act, meeting?.id, ref]);
+  }, [a, act, meeting?.id, meetingId, ref]);
 
   // Load this call's note (or an unsaved draft from this device) once.
   useEffect(() => {
@@ -246,9 +446,7 @@ export function CallMode() {
       ? 'Saving…'
       : saveState === 'error'
         ? 'Couldn’t save yet; kept on this device.'
-        : saveState === 'saved'
-          ? `Saved to the timeline${meeting ? ', on the meeting' : ''}.`
-          : 'Saves as you type.';
+        : '';
 
   return (
     <div className="cmv">
@@ -256,7 +454,7 @@ export function CallMode() {
         <Link className="btn sm cmv-back" to={`/a/${a.id}`}>
           <Icon name="back" size={16} /> Back
         </Link>
-        <span className={cx('cmv-badge', live && 'live')}>
+        <span className="cmv-badge live">
           <i aria-hidden="true" />
           CALL MODE
         </span>
@@ -269,6 +467,36 @@ export function CallMode() {
             {meeting ? ` · ${whenLabel(meeting.occurred_at)}` : ''}
           </span>
         </div>
+        {/* Who's in the room and the topics, behind an "i" beside the title (hover or focus). */}
+        {((meeting && attendees.length > 0) || md?.agenda) && (
+          <span className="cmv-infotip">
+            <button type="button" className="cmv-i" aria-label="Who's in the room and the topics">
+              <Icon name="info" size={18} />
+            </button>
+            <span className="cmv-infopop" role="tooltip">
+              {meeting && attendees.length > 0 && (
+                <span className="cmv-infosec">
+                  <strong className="cmv-h">In the Room</strong>
+                  {md!.attendees.map((p) => (
+                    <span key={p.name} className="cmv-person">
+                      <strong>{p.name}</strong>
+                      {p.title && <span> · {p.title}</span>}
+                    </span>
+                  ))}
+                </span>
+              )}
+              {md?.agenda && (
+                <span className="cmv-infosec">
+                  <strong className="cmv-h">Topics</strong>
+                  <span className="cmv-pre">{md.agenda}</span>
+                </span>
+              )}
+            </span>
+          </span>
+        )}
+        <button type="button" className="btn sm" onClick={() => setKeys(true)}>
+          <Icon name="keyboard" size={16} /> Shortcuts
+        </button>
         <span className="cmv-clock">
           {live
             ? clock(now - start!)
@@ -293,69 +521,96 @@ export function CallMode() {
         </button>
       </header>
 
-      <div className="cmv-grid">
+      <div
+        className="cmv-grid"
+        ref={grid}
+        style={{ '--cmv-split': `${split}%` } as React.CSSProperties}
+      >
         <div className="cmv-left">
-          {((meeting && attendees.length > 0) || md?.agenda) && (
-            <div className="cmv-info">
-              {meeting && attendees.length > 0 && (
-                <section className="cmv-card">
-                  <h2 className="cmv-h">In the Room</h2>
-                  {md!.attendees.map((p) => (
-                    <div key={p.name} className="cmv-person">
-                      <strong>{p.name}</strong>
-                      {p.title && <span> · {p.title}</span>}
-                    </div>
-                  ))}
-                </section>
-              )}
-              {md?.agenda && (
-                <section className="cmv-card">
-                  <h2 className="cmv-h">Topics</h2>
-                  <p className="cmv-pre">{md.agenda}</p>
-                </section>
-              )}
-            </div>
-          )}
           <section className="cmv-card cmv-notes">
             <div className="cmv-notes-head">
-              <h2 className="cmv-h">Call Notes</h2>
+              {/* Notes, or (with a meeting) its questions: prepared ahead or marked "Q:". */}
+              {meeting ? (
+                <div className="tabs cmv-tabs" role="tablist" aria-label="Notes or questions">
+                  <button
+                    type="button"
+                    role="tab"
+                    className="tab"
+                    aria-selected={side === 'notes'}
+                    title={`Notes (${ALT}N)`}
+                    onClick={() => setSide('notes')}
+                  >
+                    Notes
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    className="tab"
+                    aria-selected={side === 'questions'}
+                    title={`Questions (${ALT}Q)`}
+                    onClick={() => setSide('questions')}
+                  >
+                    Questions
+                    {questions.length > 0 && (
+                      <span className="count">{questions.filter((x) => !x.asked).length}</span>
+                    )}
+                  </button>
+                </div>
+              ) : (
+                <h2 className="cmv-h">Call Notes</h2>
+              )}
+              <span className="cmv-key" title="Go to the stories search">
+                <kbd>{ALT}/</kbd>
+              </span>
               <span className={cx('cmv-save', saveState === 'error' && 'bad')} aria-live="polite">
                 {notesStatus}
               </span>
             </div>
-            <Suspense fallback={<div className="notes-editor cmv-notes-wait" />}>
-              <NotesEditor
-                value={notes}
-                onChange={typeNotes}
-                onBlur={() => void save()}
-                label="Call notes"
-                placeholder="Jot it down as you go…"
-              />
-            </Suspense>
-            <p className="cmv-hints" aria-hidden="true">
-              <span>
-                <kbd>{MOD}B</kbd> bold
-              </span>
-              <span>
-                <kbd>{MOD}I</kbd> italic
-              </span>
-              <span>
-                <kbd>{MOD}U</kbd> underline
-              </span>
-              <span>
-                <kbd>-</kbd> list
-              </span>
-              <span>
-                <kbd>1.</kbd> numbered
-              </span>
-              <span>
-                <kbd>[ ]</kbd> task
-              </span>
-            </p>
+            {side === 'questions' && meeting ? (
+              // On the call: no adding from the bank (that's for preparing, on the meeting).
+              <CallQuestions questions={questions} onChange={saveQuestions} />
+            ) : (
+              <Suspense fallback={<div className="notes-editor cmv-notes-wait" />}>
+                <NotesEditor
+                  value={notes}
+                  onChange={typeNotes}
+                  onBlur={() => void save()}
+                  label="Call notes"
+                  placeholder="Jot it down as you go…"
+                />
+              </Suspense>
+            )}
           </section>
         </div>
 
+        {/* Drag left or right to give notes or stories more room (30% to 70%); double-click
+            puts it back in the middle. */}
+        <div
+          className="cmv-split"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize notes and stories"
+          aria-valuenow={Math.round(split)}
+          aria-valuemin={MIN_SPLIT}
+          aria-valuemax={MAX_SPLIT}
+          tabIndex={0}
+          onPointerDown={startDrag}
+          onDoubleClick={() => setSplitKept(50)}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowLeft') setSplitKept(split - 5);
+            if (e.key === 'ArrowRight') setSplitKept(split + 5);
+          }}
+        >
+          <span className="cmv-split-grip" aria-hidden />
+        </div>
+
         <section className="cmv-card cmv-stories">
+          <div className="cmv-notes-head">
+            <h2 className="cmv-h">Stories</h2>
+            <span className="cmv-key" title="Go to the notes">
+              <kbd>{ALT}/</kbd>
+            </span>
+          </div>
           <label className="cmv-search">
             <Icon name="search" size={18} />
             <input
@@ -368,9 +623,16 @@ export function CallMode() {
               }}
               placeholder="Type the question you just heard…"
               aria-label="Search stories"
+              onKeyDown={(e) => {
+                // Escape clears the search.
+                if (e.key === 'Escape' && q) {
+                  e.preventDefault();
+                  setQ('');
+                  setSel(null);
+                }
+              }}
             />
             <SearchClear value={q} onClear={() => setQ('')} />
-            {!q && <kbd>/</kbd>}
           </label>
           <div className="cmv-stories-body">
             <div className="cmv-list">
@@ -424,6 +686,7 @@ export function CallMode() {
         </section>
       </div>
 
+      {keys && <Shortcuts onClose={() => setKeys(false)} />}
       {ending && (
         <Sheet
           title="How Did It Go?"

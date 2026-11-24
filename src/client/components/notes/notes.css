@@ -242,3 +242,50 @@ button.note-check {
   border-radius: 5px;
   background: var(--bg, #ebedf1);
 }
+
+/* A question in the notes: "Q:" drawn as a round blue Q badge, the line in bold. */
+.cm-qbadge {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: var(--accent, #2b3fd0);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 800;
+  line-height: 1;
+  vertical-align: 1px;
+  user-select: none;
+}
+.cm-line.cm-qline {
+  font-weight: 650;
+}
+
+/* The format pill over selected text: white, dark icons, the theme blue for what's on. (The
+   editor's own tooltip colours must not reach it.) */
+.cm-editor .cm-tooltip:has(> .note-pill) {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.cm-editor .note-pill {
+  border: 1px solid #d9dce3;
+  background: #fff !important;
+  color: var(--ink, #1a1d24);
+  box-shadow: 0 8px 24px rgba(20, 30, 50, 0.16);
+}
+.cm-editor .note-pill button {
+  color: var(--ink, #1a1d24);
+}
+.cm-editor .note-pill button:hover {
+  background: var(--bg, #ebedf1);
+}
+.cm-editor .note-pill button.on {
+  background: var(--accent-soft, #e4e8fd);
+  color: var(--accent-deep, #2131a6);
+}
+.cm-editor .note-pill-sep {
+  background: #d9dce3;
+}

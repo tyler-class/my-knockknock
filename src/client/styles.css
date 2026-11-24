@@ -9295,3 +9295,56 @@ button.person.prow {
 .fw-section-move .xbtn:disabled {
   opacity: 0.35;
 }
+
+/* Page headings: buttons keep their words on one line; when the heading and its buttons don't
+   fit side by side (phones), the buttons drop to the line below instead of squeezing. */
+.page-h {
+  flex-wrap: wrap;
+  row-gap: 10px;
+}
+.page-h .btn {
+  white-space: nowrap;
+}
+.page-h-acts {
+  flex-wrap: nowrap;
+}
+
+/* A question's words wrap onto as many lines as they need (a textarea that grows). */
+.q-line .q-line-text {
+  display: block;
+  resize: none;
+  overflow: hidden;
+  font: inherit;
+  line-height: 1.4;
+}
+
+/* Stories on a phone: the framework and how many jobs use it on top, the title below at full
+   width (not squeezed into a narrow column between them). */
+@media (max-width: 767px) {
+  .story-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      'tag meta del'
+      'title title title';
+    align-items: center;
+    column-gap: 10px;
+    row-gap: 6px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+  .story-row .fw-tag {
+    grid-area: tag;
+    justify-self: start;
+  }
+  .story-row .sc-title {
+    grid-area: title;
+  }
+  .story-row .story-row-meta {
+    grid-area: meta;
+    justify-self: end;
+  }
+  .story-row .story-row-del {
+    grid-area: del;
+  }
+}

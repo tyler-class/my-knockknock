@@ -52,6 +52,10 @@ Don't bring in styling from the sibling apps; match this app's look for anything
   only choices that exist. Stories is the only page with one; Jobs narrows with its stage tabs and
   search box.
 - Many-valued choices (six meeting kinds) are a dropdown (`Select`), not a sliding toggle.
+- Page headings' buttons keep their words on one line; when they don't fit beside the heading
+  (phones) they drop below it. Story rows on a phone put the framework tag and job count on top
+  and the title below at full width. Question words wrap (`AutoTextarea`), never cut off. No
+  version numbers anywhere in the UI (a story's `version` is internal).
 
 ## Workflow
 

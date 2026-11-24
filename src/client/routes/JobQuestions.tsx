@@ -5,6 +5,7 @@ import { useState } from 'react';
 import type { Application, JobQuestion } from '@shared/types';
 import { useActions, type Data } from '../lib/queries';
 import { Icon } from '../components/Icon';
+import { AutoTextarea } from '../components/ui';
 import { QuestionBankPicker } from '../components/QuestionBankPicker';
 import { NewQuestionCard } from '../components/NewQuestionCard';
 import { RemoveFromJob } from '../components/RemoveFromJob';
@@ -87,14 +88,19 @@ function JobQuestionRow({ q, grip }: { q: JobQuestion; grip: RowGrip }) {
       <span className="cmq-qmark" aria-hidden>
         Q
       </span>
-      <input
+      {/* Long questions wrap onto more lines; Enter saves (no line breaks in a question). */}
+      <AutoTextarea
         className="q-line-text"
+        rows={1}
         value={text}
         aria-label="Question"
-        onChange={(e) => setText(e.target.value)}
+        onChange={(e) => setText(e.target.value.replace(/\n/g, ' '))}
         onBlur={save}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            (e.target as HTMLTextAreaElement).blur();
+          }
         }}
       />
       {/* Only a job's own question offers Save to bank (one from the bank needs nothing). */}

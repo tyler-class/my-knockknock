@@ -234,10 +234,13 @@ export function Stories() {
                       {frameworkOf(s.framework_key, frameworks)?.name ?? s.framework_key}
                     </span>
                     <strong className="sc-title">{s.title}</strong>
-                    <span className="story-row-meta">
-                      v{s.version} · in {copies.length} {copies.length === 1 ? 'job' : 'jobs'}
-                    </span>
-                    <span onClick={(e) => e.stopPropagation()}>
+                    {/* Where it's used (nothing when it's on no job yet), like Questions. */}
+                    {copies.length > 0 && (
+                      <span className="story-row-meta">
+                        {copies.length} {copies.length === 1 ? 'job' : 'jobs'}
+                      </span>
+                    )}
+                    <span className="story-row-del" onClick={(e) => e.stopPropagation()}>
                       <BankDelete onDelete={() => act.del(`/stories/${s.id}`, 'Deleted')} />
                     </span>
                   </div>

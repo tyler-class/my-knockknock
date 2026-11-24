@@ -9348,3 +9348,14 @@ button.person.prow {
     grid-area: del;
   }
 }
+
+/* 1.1.11: on a phone, a meeting's or email's fields stack in one column (the person chooser
+   gets the full width instead of half beside Name). */
+@media (max-width: 767px) {
+  .ev-group .kvs {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.ev-group .card-h .btn {
+  white-space: nowrap;
+}

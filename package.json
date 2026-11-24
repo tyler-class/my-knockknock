@@ -1,6 +1,6 @@
 {
   "name": "knockknock",
-  "version": "1.1.9",
+  "version": "1.1.11",
   "private": true,
   "description": "A job search tracker you host yourself on Cloudflare: applications as timelines, a story bank for interviews, and an MCP server so your AI assistant keeps it up to date.",
   "license": "MIT",

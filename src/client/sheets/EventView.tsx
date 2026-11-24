@@ -56,10 +56,13 @@ const DIRECTIONS = [
 function Group({
   icon,
   title,
+  action,
   children,
 }: {
   icon?: IconName;
   title?: string;
+  /** A button at the right of the heading. */
+  action?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -69,6 +72,7 @@ function Group({
           <h3 className="sec-title">
             <Icon name={icon} size={18} /> {title}
           </h3>
+          {action}
         </div>
       )}
       <div className="kvs">{children}</div>
@@ -192,7 +196,8 @@ function AttendeesEdit({
   );
 }
 
-/** A meeting's questions in its panel: the same list as in Call Mode. */
+/** A meeting's questions in its panel: the same list as in Call Mode, with Link from Questions
+ *  at the right of the heading so the add field gets the full width. */
 function MeetingQuestions({
   appId,
   data,
@@ -211,22 +216,38 @@ function MeetingQuestions({
   );
   const keep = (next: CallQuestion[]) => void save({ questions: meetingKeeps(next) });
   return (
-    <div className="kv kv-full ev-qs">
-      <CallQuestions questions={list} onChange={keep} onAddFromBank={() => setPicking(true)} />
-      {picking && (
-        <QuestionBankPicker
-          taken={new Set(list.map((x) => x.question_id).filter((x): x is string => !!x))}
-          onPick={(b) => {
-            keep([
-              ...list,
-              { id: newQuestionId(), text: b.text, answer: null, asked: false, question_id: b.id },
-            ]);
-            setPicking(false);
-          }}
-          onClose={() => setPicking(false)}
-        />
-      )}
-    </div>
+    <Group
+      icon="question"
+      title="Questions"
+      action={
+        <button type="button" className="btn sm" onClick={() => setPicking(true)}>
+          <Icon name="link" size={14} /> Link from Questions
+        </button>
+      }
+    >
+      <div className="kv kv-full ev-qs">
+        <CallQuestions questions={list} onChange={keep} />
+        {picking && (
+          <QuestionBankPicker
+            taken={new Set(list.map((x) => x.question_id).filter((x): x is string => !!x))}
+            onPick={(b) => {
+              keep([
+                ...list,
+                {
+                  id: newQuestionId(),
+                  text: b.text,
+                  answer: null,
+                  asked: false,
+                  question_id: b.id,
+                },
+              ]);
+              setPicking(false);
+            }}
+            onClose={() => setPicking(false)}
+          />
+        )}
+      </div>
+    </Group>
   );
 }
 
@@ -372,9 +393,7 @@ export function EventView({ data, appId, ev }: { data: Data; appId: string; ev: 
         {/* Questions for the call: the job's (every call for it) and this meeting's own, from
             the bank or written here; worked through in Call Mode. */}
         <section id="ev-questions">
-          <Group icon="question" title="Questions">
-            <MeetingQuestions appId={appId} data={data} own={d.questions ?? []} save={save} />
-          </Group>
+          <MeetingQuestions appId={appId} data={data} own={d.questions ?? []} save={save} />
         </section>
         <NotesOn ev={ev} notes={notes} appId={appId} />
       </>

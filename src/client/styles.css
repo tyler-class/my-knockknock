@@ -64,6 +64,8 @@ body,
 }
 html {
   overscroll-behavior-x: none;
+  /* No double-tap zoom on phones (the viewport also stops pinch and focus zoom). */
+  touch-action: manipulation;
 }
 body {
   margin: 0;
